@@ -1,0 +1,26 @@
+[package]
+name = "unigame"
+version = "0.1.0"
+authors = ["Edwin Cheng <edwin0cheng@gmail.com>"]
+
+[dependencies]
+serde = "*"
+serde_derive = "*"
+serde_json = "*"
+byteorder = "*"
+rand       = "0.3"
+num-traits = "0.1"
+nalgebra   = "0.13"
+glenum = { git = "https://github.com/oussama/glenum-rs.git" }
+stdweb =  { git = "https://github.com/koute/stdweb.git" }
+nphysics3d = "0.7.2"
+ncollide = "0.13.0"
+
+[replace]
+"rand:0.3.20" = { path = "wasm-rand" }
+"rustc-serialize:0.3.24" = { path = "wasm-rustc-serialize" }
+
+# wasm compilation isn't currently compatible with incremental compilation
+# see https://github.com/rust-lang/rust/issues/47643
+[profile.dev]
+incremental = false

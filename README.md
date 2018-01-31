@@ -13,6 +13,12 @@ Crates Used :
 
 
 ## Build 
+
+The target `wasm32-unknown-unknown` is currently only on the nightly builds as of Jan-30 2018. 
+
 ```
+cargo install cargo-web # installs web sub command
+rustup override set nightly
+rustup target install wasm32-unknown-unknown
 cargo web start --target-webasm --release
 ```

@@ -1,5 +1,5 @@
 # unigame
-A simple webgl physic (wasm32-unknown-unknown) demo 
+A simple webgl physics (wasm32-unknown-unknown) demo 
 
 [Live demo](https://edwin0cheng.github.io/unigame_demo/)
 

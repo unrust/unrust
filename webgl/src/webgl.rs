@@ -1,9 +1,8 @@
 use std::ops::Deref;
-pub use stdweb::Reference;
 use stdweb::web::*;
 use stdweb::unstable::TryInto;
 use glenum::*;
-use webgl::common::*;
+use common::*;
 
 impl WebGLRenderingContext {
     pub fn new(canvas: &Element) -> WebGLRenderingContext {

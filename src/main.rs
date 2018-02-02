@@ -2,18 +2,17 @@
 #![recursion_limit = "512"]
 
 /* common */
-extern crate byteorder;
-extern crate glenum;
 extern crate nalgebra as na;
 extern crate ncollide;
 extern crate nphysics3d;
+extern crate webgl;
 
+#[cfg(all(target_arch = "wasm32"))]
 #[macro_use]
 extern crate stdweb;
 
 mod boxes_vee;
 mod engine;
-mod webgl;
 mod app;
 
 use boxes_vee::*;

@@ -5,7 +5,7 @@
 		}
 	],
 	"settings": {
-		"rust.target": "wasm32-unknown-unknown",
+		// "rust.target": "wasm32-unknown-unknown",
 		"editor.formatOnSave": true,
 	}
 }

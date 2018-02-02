@@ -13,6 +13,7 @@ Crates Used :
 
 
 ## Build 
+### As web app (wasm32-unknown-unknown)
 
 The target `wasm32-unknown-unknown` is currently only on the nightly builds as of Jan-30 2018. 
 
@@ -21,4 +22,9 @@ cargo install cargo-web # installs web sub command
 rustup override set nightly
 rustup target install wasm32-unknown-unknown
 cargo web start --target wasm32-unknown-unknown --release
+```
+
+### As desktop app (native-opengl)
+```
+cargo run --release
 ```

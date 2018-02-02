@@ -17,6 +17,9 @@ pub use self::web_app::*;
 extern crate glutin;
 
 #[cfg(not(target_arch = "wasm32"))]
+extern crate time;
+
+#[cfg(not(target_arch = "wasm32"))]
 pub mod native_app;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -40,4 +43,10 @@ impl AppConfig {
 
 pub enum AppEvent {
     Click,
+}
+
+pub struct FPS {
+    counter: u32,
+    last: f64,
+    fps: u32,
 }

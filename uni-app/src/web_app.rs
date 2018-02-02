@@ -10,6 +10,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use AppEvent;
+use FPS;
 
 pub struct App {
     window: Element,
@@ -88,12 +89,6 @@ impl App {
     }
 }
 
-pub struct FPS {
-    counter: u32,
-    last: f64,
-    fps: u32,
-}
-
 impl FPS {
     pub fn new() -> FPS {
         FPS::setup_div();
@@ -107,7 +102,7 @@ impl FPS {
         fps
     }
 
-    pub fn setup_div() {
+    fn setup_div() {
         let div = document().create_element("div");
         let content = document().create_text_node("None");
         div.append_child(&content);
@@ -127,7 +122,7 @@ impl FPS {
         };
     }
 
-    pub fn now() -> f64 {
+    fn now() -> f64 {
         let v = js! { return performance.now(); };
         return v.try_into().unwrap();
     }

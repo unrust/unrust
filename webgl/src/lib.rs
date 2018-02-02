@@ -2,7 +2,6 @@
 #![feature(nll)]
 #![recursion_limit = "512"]
 
-// #[cfg(target_arch = "wasm32")]
 extern crate glenum;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -15,7 +14,6 @@ extern crate stdweb;
 #[cfg(target_arch = "wasm32")]
 pub mod webgl;
 
-#[cfg(target_arch = "wasm32")]
 pub use glenum::*;
 
 #[cfg(not(target_arch = "wasm32"))]

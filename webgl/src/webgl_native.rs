@@ -17,17 +17,14 @@ pub fn check_gl_error(msg: &str) {
 }
 
 impl WebGLRenderingContext {
-    pub fn new(_canvas: &isize) -> WebGLRenderingContext {
+    pub fn new<'p>(
+        mut loadfn: Box<'p + for<'a> FnMut(&'a str) -> *const c_void>,
+    ) -> WebGLRenderingContext {
+        gl::load_with(move |name| loadfn(name));
+
         WebGLRenderingContext {
             common: GLContext::new(),
         }
-    }
-
-    pub fn load_with<F>(loadfn: F)
-    where
-        F: FnMut(&str) -> *const c_void,
-    {
-        gl::load_with(loadfn);
     }
 }
 
@@ -37,6 +34,11 @@ impl GLContext {
 
         GLContext { reference: 0 }
     }
+
+    pub fn print(&self, s: &str) {
+        println!("{}", s);
+    }
+
     pub fn create_buffer(&self) -> WebGLBuffer {
         let mut buffer = WebGLBuffer(0);
         unsafe {
@@ -172,10 +174,10 @@ impl GLContext {
                 offset as _,
             );
         }
-        println!(
-            "{:?} {:?} {:?} {:?} {:?} {:?} {:?}",
-            location, size, kind, kind as u32, normalized, stride, offset
-        );
+        // println!(
+        //     "{:?} {:?} {:?} {:?} {:?} {:?} {:?}",
+        //     location, size, kind, kind as u32, normalized, stride, offset
+        // );
         check_gl_error("vertex_attrib_pointer");
     }
 
@@ -413,37 +415,37 @@ impl GLContext {
         }
     }
 
-    pub fn uniform_matrix_4fv(&self, location: WebGLUniformLocation, value: &[[f32; 4]; 4]) {
+    pub fn uniform_matrix_4fv(&self, location: &WebGLUniformLocation, value: &[[f32; 4]; 4]) {
         unsafe {
             gl::UniformMatrix4fv(*location.deref() as i32, 1, false as _, &value[0] as _);
         }
     }
 
-    pub fn uniform_matrix_3fv(&self, location: WebGLUniformLocation, value: &[[f32; 3]; 3]) {
+    pub fn uniform_matrix_3fv(&self, location: &WebGLUniformLocation, value: &[[f32; 3]; 3]) {
         unsafe {
             gl::UniformMatrix3fv(*location.deref() as i32, 1, false as _, &value[0] as _);
         }
     }
 
-    pub fn uniform_matrix_2fv(&self, location: WebGLUniformLocation, value: &[[f32; 2]; 2]) {
+    pub fn uniform_matrix_2fv(&self, location: &WebGLUniformLocation, value: &[[f32; 2]; 2]) {
         unsafe {
             gl::UniformMatrix2fv(*location.deref() as i32, 1, false as _, &value[0] as _);
         }
     }
 
-    pub fn uniform_1i(&self, location: WebGLUniformLocation, value: i32) {
+    pub fn uniform_1i(&self, location: &WebGLUniformLocation, value: i32) {
         unsafe {
-            gl::Uniform1i(*location as i32, value as _);
+            gl::Uniform1i(*location.deref() as i32, value as _);
         }
     }
 
-    pub fn uniform_1f(&self, location: WebGLUniformLocation, value: f32) {
+    pub fn uniform_1f(&self, location: &WebGLUniformLocation, value: f32) {
         unsafe {
-            gl::Uniform1f(*location as i32, value as _);
+            gl::Uniform1f(*location.deref() as i32, value as _);
         }
     }
 
-    pub fn uniform_4f(&self, location: WebGLUniformLocation, value: (f32, f32, f32, f32)) {
+    pub fn uniform_4f(&self, location: &WebGLUniformLocation, value: (f32, f32, f32, f32)) {
         unsafe {
             gl::Uniform4f(*location.deref() as _, value.0, value.1, value.2, value.3);
         }

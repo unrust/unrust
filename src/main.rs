@@ -64,103 +64,105 @@ pub fn main() {
     let size = (800, 600);
     let config = AppConfig::new("Test", size);
     let app = App::new(config);
-    let engine = new_handle(Engine::new(&app, size));
-    let mesh_mgr = new_handle(MeshManager::new(&engine));
+    {
+        let engine = new_handle(Engine::new(&app, size));
+        let mesh_mgr = new_handle(MeshManager::new(&engine));
 
-    app.add_control_text();
+        app.add_control_text();
 
-    let mut camera = Camera::new();
+        let mut camera = Camera::new();
 
-    camera.lookat(
-        &Point3::new(0.0, 10.0, 10.0),
-        &Point3::new(0.0, 0.0, 0.0),
-        &Vector3::new(0.0, 1.0, 0.0),
-    );
+        camera.lookat(
+            &Point3::new(0.0, 10.0, 10.0),
+            &Point3::new(0.0, 0.0, 0.0),
+            &Vector3::new(0.0, 1.0, 0.0),
+        );
 
-    let scene = Rc::new(RefCell::new(Scene::new()));
+        let scene = Rc::new(RefCell::new(Scene::new()));
 
-    engine.borrow_mut().main_camera = Some(camera);
+        engine.borrow_mut().main_camera = Some(camera);
 
-    let cubes: Handle<Vec<Entity>> = new_handle(vec![]);
+        let cubes: Handle<Vec<Entity>> = new_handle(vec![]);
 
-    for rb in scene.borrow_mut().world.rigid_bodies() {
-        let mut rbody = rb.borrow();
-        let mesh_mgr = &mesh_mgr.borrow();
+        for rb in scene.borrow_mut().world.rigid_bodies() {
+            let mut rbody = rb.borrow();
+            let mesh_mgr = &mesh_mgr.borrow();
 
-        let cube = Rc::new(RefCell::new(GameObject {
-            transform: *rbody.position(),
-            mesh: mesh_mgr.get(rbody.shape().as_ref()).unwrap(),
-            shader_program: "default",
-        }));
+            let cube = Rc::new(RefCell::new(GameObject {
+                transform: *rbody.position(),
+                mesh: mesh_mgr.get(rbody.shape().as_ref()).unwrap(),
+                shader_program: "default",
+            }));
 
-        engine.borrow_mut().add(cube.clone());
-        cubes.borrow_mut().push(Entity {
-            go: cube,
-            rb: rb.clone(),
-        });
-    }
+            engine.borrow_mut().add(cube.clone());
+            cubes.borrow_mut().push(Entity {
+                go: cube,
+                rb: rb.clone(),
+            });
+        }
 
-    let mut fps = FPS::new();
-    let mut offset = Box::new(0.0 as f32);
+        let mut fps = FPS::new();
+        let mut offset = Box::new(0.0 as f32);
 
-    app.run(move |app: &mut App| {
-        fps.step();
-        scene.borrow_mut().step();
+        app.run(move |app: &mut App| {
+            fps.step();
+            scene.borrow_mut().step();
 
-        {
-            let mut engine = engine.borrow_mut();
-            let cubes = cubes.clone();
+            {
+                let mut engine = engine.borrow_mut();
+                let cubes = cubes.clone();
 
-            for evt in app.events.borrow().iter() {
-                match evt {
-                    &AppEvent::Click => {
-                        let scene = scene.clone();
-                        let mesh_mgr = mesh_mgr.clone();
+                for evt in app.events.borrow().iter() {
+                    match evt {
+                        &AppEvent::Click => {
+                            let scene = scene.clone();
+                            let mesh_mgr = mesh_mgr.clone();
 
-                        let rb = scene.borrow_mut().add_box();
-                        let rbody = rb.borrow();
-                        let mesh_mgr = &mesh_mgr.borrow();
+                            let rb = scene.borrow_mut().add_box();
+                            let rbody = rb.borrow();
+                            let mesh_mgr = &mesh_mgr.borrow();
 
-                        let cube = Rc::new(RefCell::new(GameObject {
-                            transform: *rbody.position(),
-                            mesh: mesh_mgr.get(rbody.shape().as_ref()).unwrap(),
-                            shader_program: "default",
-                        }));
+                            let cube = Rc::new(RefCell::new(GameObject {
+                                transform: *rbody.position(),
+                                mesh: mesh_mgr.get(rbody.shape().as_ref()).unwrap(),
+                                shader_program: "default",
+                            }));
 
-                        engine.add(cube.clone());
-                        cubes.borrow_mut().push(Entity {
-                            go: cube,
-                            rb: rb.clone(),
-                        })
+                            engine.add(cube.clone());
+                            cubes.borrow_mut().push(Entity {
+                                go: cube,
+                                rb: rb.clone(),
+                            })
+                        }
                     }
                 }
             }
-        }
 
-        // cam.lookat(
-        //     &Point3::new(10.0 * offset.sin(), 10.0, 10.0 * offset.cos()),
-        //     &Point3::new(0.0, 0.0, 0.0),
-        //     &Vector3::new(0.0, 1.0, 0.0),
-        // );
+            // cam.lookat(
+            //     &Point3::new(10.0 * offset.sin(), 10.0, 10.0 * offset.cos()),
+            //     &Point3::new(0.0, 0.0, 0.0),
+            //     &Vector3::new(0.0, 1.0, 0.0),
+            // );
 
-        {
-            let mut engine = engine.borrow_mut();
-            let cam = engine.main_camera.as_mut().unwrap();
-            cam.lookat(
-                &Point3::new(-30.0, 30.0, -30.0),
-                &Point3::new(0.0, 0.0, 0.0),
-                &Vector3::new(0.0, 1.0, 0.0),
-            );
-        }
+            {
+                let mut engine = engine.borrow_mut();
+                let cam = engine.main_camera.as_mut().unwrap();
+                cam.lookat(
+                    &Point3::new(-30.0, 30.0, -30.0),
+                    &Point3::new(0.0, 0.0, 0.0),
+                    &Vector3::new(0.0, 1.0, 0.0),
+                );
+            }
 
-        for cube in cubes.borrow_mut().iter_mut() {
-            cube.go.borrow_mut().transform = *cube.rb.borrow().position();
-        }
+            for cube in cubes.borrow_mut().iter_mut() {
+                cube.go.borrow_mut().transform = *cube.rb.borrow().position();
+            }
 
-        *offset.as_mut() += 0.01;
+            *offset.as_mut() += 0.01;
 
-        {
-            engine.borrow_mut().render();
-        }
-    });
+            {
+                engine.borrow_mut().render();
+            }
+        });
+    }
 }

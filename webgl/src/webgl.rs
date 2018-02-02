@@ -258,7 +258,11 @@ impl GLContext {
         };
 
         let uni: i32 = value.try_into().unwrap();
-        return Some(WebGLUniformLocation(uni));
+
+        return Some(WebGLUniformLocation {
+            reference: uni,
+            name: name.into(),
+        });
     }
 
     pub fn vertex_attrib_pointer(

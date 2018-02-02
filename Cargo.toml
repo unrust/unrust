@@ -8,9 +8,7 @@ nalgebra   = "0.13"
 nphysics3d = "0.7.2"
 ncollide = "0.13.0"
 webgl = {path="webgl"}
-
-# [target.'cfg(target_arch = "wasm32")'.dependencies]
-stdweb =  { git = "https://github.com/koute/stdweb.git" }
+uni-app = {path="uni-app"}
 
 
 [replace]

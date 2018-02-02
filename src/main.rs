@@ -5,32 +5,22 @@
 extern crate nalgebra as na;
 extern crate ncollide;
 extern crate nphysics3d;
+extern crate uni_app;
 extern crate webgl;
-
-#[cfg(all(target_arch = "wasm32"))]
-#[macro_use]
-extern crate stdweb;
 
 mod boxes_vee;
 mod engine;
-mod app;
 
 use boxes_vee::*;
 use engine::*;
 use std::cell::RefCell;
 use std::rc::Rc;
-use app::*;
 use std::collections::HashMap;
-use stdweb::web::*;
+use uni_app::*;
 
-// use stdweb::web::*;
-// use stdweb::unstable::TryInto;
 use nphysics3d::object::RigidBody;
 use na::{Point3, Vector3};
 use ncollide::shape::{Cuboid3, Plane3, Shape3};
-
-use stdweb::web::{Element, IEventTarget};
-use stdweb::web::event::ClickEvent;
 
 type Handle<T> = Rc<RefCell<T>>;
 
@@ -70,34 +60,14 @@ impl MeshManager {
     }
 }
 
-pub fn add_control_caption() {
-    let div = document().create_element("div");
-    let content = document().create_text_node("Click on canvas to drop new box.");
-    div.append_child(&content);
-
-    let body = document().query_selector("body").unwrap();
-    body.append_child(&div);
-
-    js!{
-        var div = @{div};
-        div.id = "caption";
-        div.style.position = "fixed";
-        div.style.top = "580px";
-        div.style.left = "5px";
-        div.style.padding = "5px";
-        div.style.backgroundColor = "lightblue";
-        div.style.textAlign = "center";
-    };
-}
-
 pub fn main() {
     let size = (800, 600);
     let config = AppConfig::new("Test", size);
-    let mut app = App::new(config);
+    let app = App::new(config);
     let engine = new_handle(Engine::new(&app, size));
     let mesh_mgr = new_handle(MeshManager::new(&engine));
 
-    add_control_caption();
+    app.add_control_text();
 
     let mut camera = Camera::new();
 
@@ -133,39 +103,39 @@ pub fn main() {
     let mut fps = FPS::new();
     let mut offset = Box::new(0.0 as f32);
 
-    let canvas: &Element = app.canvas();
-    canvas.add_event_listener({
-        let scene = scene.clone();
-        let engine = engine.clone();
-        let cubes = cubes.clone();
-        let mesh_mgr = mesh_mgr.clone();
-
-        move |_: ClickEvent| {
-            let rb = scene.borrow_mut().add_box();
-            let rbody = rb.borrow();
-            let mesh_mgr = &mesh_mgr.borrow();
-
-            let cube = Rc::new(RefCell::new(GameObject {
-                transform: *rbody.position(),
-                mesh: mesh_mgr.get(rbody.shape().as_ref()).unwrap(),
-                shader_program: "default",
-            }));
-
-            engine.borrow_mut().add(cube.clone());
-            cubes.borrow_mut().push(Entity {
-                go: cube,
-                rb: rb.clone(),
-            })
-        }
-    });
-
-    app.run(move || {
+    app.run(move |app: &mut App| {
         fps.step();
         scene.borrow_mut().step();
 
-        let mut engine = engine.borrow_mut();
+        {
+            let mut engine = engine.borrow_mut();
+            let cubes = cubes.clone();
 
-        let cam = engine.main_camera.as_mut().unwrap();
+            for evt in app.events.borrow().iter() {
+                match evt {
+                    &AppEvent::Click => {
+                        let scene = scene.clone();
+                        let mesh_mgr = mesh_mgr.clone();
+
+                        let rb = scene.borrow_mut().add_box();
+                        let rbody = rb.borrow();
+                        let mesh_mgr = &mesh_mgr.borrow();
+
+                        let cube = Rc::new(RefCell::new(GameObject {
+                            transform: *rbody.position(),
+                            mesh: mesh_mgr.get(rbody.shape().as_ref()).unwrap(),
+                            shader_program: "default",
+                        }));
+
+                        engine.add(cube.clone());
+                        cubes.borrow_mut().push(Entity {
+                            go: cube,
+                            rb: rb.clone(),
+                        })
+                    }
+                }
+            }
+        }
 
         // cam.lookat(
         //     &Point3::new(10.0 * offset.sin(), 10.0, 10.0 * offset.cos()),
@@ -173,11 +143,15 @@ pub fn main() {
         //     &Vector3::new(0.0, 1.0, 0.0),
         // );
 
-        cam.lookat(
-            &Point3::new(-30.0, 30.0, -30.0),
-            &Point3::new(0.0, 0.0, 0.0),
-            &Vector3::new(0.0, 1.0, 0.0),
-        );
+        {
+            let mut engine = engine.borrow_mut();
+            let cam = engine.main_camera.as_mut().unwrap();
+            cam.lookat(
+                &Point3::new(-30.0, 30.0, -30.0),
+                &Point3::new(0.0, 0.0, 0.0),
+                &Vector3::new(0.0, 1.0, 0.0),
+            );
+        }
 
         for cube in cubes.borrow_mut().iter_mut() {
             cube.go.borrow_mut().transform = *cube.rb.borrow().position();
@@ -185,6 +159,8 @@ pub fn main() {
 
         *offset.as_mut() += 0.01;
 
-        engine.render();
+        {
+            engine.borrow_mut().render();
+        }
     });
 }

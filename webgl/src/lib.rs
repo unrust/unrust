@@ -2,20 +2,33 @@
 #![feature(nll)]
 #![recursion_limit = "512"]
 
+// #[cfg(target_arch = "wasm32")]
 extern crate glenum;
 
+#[cfg(not(target_arch = "wasm32"))]
+extern crate gl;
+
+#[cfg(target_arch = "wasm32")]
 #[macro_use]
 extern crate stdweb;
 
+#[cfg(target_arch = "wasm32")]
 pub mod webgl;
+
+#[cfg(target_arch = "wasm32")]
 pub use glenum::*;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod webgl_native;
 
 pub mod common {
     use std::ops::Deref;
+
+    #[cfg(target_arch = "wasm32")]
     type Reference = i32;
 
     #[cfg(not(target_arch = "wasm32"))]
-    use webgl_native::*;
+    type Reference = u32;
 
     #[derive(Debug, PartialEq)]
     pub struct GLContext {
@@ -60,9 +73,9 @@ pub mod common {
     }
 
     #[derive(Debug, PartialEq)]
-    pub struct WebGLProgram(pub i32);
+    pub struct WebGLProgram(pub Reference);
     impl Deref for WebGLProgram {
-        type Target = i32;
+        type Target = Reference;
         fn deref(&self) -> &Self::Target {
             &self.0
         }
@@ -87,11 +100,14 @@ pub mod common {
     }
 
     #[derive(Debug, PartialEq)]
-    pub struct WebGLUniformLocation(pub i32);
+    pub struct WebGLUniformLocation {
+        pub reference: Reference,
+        pub name: String,
+    }
     impl Deref for WebGLUniformLocation {
-        type Target = i32;
-        fn deref(&self) -> &i32 {
-            &self.0
+        type Target = Reference;
+        fn deref(&self) -> &Reference {
+            &self.reference
         }
     }
 

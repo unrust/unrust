@@ -1,14 +1,11 @@
 use na::*;
 
-use stdweb::web::*;
-use stdweb::unstable::TryInto;
 use std::mem::size_of;
-
-use webgl::*;
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use app::*;
+use uni_app::*;
+use webgl::*;
 
 pub struct Camera {
     v: Matrix4<f32>,
@@ -25,63 +22,6 @@ impl Camera {
         Camera {
             v: Matrix4::identity(),
             p: Matrix4::identity(),
-        }
-    }
-}
-
-pub struct FPS {
-    counter: u32,
-    last: f64,
-    fps: u32,
-}
-
-impl FPS {
-    pub fn new() -> FPS {
-        FPS::setup_div();
-
-        let fps = FPS {
-            counter: 0,
-            last: FPS::now(),
-            fps: 0,
-        };
-
-        fps
-    }
-
-    pub fn setup_div() {
-        let div = document().create_element("div");
-        let content = document().create_text_node("None");
-        div.append_child(&content);
-
-        let body = document().query_selector("body").unwrap();
-        body.append_child(&div);
-
-        js!{
-            var div = @{div};
-            div.id = "fps";
-            div.style.position = "fixed";
-            div.style.top = "5px";
-            div.style.left = "5px";
-            div.style.padding = "5px";
-            div.style.backgroundColor = "lightblue";
-            div.style.textAlign = "center";
-        };
-    }
-
-    pub fn now() -> f64 {
-        let v = js! { return performance.now(); };
-        return v.try_into().unwrap();
-    }
-
-    pub fn step(&mut self) {
-        self.counter += 1;
-        let curr = FPS::now();
-        if curr - self.last > 1000.0 {
-            self.last = curr;
-            self.fps = self.counter;
-            self.counter = 0;
-            let _content = document().query_selector("#fps");
-            js!( @{_content}.innerText = "fps : " + @{self.fps} );
         }
     }
 }

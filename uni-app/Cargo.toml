@@ -1,0 +1,12 @@
+[package]
+name = "uni-app"
+version = "0.1.0"
+authors = ["Edwin Cheng <edwin0cheng@gmail.com>"]
+
+[dependencies]
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+stdweb =  "*"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+glutin = "*"

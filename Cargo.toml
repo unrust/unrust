@@ -10,6 +10,8 @@ ncollide = "0.13.0"
 webgl = {path="webgl"}
 uni-app = {path="uni-app"}
 
+# Image related dependencies
+png = "*"
 
 [replace]
 "rand:0.3.20" = { path = "wasm-rand" }

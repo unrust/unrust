@@ -5,3 +5,5 @@
 /.vscode
 /webgl/target/**
 /unigame.code-workspace
+/buildnative.bat
+/buildweb.bat

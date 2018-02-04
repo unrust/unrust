@@ -19,6 +19,7 @@ use std::rc::Rc;
 use std::collections::HashMap;
 use uni_app::*;
 use std::sync::Arc;
+use na::Isometry3;
 
 use nphysics3d::object::RigidBody;
 use na::{Point3, Vector3};
@@ -30,10 +31,14 @@ fn new_handle<T>(t: T) -> Handle<T> {
     Rc::new(RefCell::new(t))
 }
 
-struct Entity {
-    go: Handle<GameObject>,
-    rb: Handle<RigidBody<f32>>,
+struct PhysicObject(Handle<RigidBody<f32>>);
+impl PhysicObject {
+    fn get_phy_transform(&self) -> Isometry3<f32> {
+        self.0.borrow().position().clone()
+    }
 }
+
+impl ComponentBased for PhysicObject {}
 
 struct MeshManager {
     meshes: HashMap<&'static str, Arc<Component>>,
@@ -66,16 +71,18 @@ impl MeshManager {
 fn add_object(
     mesh_mgr: Handle<MeshManager>,
     engine: Handle<Engine>,
-    rb: &RigidBody<f32>,
+    rb: Handle<RigidBody<f32>>,
 ) -> Handle<GameObject> {
     let mesh_mgr = &mesh_mgr.borrow();
 
     let mut eng = engine.borrow_mut();
-    let go = eng.new_gameobject(rb.position());
+    let go = eng.new_gameobject(rb.borrow().position());
     {
         let mut c = go.borrow_mut();
-        c.add_component(mesh_mgr.get(rb.shape().as_ref()).unwrap());
+
+        c.add_component(mesh_mgr.get(rb.borrow().shape().as_ref()).unwrap());
         c.add_component(Material::new_component("default"));
+        c.add_component(Component::new(PhysicObject(rb)));
     }
 
     go
@@ -103,15 +110,11 @@ pub fn main() {
 
         engine.borrow_mut().main_camera = Some(camera);
 
-        let cubes: Handle<Vec<Entity>> = new_handle(vec![]);
+        let mut cubes: Vec<Handle<GameObject>> = vec![];
 
         for rb in scene.borrow_mut().world.rigid_bodies() {
-            let go = add_object(mesh_mgr.clone(), engine.clone(), &rb.borrow());
-
-            cubes.borrow_mut().push(Entity {
-                go: go,
-                rb: rb.clone(),
-            });
+            let go = add_object(mesh_mgr.clone(), engine.clone(), rb.clone());
+            cubes.push(go);
         }
 
         let mut fps = FPS::new();
@@ -122,19 +125,14 @@ pub fn main() {
             scene.borrow_mut().step();
 
             {
-                let cubes = cubes.clone();
-
                 for evt in app.events.borrow().iter() {
                     match evt {
                         &AppEvent::Click => {
                             let scene = scene.clone();
                             let rb = scene.borrow_mut().add_box();
-                            let go = add_object(mesh_mgr.clone(), engine.clone(), &rb.borrow());
+                            let go = add_object(mesh_mgr.clone(), engine.clone(), rb.clone());
 
-                            cubes.borrow_mut().push(Entity {
-                                go: go,
-                                rb: rb.clone(),
-                            })
+                            cubes.push(go)
                         }
                     }
                 }
@@ -156,8 +154,14 @@ pub fn main() {
                 );
             }
 
-            for cube in cubes.borrow_mut().iter_mut() {
-                cube.go.borrow_mut().transform = *cube.rb.borrow().position();
+            let get_pb_tran = |o: &GameObject| {
+                let (rb, _) = o.get_component_by_type::<PhysicObject>().unwrap();
+                rb.get_phy_transform()
+            };
+
+            for go in cubes.iter() {
+                let tran = get_pb_tran(&go.borrow());
+                go.borrow_mut().transform = tran;
             }
 
             *offset.as_mut() += 0.01;

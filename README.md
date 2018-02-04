@@ -26,5 +26,6 @@ cargo web start --target wasm32-unknown-unknown --release
 
 ### As desktop app (native-opengl)
 ```
+rustup override set nightly
 cargo run --release
 ```

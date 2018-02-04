@@ -18,21 +18,26 @@ impl ShaderProgram {
         let vert_code = "       
             attribute vec3 aVertexPosition;
             attribute vec3 aVertexNormal;
+            attribute vec2 aTextureCoord;
 
             uniform mat4 uMVMatrix;
             uniform mat4 uPMatrix;
             uniform mat4 uNMatrix;
             varying vec3 vColor;
+
+            varying vec2 vTextureCoord;
             
             void main(void) {
                 gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
 
-                vec3 uLightingDirection = vec3(0.4, -0.4, 0);
+                vec3 uLightingDirection = normalize(vec3(1.0, -1.0, 0.3));
             
                 vec4 transformedNormal = uNMatrix * vec4(aVertexNormal, 1.0);
                 float directionalLightWeighting = max(dot(transformedNormal.xyz, -uLightingDirection), 0.0);
             
-                vColor = vec3(1.0) * directionalLightWeighting;
+                vColor = vec3(1.0, 1.0, 1.0) * directionalLightWeighting;
+
+                vTextureCoord = aTextureCoord;
             }    
         ";
 
@@ -50,8 +55,11 @@ impl ShaderProgram {
         precision mediump float;
 
         varying vec3 vColor;
+        varying vec2 vTextureCoord;
+        uniform sampler2D uSampler;
+
         void main(void) {
-            gl_FragColor = vec4(vColor, 1.0);
+            gl_FragColor = vec4(vColor, 1.0) * texture2D(uSampler, vec2(vTextureCoord.s, vTextureCoord.t));
         }
         ";
 
@@ -88,6 +96,11 @@ impl ShaderProgram {
 
         let ncoord = prog.get_coord(gl, "aVertexNormal");
         gl.enable_vertex_attrib_array(ncoord);
+
+        let texcoord = prog.get_coord(gl, "aTextureCoord");
+        gl.enable_vertex_attrib_array(texcoord);
+
+        prog.get_uniform(gl, "uSampler");
 
         prog
     }

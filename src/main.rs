@@ -3,6 +3,7 @@
 #![feature(integer_atomics)]
 
 /* common */
+extern crate image;
 extern crate nalgebra as na;
 extern crate ncollide;
 extern crate nphysics3d;
@@ -80,7 +81,7 @@ impl GameObjectList {
             let mut go_mut = go.borrow_mut();
 
             go_mut.add_component(mesh_mgr.get(rb.borrow().shape().as_ref()).unwrap());
-            go_mut.add_component(Material::new_component("default"));
+            go_mut.add_component(Material::new_component("default", Texture::new()));
             go_mut.add_component(Component::new(PhysicObject(rb)));
         }
 
@@ -108,15 +109,7 @@ pub fn main() {
 
         app.add_control_text();
 
-        let mut camera = Camera::new();
-
-        camera.lookat(
-            &Point3::new(0.0, 10.0, 10.0),
-            &Point3::new(0.0, 0.0, 0.0),
-            &Vector3::new(0.0, 1.0, 0.0),
-        );
-
-        engine.main_camera = Some(camera);
+        engine.main_camera = Some(Camera::new());
 
         let mut objects: GameObjectList = GameObjectList(vec![]);
 

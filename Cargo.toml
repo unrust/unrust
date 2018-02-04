@@ -11,7 +11,10 @@ webgl = {path="webgl"}
 uni-app = {path="uni-app"}
 
 # Image related dependencies
-png = "*"
+[dependencies.image]
+version = "*"
+default-features = false
+features = ["png"]
 
 [replace]
 "rand:0.3.20" = { path = "wasm-rand" }

@@ -450,7 +450,7 @@ impl GLContext {
         self.log("delete_tex");
         js!{
             var ctx = Module.gl.get(@{&self.reference});
-            var tex = @{&texture.0};
+            var tex = Module.gl.get(@{&texture.0});
             ctx.deleteTexture(tex)
             Module.gl.remove(tex)
         }
@@ -460,7 +460,8 @@ impl GLContext {
         self.log("bind_tex");
         js!{
             var ctx = Module.gl.get(@{&self.reference});
-            ctx.bindTexture(@{TextureBindPoint::Texture2d as u32 }, @{texture.0})
+            var tex = Module.gl.get(@{&texture.0});
+            ctx.bindTexture(@{TextureBindPoint::Texture2d as u32 }, tex)
         }
     }
 
@@ -532,7 +533,7 @@ impl GLContext {
         }
     }
 
-    pub fn uniform_matrix_3fv(&self, location: WebGLUniformLocation, value: &[[f32; 3]; 3]) {
+    pub fn uniform_matrix_3fv(&self, location: &WebGLUniformLocation, value: &[[f32; 3]; 3]) {
         self.log("uniform_matrix_3fv");
         use std::mem;
         let array = unsafe { mem::transmute::<&[[f32; 3]; 3], &[f32; 9]>(value) as &[f32] };
@@ -543,7 +544,7 @@ impl GLContext {
         }
     }
 
-    pub fn uniform_matrix_2fv(&self, location: WebGLUniformLocation, value: &[[f32; 2]; 2]) {
+    pub fn uniform_matrix_2fv(&self, location: &WebGLUniformLocation, value: &[[f32; 2]; 2]) {
         use std::mem;
         let array = unsafe { mem::transmute::<&[[f32; 2]; 2], &[f32; 4]>(value) as &[f32] };
         js!{
@@ -553,7 +554,7 @@ impl GLContext {
         }
     }
 
-    pub fn uniform_1i(&self, location: WebGLUniformLocation, value: i32) {
+    pub fn uniform_1i(&self, location: &WebGLUniformLocation, value: i32) {
         js!{
             var ctx = Module.gl.get(@{self.reference});
             var loc = Module.gl.get(@{location.deref()});
@@ -561,7 +562,7 @@ impl GLContext {
         }
     }
 
-    pub fn uniform_1f(&self, location: WebGLUniformLocation, value: f32) {
+    pub fn uniform_1f(&self, location: &WebGLUniformLocation, value: f32) {
         js!{
             var ctx = Module.gl.get(@{self.reference});
             var loc = Module.gl.get(@{location.deref()});
@@ -569,7 +570,7 @@ impl GLContext {
         }
     }
 
-    pub fn uniform_4f(&self, location: WebGLUniformLocation, value: (f32, f32, f32, f32)) {
+    pub fn uniform_4f(&self, location: &WebGLUniformLocation, value: (f32, f32, f32, f32)) {
         js!{
             var p = [@{value.0},@{value.1},@{value.2},@{value.3}];
             var ctx = Module.gl.get(@{self.reference});

@@ -11,7 +11,7 @@ pub fn check_gl_error(msg: &str) {
         use gl;
         let err = gl::GetError();
         if err != 0 {
-            println!("GLError: {} {}", msg, err);
+            panic!("GLError: {} {}", msg, err);
         }
     }
 }

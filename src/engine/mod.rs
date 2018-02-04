@@ -4,6 +4,7 @@ mod shader_program;
 mod camera;
 mod material;
 mod game_object;
+mod texture;
 
 use na::*;
 use std::rc::Rc;
@@ -19,6 +20,7 @@ pub use self::primitives::PrimitiveMesh;
 pub use self::shader_program::ShaderProgram;
 pub use self::camera::Camera;
 pub use self::material::Material;
+pub use self::texture::Texture;
 pub use self::game_object::{Component, ComponentBased, GameObject};
 
 pub struct Engine {
@@ -47,6 +49,7 @@ impl Engine {
         gl: &WebGLRenderingContext,
         ctx: &mut EngineContext,
         p: &ShaderProgram,
+        tex: &Texture,
         object: &GameObject,
         camera: &Camera,
     ) {
@@ -58,7 +61,7 @@ impl Engine {
         let up = p.get_uniform(gl, "uPMatrix");
         gl.uniform_matrix_4fv(&up, &camera.p.into());
 
-        let normal_mat = (camera.v * modelm).try_inverse().unwrap().transpose();
+        let normal_mat = (modelm).try_inverse().unwrap().transpose();
 
         let nm = p.get_uniform(gl, "uNMatrix");
         gl.uniform_matrix_4fv(&nm, &normal_mat.into());
@@ -66,6 +69,7 @@ impl Engine {
         let (mesh, com) = object.get_component_by_type::<Mesh>().unwrap();
 
         if ctx.mesh.is_none() || ctx.mesh.unwrap() != com.id() {
+            tex.bind(self, &p);
             mesh.bind(self, &p);
             ctx.switch_mesh += 1;
         }
@@ -120,7 +124,14 @@ impl Engine {
                     c += 1;
                 }
 
-                self.render_object(gl, &mut ctx, prog_p.as_ref().unwrap(), &object, camera);
+                self.render_object(
+                    gl,
+                    &mut ctx,
+                    prog_p.as_ref().unwrap(),
+                    &material.texture,
+                    &object,
+                    camera,
+                );
 
                 let (_, meshcom) = object.get_component_by_type::<Mesh>().unwrap();
                 ctx.mesh = Some(meshcom.id());

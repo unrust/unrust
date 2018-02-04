@@ -1,5 +1,6 @@
 #![feature(nll)]
 #![recursion_limit = "512"]
+#![feature(integer_atomics)]
 
 /* common */
 extern crate nalgebra as na;
@@ -17,6 +18,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::collections::HashMap;
 use uni_app::*;
+use std::sync::Arc;
 
 use nphysics3d::object::RigidBody;
 use na::{Point3, Vector3};
@@ -34,22 +36,23 @@ struct Entity {
 }
 
 struct MeshManager {
-    meshes: HashMap<&'static str, Rc<Mesh>>,
+    meshes: HashMap<&'static str, Arc<Component>>,
 }
 
 impl MeshManager {
-    pub fn new(engine: &Handle<Engine>) -> MeshManager {
+    pub fn new() -> MeshManager {
         MeshManager {
             meshes: {
-                let mut hm: HashMap<&'static str, Rc<Mesh>> = HashMap::new();
-                hm.insert("cube", Rc::new(CubeMesh::new(&engine.borrow_mut())));
-                hm.insert("plane", Rc::new(PlaneMesh::new(&engine.borrow_mut())));
+                let mut hm: HashMap<&'static str, Arc<Component>> = HashMap::new();
+                hm.insert("cube", PrimitiveMesh::new_cube_component());
+                hm.insert("plane", PrimitiveMesh::new_plane_component());
+
                 hm
             },
         }
     }
 
-    pub fn get(&self, shape: &Shape3<f32>) -> Option<Rc<Mesh>> {
+    pub fn get(&self, shape: &Shape3<f32>) -> Option<Arc<Component>> {
         if let Some(_) = shape.as_shape::<Cuboid3<f32>>() {
             return Some(self.meshes.get("cube").unwrap().clone());
         } else if let Some(_) = shape.as_shape::<Plane3<f32>>() {
@@ -60,13 +63,31 @@ impl MeshManager {
     }
 }
 
+fn add_object(
+    mesh_mgr: Handle<MeshManager>,
+    engine: Handle<Engine>,
+    rb: &RigidBody<f32>,
+) -> Handle<GameObject> {
+    let mesh_mgr = &mesh_mgr.borrow();
+
+    let mut eng = engine.borrow_mut();
+    let go = eng.new_gameobject(rb.position());
+    {
+        let mut c = go.borrow_mut();
+        c.add_component(mesh_mgr.get(rb.shape().as_ref()).unwrap());
+        c.add_component(Material::new_component("default"));
+    }
+
+    go
+}
+
 pub fn main() {
     let size = (800, 600);
     let config = AppConfig::new("Test", size);
     let app = App::new(config);
     {
         let engine = new_handle(Engine::new(&app, size));
-        let mesh_mgr = new_handle(MeshManager::new(&engine));
+        let mesh_mgr = new_handle(MeshManager::new());
 
         app.add_control_text();
 
@@ -85,18 +106,10 @@ pub fn main() {
         let cubes: Handle<Vec<Entity>> = new_handle(vec![]);
 
         for rb in scene.borrow_mut().world.rigid_bodies() {
-            let mut rbody = rb.borrow();
-            let mesh_mgr = &mesh_mgr.borrow();
+            let go = add_object(mesh_mgr.clone(), engine.clone(), &rb.borrow());
 
-            let cube = Rc::new(RefCell::new(GameObject {
-                transform: *rbody.position(),
-                mesh: mesh_mgr.get(rbody.shape().as_ref()).unwrap(),
-                shader_program: "default",
-            }));
-
-            engine.borrow_mut().add(cube.clone());
             cubes.borrow_mut().push(Entity {
-                go: cube,
+                go: go,
                 rb: rb.clone(),
             });
         }
@@ -109,28 +122,17 @@ pub fn main() {
             scene.borrow_mut().step();
 
             {
-                let mut engine = engine.borrow_mut();
                 let cubes = cubes.clone();
 
                 for evt in app.events.borrow().iter() {
                     match evt {
                         &AppEvent::Click => {
                             let scene = scene.clone();
-                            let mesh_mgr = mesh_mgr.clone();
-
                             let rb = scene.borrow_mut().add_box();
-                            let rbody = rb.borrow();
-                            let mesh_mgr = &mesh_mgr.borrow();
+                            let go = add_object(mesh_mgr.clone(), engine.clone(), &rb.borrow());
 
-                            let cube = Rc::new(RefCell::new(GameObject {
-                                transform: *rbody.position(),
-                                mesh: mesh_mgr.get(rbody.shape().as_ref()).unwrap(),
-                                shader_program: "default",
-                            }));
-
-                            engine.add(cube.clone());
                             cubes.borrow_mut().push(Entity {
-                                go: cube,
+                                go: go,
                                 rb: rb.clone(),
                             })
                         }

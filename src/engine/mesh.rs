@@ -34,6 +34,13 @@ pub struct MeshGLState {
 }
 
 impl Mesh {
+    pub fn new(mesh_buffer: MeshBuffer) -> Mesh {
+        Mesh {
+            mesh_buffer: mesh_buffer,
+            gl_state: RefCell::new(None),
+        }
+    }
+
     pub fn bind(&self, engine: &Engine, program: &ShaderProgram) {
         let gl = &engine.gl;
 

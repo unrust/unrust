@@ -2,7 +2,6 @@ use Mesh;
 use MeshBuffer;
 use Component;
 use std::sync::Arc;
-use std::cell::RefCell;
 
 pub struct PrimitiveMesh {}
 
@@ -94,14 +93,11 @@ impl CubeMesh {
             -1.0,  0.0,  0.0
         ];
 
-        Mesh {
-            mesh_buffer: MeshBuffer {
-                vertices: vertices,
-                indices: indices,
-                normals: normals,
-            },
-            gl_state: RefCell::new(None),
-        }
+        Mesh::new(MeshBuffer {
+            vertices: vertices,
+            indices: indices,
+            normals: normals,
+        })
     }
 }
 
@@ -129,13 +125,10 @@ impl PlaneMesh {
              0.0,  1.0,  0.0,
         ];
 
-        Mesh {
-            mesh_buffer: MeshBuffer {
-                vertices: vertices,
-                indices: indices,
-                normals: normals,
-            },
-            gl_state: RefCell::new(None),
-        }
+        Mesh::new(MeshBuffer {
+            vertices: vertices,
+            indices: indices,
+            normals: normals,
+        })
     }
 }

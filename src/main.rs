@@ -19,6 +19,7 @@ use std::rc::Rc;
 use std::collections::HashMap;
 use uni_app::*;
 use std::sync::Arc;
+use std::ops::Deref;
 use na::Isometry3;
 
 use nphysics3d::object::RigidBody;
@@ -27,14 +28,11 @@ use ncollide::shape::{Cuboid3, Plane3, Shape3};
 
 type Handle<T> = Rc<RefCell<T>>;
 
-fn new_handle<T>(t: T) -> Handle<T> {
-    Rc::new(RefCell::new(t))
-}
-
+// Physic Object Component
 struct PhysicObject(Handle<RigidBody<f32>>);
 impl PhysicObject {
     fn get_phy_transform(&self) -> Isometry3<f32> {
-        self.0.borrow().position().clone()
+        *self.0.borrow().position()
     }
 }
 
@@ -68,24 +66,35 @@ impl MeshManager {
     }
 }
 
-fn add_object(
-    mesh_mgr: Handle<MeshManager>,
-    engine: Handle<Engine>,
-    rb: Handle<RigidBody<f32>>,
-) -> Handle<GameObject> {
-    let mesh_mgr = &mesh_mgr.borrow();
+struct GameObjectList(Vec<Handle<GameObject>>);
 
-    let mut eng = engine.borrow_mut();
-    let go = eng.new_gameobject(rb.borrow().position());
-    {
-        let mut c = go.borrow_mut();
+impl GameObjectList {
+    fn add_object(
+        &mut self,
+        mesh_mgr: &MeshManager,
+        engine: &mut Engine,
+        rb: Handle<RigidBody<f32>>,
+    ) -> Handle<GameObject> {
+        let go = engine.new_gameobject(rb.borrow().position());
+        {
+            let mut go_mut = go.borrow_mut();
 
-        c.add_component(mesh_mgr.get(rb.borrow().shape().as_ref()).unwrap());
-        c.add_component(Material::new_component("default"));
-        c.add_component(Component::new(PhysicObject(rb)));
+            go_mut.add_component(mesh_mgr.get(rb.borrow().shape().as_ref()).unwrap());
+            go_mut.add_component(Material::new_component("default"));
+            go_mut.add_component(Component::new(PhysicObject(rb)));
+        }
+
+        self.0.push(go.clone());
+        go
     }
+}
 
-    go
+impl Deref for GameObjectList {
+    type Target = Vec<Handle<GameObject>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 pub fn main() {
@@ -93,8 +102,9 @@ pub fn main() {
     let config = AppConfig::new("Test", size);
     let app = App::new(config);
     {
-        let engine = new_handle(Engine::new(&app, size));
-        let mesh_mgr = new_handle(MeshManager::new());
+        let mut engine = Engine::new(&app, size);
+        let mesh_mgr = MeshManager::new();
+        let mut scene = Scene::new();
 
         app.add_control_text();
 
@@ -106,46 +116,33 @@ pub fn main() {
             &Vector3::new(0.0, 1.0, 0.0),
         );
 
-        let scene = Rc::new(RefCell::new(Scene::new()));
+        engine.main_camera = Some(camera);
 
-        engine.borrow_mut().main_camera = Some(camera);
+        let mut objects: GameObjectList = GameObjectList(vec![]);
 
-        let mut cubes: Vec<Handle<GameObject>> = vec![];
-
-        for rb in scene.borrow_mut().world.rigid_bodies() {
-            let go = add_object(mesh_mgr.clone(), engine.clone(), rb.clone());
-            cubes.push(go);
+        for rb in scene.world.rigid_bodies() {
+            objects.add_object(&mesh_mgr, &mut engine, rb.clone());
         }
 
         let mut fps = FPS::new();
-        let mut offset = Box::new(0.0 as f32);
 
         app.run(move |app: &mut App| {
             fps.step();
-            scene.borrow_mut().step();
+            scene.step();
 
+            // Handle Events
             {
                 for evt in app.events.borrow().iter() {
                     match evt {
                         &AppEvent::Click => {
-                            let scene = scene.clone();
-                            let rb = scene.borrow_mut().add_box();
-                            let go = add_object(mesh_mgr.clone(), engine.clone(), rb.clone());
-
-                            cubes.push(go)
+                            objects.add_object(&mesh_mgr, &mut engine, scene.add_box());
                         }
                     }
                 }
             }
 
-            // cam.lookat(
-            //     &Point3::new(10.0 * offset.sin(), 10.0, 10.0 * offset.cos()),
-            //     &Point3::new(0.0, 0.0, 0.0),
-            //     &Vector3::new(0.0, 1.0, 0.0),
-            // );
-
+            // Update Camera
             {
-                let mut engine = engine.borrow_mut();
                 let cam = engine.main_camera.as_mut().unwrap();
                 cam.lookat(
                     &Point3::new(-30.0, 30.0, -30.0),
@@ -154,20 +151,22 @@ pub fn main() {
                 );
             }
 
-            let get_pb_tran = |o: &GameObject| {
-                let (rb, _) = o.get_component_by_type::<PhysicObject>().unwrap();
-                rb.get_phy_transform()
-            };
+            // Update Transforms by physic object
+            {
+                let get_pb_tran = |o: &GameObject| {
+                    let (rb, _) = o.get_component_by_type::<PhysicObject>().unwrap();
+                    rb.get_phy_transform()
+                };
 
-            for go in cubes.iter() {
-                let tran = get_pb_tran(&go.borrow());
-                go.borrow_mut().transform = tran;
+                for go in objects.iter() {
+                    let tran = get_pb_tran(&go.borrow());
+                    go.borrow_mut().transform = tran;
+                }
             }
 
-            *offset.as_mut() += 0.01;
-
+            // Render
             {
-                engine.borrow_mut().render();
+                engine.render();
             }
         });
     }

@@ -3,6 +3,7 @@ use image;
 use image::{ImageBuffer, RgbaImage};
 use Engine;
 use std::cell::RefCell;
+use std::rc::Rc;
 use ShaderProgram;
 
 pub struct Texture {
@@ -15,7 +16,7 @@ struct TextureGLState {
 }
 
 impl Texture {
-    pub fn new() -> Texture {
+    pub fn new() -> Rc<Texture> {
         // Construct a new ImageBuffer with the specified width and height.
 
         // Construct a new by repeated calls to the supplied closure.
@@ -27,10 +28,10 @@ impl Texture {
             }
         });
 
-        Texture {
+        Rc::new(Texture {
             img: img,
             gl_state: RefCell::new(None),
-        }
+        })
     }
 
     pub fn bind(&self, engine: &Engine, program: &ShaderProgram) {

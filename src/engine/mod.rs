@@ -32,9 +32,14 @@ pub struct Engine {
     pub program_cache: RefCell<HashMap<&'static str, Rc<ShaderProgram>>>,
 }
 
-struct EngineContext {
+#[derive(Default)]
+struct EngineContext<'a> {
     mesh: Option<u64>,
     switch_mesh: u32,
+    switch_prog: u32,
+
+    last_prog: &'a str,
+    current_prog: Option<Rc<ShaderProgram>>,
 }
 
 impl Engine {
@@ -44,16 +49,31 @@ impl Engine {
         self.gl.clear_color(0.2, 0.2, 0.2, 1.0);
     }
 
+    fn setup_material(&self, ctx: &mut EngineContext, material: &Material) {
+        if ctx.current_prog.is_none() || material.program != ctx.last_prog {
+            // Use the combined shader program object
+            ctx.current_prog = Some(self.get_shader_program(&material.program));
+            ctx.current_prog.as_ref().map(|p| p.use_program(&self.gl));
+            ctx.last_prog = material.program;
+            ctx.switch_prog += 1;
+        }
+
+        let curr = &mut ctx.current_prog;
+        // Binding texture
+        material.texture.bind(self, curr.as_ref().unwrap());
+    }
+
     fn render_object(
         &self,
         gl: &WebGLRenderingContext,
         ctx: &mut EngineContext,
-        p: &ShaderProgram,
-        tex: &Texture,
         object: &GameObject,
         camera: &Camera,
     ) {
+        // Setup Matrices
         let modelm = object.transform.to_homogeneous();
+
+        let p = ctx.current_prog.as_ref().unwrap();
 
         let umv = p.get_uniform(gl, "uMVMatrix");
         gl.uniform_matrix_4fv(&umv, &(camera.v * modelm).into());
@@ -66,10 +86,10 @@ impl Engine {
         let nm = p.get_uniform(gl, "uNMatrix");
         gl.uniform_matrix_4fv(&nm, &normal_mat.into());
 
+        // Setup Mesh
         let (mesh, com) = object.get_component_by_type::<Mesh>().unwrap();
 
         if ctx.mesh.is_none() || ctx.mesh.unwrap() != com.id() {
-            tex.bind(self, &p);
             mesh.bind(self, &p);
             ctx.switch_mesh += 1;
         }
@@ -84,9 +104,7 @@ impl Engine {
             Some(prog) => prog.clone(),
             None => {
                 let u = Rc::new(self.new_program());
-                {
-                    cache.insert(name, u.clone());
-                }
+                cache.insert(name, u.clone());
                 u
             }
         }
@@ -97,41 +115,18 @@ impl Engine {
         let objects = &self.objects;
         let gl = &self.gl;
 
-        let mut last_prog = "";
-        let mut prog_p = None;
-
         if let &Some(camera) = &self.main_camera.as_ref() {
-            let mut ctx = EngineContext {
-                mesh: None,
-                switch_mesh: 0,
-            };
-            let mut c = 0;
+            let mut ctx: EngineContext = Default::default();
 
             for obj in objects.iter() {
                 let object = obj.borrow();
                 let (material, _) = object.get_component_by_type::<Material>().unwrap();
 
-                if prog_p.is_none() || material.program != last_prog {
-                    // Use the combined shader program object
-                    prog_p = Some(self.get_shader_program(&material.program));
-                    prog_p.as_ref().map(|p| p.use_program(gl));
-
-                    last_prog = material.program;
-
-                    if c > 0 {
-                        gl.print("switch shader");
-                    }
-                    c += 1;
+                {
+                    self.setup_material(&mut ctx, material);
                 }
 
-                self.render_object(
-                    gl,
-                    &mut ctx,
-                    prog_p.as_ref().unwrap(),
-                    &material.texture,
-                    &object,
-                    camera,
-                );
+                self.render_object(gl, &mut ctx, &object, camera);
 
                 let (_, meshcom) = object.get_component_by_type::<Mesh>().unwrap();
                 ctx.mesh = Some(meshcom.id());

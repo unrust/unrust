@@ -50,6 +50,9 @@ impl Mesh {
         let state_option = self.gl_state.borrow();
         let state = state_option.as_ref().unwrap();
 
+        let program_gl_state = program.gl_state.borrow();
+        let program = program_gl_state.as_ref().unwrap();
+
         /*======= Associating shaders to buffer objects =======*/
 
         // Bind vertex buffer object

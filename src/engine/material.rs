@@ -3,22 +3,23 @@ use Component;
 use std::sync::Arc;
 use std::rc::Rc;
 use engine::texture::Texture;
+use ShaderProgram;
 
 pub struct Material {
-    pub program: &'static str,
+    pub program: Rc<ShaderProgram>,
     pub texture: Rc<Texture>,
 }
 
 impl Material {
-    pub fn new(s: &'static str, texture: Rc<Texture>) -> Material {
+    pub fn new(program: Rc<ShaderProgram>, texture: Rc<Texture>) -> Material {
         return Material {
-            program: s,
+            program: program,
             texture: texture,
         };
     }
 
-    pub fn new_component(s: &'static str, texture: Rc<Texture>) -> Arc<Component> {
-        Component::new(Material::new(s, texture))
+    pub fn new_component(program: Rc<ShaderProgram>, texture: Rc<Texture>) -> Arc<Component> {
+        Component::new(Material::new(program, texture))
     }
 }
 

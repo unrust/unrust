@@ -3,15 +3,41 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use webgl::*;
 
-pub struct ShaderProgram {
-    prog: WebGLProgram,
+use Asset;
 
+#[derive(Debug)]
+pub struct ShaderProgramGLState {
+    prog: WebGLProgram,
     coord_map: RefCell<HashMap<&'static str, u32>>,
     uniform_map: RefCell<HashMap<&'static str, Rc<WebGLUniformLocation>>>,
 }
 
+#[derive(Debug)]
+pub struct ShaderProgram {
+    pub gl_state: RefCell<Option<ShaderProgramGLState>>,
+}
+
 impl ShaderProgram {
-    pub fn new(gl: &WebGLRenderingContext) -> ShaderProgram {
+    pub fn prepare(&self, gl: &WebGLRenderingContext) {
+        let mut gl_state = self.gl_state.borrow_mut();
+        if gl_state.is_none() {
+            *gl_state = Some(ShaderProgramGLState::new(gl));
+        }
+
+        gl_state.as_ref().unwrap().use_program(gl)
+    }
+}
+
+impl Asset for ShaderProgram {
+    fn new(_s: &str) -> Rc<ShaderProgram> {
+        Rc::new(ShaderProgram {
+            gl_state: RefCell::new(None),
+        })
+    }
+}
+
+impl ShaderProgramGLState {
+    pub fn new(gl: &WebGLRenderingContext) -> ShaderProgramGLState {
         /*================ Shaders ====================*/
 
         // Vertex shader source code
@@ -85,7 +111,7 @@ impl ShaderProgram {
         // Link both the programs
         gl.link_program(&shader_program);
 
-        let prog = ShaderProgram {
+        let prog = ShaderProgramGLState {
             prog: shader_program,
             coord_map: RefCell::new(HashMap::new()),
             uniform_map: RefCell::new(HashMap::new()),

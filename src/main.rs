@@ -17,7 +17,6 @@ use boxes_vee::*;
 use engine::*;
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::collections::HashMap;
 use uni_app::*;
 use std::sync::Arc;
 use std::ops::Deref;
@@ -39,40 +38,21 @@ impl PhysicObject {
 
 impl ComponentBased for PhysicObject {}
 
-struct MeshManager {
-    meshes: HashMap<&'static str, Arc<Component>>,
+struct GameObjectList<'a> {
+    db: AssetDatabase<'a>,
+    list: Vec<Handle<GameObject>>,
 }
 
-impl MeshManager {
-    pub fn new() -> MeshManager {
-        MeshManager {
-            meshes: {
-                let mut hm: HashMap<&'static str, Arc<Component>> = HashMap::new();
-                hm.insert("cube", PrimitiveMesh::new_cube_component());
-                hm.insert("plane", PrimitiveMesh::new_plane_component());
-
-                hm
-            },
+impl<'a> GameObjectList<'a> {
+    fn new() -> GameObjectList<'a> {
+        GameObjectList {
+            db: AssetDatabase::new(),
+            list: Vec::new(),
         }
     }
 
-    pub fn get(&self, shape: &Shape3<f32>) -> Option<Arc<Component>> {
-        if let Some(_) = shape.as_shape::<Cuboid3<f32>>() {
-            return Some(self.meshes.get("cube").unwrap().clone());
-        } else if let Some(_) = shape.as_shape::<Plane3<f32>>() {
-            return Some(self.meshes.get("plane").unwrap().clone());
-        }
-
-        return None;
-    }
-}
-
-struct GameObjectList(Vec<Handle<GameObject>>);
-
-impl GameObjectList {
     fn add_object(
         &mut self,
-        mesh_mgr: &MeshManager,
         engine: &mut Engine,
         rb: Handle<RigidBody<f32>>,
     ) -> Handle<GameObject> {
@@ -80,21 +60,34 @@ impl GameObjectList {
         {
             let mut go_mut = go.borrow_mut();
 
-            go_mut.add_component(mesh_mgr.get(rb.borrow().shape().as_ref()).unwrap());
-            go_mut.add_component(Material::new_component("default", Texture::new()));
+            go_mut.add_component(self.get(rb.borrow().shape().as_ref()).unwrap());
+            go_mut.add_component(Material::new_component(
+                self.db.new_program("default"),
+                self.db.new_texture("default"),
+            ));
             go_mut.add_component(Component::new(PhysicObject(rb)));
         }
 
-        self.0.push(go.clone());
+        self.list.push(go.clone());
         go
+    }
+
+    pub fn get(&self, shape: &Shape3<f32>) -> Option<Arc<Component>> {
+        if let Some(_) = shape.as_shape::<Cuboid3<f32>>() {
+            return Some(self.db.new_mesh("cube"));
+        } else if let Some(_) = shape.as_shape::<Plane3<f32>>() {
+            return Some(self.db.new_mesh("plane"));
+        }
+
+        return None;
     }
 }
 
-impl Deref for GameObjectList {
+impl<'a> Deref for GameObjectList<'a> {
     type Target = Vec<Handle<GameObject>>;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.list
     }
 }
 
@@ -104,17 +97,16 @@ pub fn main() {
     let app = App::new(config);
     {
         let mut engine = Engine::new(&app, size);
-        let mesh_mgr = MeshManager::new();
         let mut scene = Scene::new();
 
         app.add_control_text();
 
         engine.main_camera = Some(Camera::new());
 
-        let mut objects: GameObjectList = GameObjectList(vec![]);
+        let mut objects = GameObjectList::new();
 
         for rb in scene.world.rigid_bodies() {
-            objects.add_object(&mesh_mgr, &mut engine, rb.clone());
+            objects.add_object(&mut engine, rb.clone());
         }
 
         let mut fps = FPS::new();
@@ -128,7 +120,7 @@ pub fn main() {
                 for evt in app.events.borrow().iter() {
                     match evt {
                         &AppEvent::Click => {
-                            objects.add_object(&mesh_mgr, &mut engine, scene.add_box());
+                            objects.add_object(&mut engine, scene.add_box());
                         }
                     }
                 }

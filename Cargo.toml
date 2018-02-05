@@ -14,7 +14,7 @@ uni-app = {path="uni-app"}
 [dependencies.image]
 version = "*"
 default-features = false
-features = ["png"]
+features = ["png_codec"]
 
 [replace]
 "rand:0.3.20" = { path = "wasm-rand" }

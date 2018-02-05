@@ -63,7 +63,7 @@ impl<'a> Game<'a> {
             go_mut.add_component(self.get(rb.borrow().shape().as_ref()).unwrap());
             go_mut.add_component(Material::new_component(
                 self.db.new_program("default"),
-                self.db.new_texture("default"),
+                self.db.new_texture("tex_a.png"),
             ));
             go_mut.add_component(Component::new(PhysicObject(rb)));
         }

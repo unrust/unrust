@@ -15,6 +15,7 @@ pub trait Asset {
 
 #[derive(Default)]
 pub struct AssetDatabase<'a> {
+    path: &'static str,
     textures: RefCell<HashMap<&'a str, Rc<Texture>>>,
     meshes: RefCell<HashMap<&'a str, Arc<Component>>>,
     programs: RefCell<HashMap<&'a str, Rc<ShaderProgram>>>,
@@ -28,7 +29,7 @@ impl<'a> AssetDatabase<'a> {
         match hm.get_mut(name) {
             Some(asset) => asset.clone(),
             None => {
-                let asset = R::new(name);
+                let asset = R::new(&self.get_filename(name));
                 hm.insert(name, asset.clone());
                 asset
             }
@@ -43,6 +44,13 @@ impl<'a> AssetDatabase<'a> {
     pub fn new_texture(&self, name: &'a str) -> Rc<Texture> {
         let mut a = self.textures.borrow_mut();
         self.new_asset(&mut a, name)
+    }
+
+    pub fn get_filename(&self, name: &'a str) -> String {
+        match name {
+            "default" => name.into(),
+            _ => format!("{}{}", self.path, name),
+        }
     }
 
     pub fn new_mesh(&self, name: &'a str) -> Arc<Component> {
@@ -62,6 +70,10 @@ impl<'a> AssetDatabase<'a> {
             hm.insert("plane", PrimitiveMesh::new_plane_component());
             hm
         });
+
+        if cfg!(not(target_arch = "wasm32")) {
+            db.path = "static/";
+        }
 
         db
     }

@@ -10,6 +10,12 @@ extern crate stdweb;
 pub mod web_app;
 
 #[cfg(target_arch = "wasm32")]
+pub mod web_fs;
+
+#[cfg(target_arch = "wasm32")]
+pub use self::web_fs::*;
+
+#[cfg(target_arch = "wasm32")]
 pub use self::web_app::*;
 
 // NOT wasm-unknown-unknown
@@ -23,7 +29,13 @@ extern crate time;
 pub mod native_app;
 
 #[cfg(not(target_arch = "wasm32"))]
+pub mod native_fs;
+
+#[cfg(not(target_arch = "wasm32"))]
 pub use self::native_app::*;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub use self::native_fs::*;
 
 pub struct AppConfig {
     pub title: String,

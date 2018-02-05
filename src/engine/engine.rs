@@ -51,7 +51,7 @@ impl Engine {
         self.gl.clear_color(0.2, 0.2, 0.2, 1.0);
     }
 
-    fn setup_material(&self, ctx: &mut EngineContext, material: &Material) {
+    fn setup_material(&self, ctx: &mut EngineContext, material: &Material) -> bool {
         let need_prepare = ctx.need_prepare_program(&material.program);
         if need_prepare {
             // Use the combined shader program object
@@ -65,10 +65,14 @@ impl Engine {
         if need_prepare {
             let curr = &mut ctx.prog;
             // Binding texture
-            material.texture.bind(self, curr.as_ref().unwrap());
+            if !material.texture.bind(self, curr.as_ref().unwrap()) {
+                return false;
+            }
             ctx.tex = Some(material.texture.clone());
             ctx.switch_tex += 1;
         }
+
+        true
     }
 
     fn render_object(
@@ -116,11 +120,12 @@ impl Engine {
                 let object = obj.borrow();
                 let (material, _) = object.get_component_by_type::<Material>().unwrap();
 
-                self.setup_material(&mut ctx, material);
-                self.render_object(gl, &mut ctx, &object, camera);
+                if self.setup_material(&mut ctx, material) {
+                    self.render_object(gl, &mut ctx, &object, camera);
 
-                let (_, meshcom) = object.get_component_by_type::<Mesh>().unwrap();
-                ctx.mesh = Some(meshcom.id());
+                    let (_, meshcom) = object.get_component_by_type::<Mesh>().unwrap();
+                    ctx.mesh = Some(meshcom.id());
+                }
             }
         }
     }

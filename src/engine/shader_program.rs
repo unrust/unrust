@@ -8,31 +8,90 @@ use Asset;
 #[derive(Debug)]
 pub struct ShaderProgramGLState {
     prog: WebGLProgram,
+}
+
+#[derive(Debug, Default)]
+pub struct ShaderProgram {
+    gl_state: RefCell<Option<ShaderProgramGLState>>,
+
     coord_map: RefCell<HashMap<&'static str, u32>>,
     uniform_map: RefCell<HashMap<&'static str, Rc<WebGLUniformLocation>>>,
 }
 
-#[derive(Debug)]
-pub struct ShaderProgram {
-    pub gl_state: RefCell<Option<ShaderProgramGLState>>,
-}
-
 impl ShaderProgram {
-    pub fn prepare(&self, gl: &WebGLRenderingContext) {
-        let mut gl_state = self.gl_state.borrow_mut();
-        if gl_state.is_none() {
-            *gl_state = Some(ShaderProgramGLState::new(gl));
-        }
+    pub fn bind(&self, gl: &WebGLRenderingContext) {
+        self.prepare(gl);
 
-        gl_state.as_ref().unwrap().use_program(gl)
+        self.use_program(gl)
+    }
+
+    fn prepare(&self, gl: &WebGLRenderingContext) {
+        let is_none = self.gl_state.borrow().is_none();
+
+        if is_none {
+            {
+                *self.gl_state.borrow_mut() = Some(ShaderProgramGLState::new(gl));
+            }
+
+            let pcoord = self.get_coord(gl, "aVertexPosition");
+            gl.enable_vertex_attrib_array(pcoord);
+
+            let ncoord = self.get_coord(gl, "aVertexNormal");
+            gl.enable_vertex_attrib_array(ncoord);
+
+            let texcoord = self.get_coord(gl, "aTextureCoord");
+            gl.enable_vertex_attrib_array(texcoord);
+        }
+    }
+
+    pub fn get_coord(&self, gl: &WebGLRenderingContext, s: &'static str) -> u32 {
+        let mut m = self.coord_map.borrow_mut();
+
+        let gl_state_opt = self.gl_state.borrow();
+        let gl_state = gl_state_opt.as_ref().unwrap();
+
+        match m.get(s) {
+            Some(coord) => *coord,
+            None => {
+                let coord = gl.get_attrib_location(&gl_state.prog, s.into()).unwrap();
+                m.insert(s.into(), coord);
+                coord
+            }
+        }
+    }
+
+    fn use_program(&self, gl: &WebGLRenderingContext) {
+        let gl_state = self.gl_state.borrow();
+        gl.use_program(&gl_state.as_ref().unwrap().prog);
+    }
+
+    pub fn get_uniform(
+        &self,
+        gl: &WebGLRenderingContext,
+        s: &'static str,
+    ) -> Rc<WebGLUniformLocation> {
+        let mut m = self.uniform_map.borrow_mut();
+        let gl_state = self.gl_state.borrow();
+
+        match m.get(s) {
+            Some(u) => u.clone(),
+            None => {
+                let u = Rc::new(gl.get_uniform_location(
+                    &gl_state.as_ref().unwrap().prog,
+                    s.into(),
+                ).unwrap());
+                {
+                    m.insert(s.into(), u.clone());
+                }
+                u
+            }
+        }
     }
 }
 
 impl Asset for ShaderProgram {
     fn new(_s: &str) -> Rc<ShaderProgram> {
-        Rc::new(ShaderProgram {
-            gl_state: RefCell::new(None),
-        })
+        Rc::new(Default::default())
     }
 }
 
@@ -113,57 +172,8 @@ impl ShaderProgramGLState {
 
         let prog = ShaderProgramGLState {
             prog: shader_program,
-            coord_map: RefCell::new(HashMap::new()),
-            uniform_map: RefCell::new(HashMap::new()),
         };
 
-        let pcoord = prog.get_coord(gl, "aVertexPosition");
-        gl.enable_vertex_attrib_array(pcoord);
-
-        let ncoord = prog.get_coord(gl, "aVertexNormal");
-        gl.enable_vertex_attrib_array(ncoord);
-
-        let texcoord = prog.get_coord(gl, "aTextureCoord");
-        gl.enable_vertex_attrib_array(texcoord);
-
-        prog.get_uniform(gl, "uSampler");
-
         prog
-    }
-
-    pub fn get_coord(&self, gl: &WebGLRenderingContext, s: &'static str) -> u32 {
-        let mut m = self.coord_map.borrow_mut();
-
-        match m.get(s) {
-            Some(coord) => *coord,
-            None => {
-                let coord = gl.get_attrib_location(&self.prog, s.into()).unwrap();
-                m.insert(s.into(), coord);
-                coord
-            }
-        }
-    }
-
-    pub fn use_program(&self, gl: &WebGLRenderingContext) {
-        gl.use_program(&self.prog);
-    }
-
-    pub fn get_uniform(
-        &self,
-        gl: &WebGLRenderingContext,
-        s: &'static str,
-    ) -> Rc<WebGLUniformLocation> {
-        let mut m = self.uniform_map.borrow_mut();
-
-        match m.get(s) {
-            Some(u) => u.clone(),
-            None => {
-                let u = Rc::new(gl.get_uniform_location(&self.prog, s.into()).unwrap());
-                {
-                    m.insert(s.into(), u.clone());
-                }
-                u
-            }
-        }
     }
 }

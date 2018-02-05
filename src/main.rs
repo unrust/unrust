@@ -38,14 +38,14 @@ impl PhysicObject {
 
 impl ComponentBased for PhysicObject {}
 
-struct GameObjectList<'a> {
+struct Game<'a> {
     db: AssetDatabase<'a>,
     list: Vec<Handle<GameObject>>,
 }
 
-impl<'a> GameObjectList<'a> {
-    fn new() -> GameObjectList<'a> {
-        GameObjectList {
+impl<'a> Game<'a> {
+    fn new() -> Game<'a> {
+        Game {
             db: AssetDatabase::new(),
             list: Vec::new(),
         }
@@ -83,7 +83,7 @@ impl<'a> GameObjectList<'a> {
     }
 }
 
-impl<'a> Deref for GameObjectList<'a> {
+impl<'a> Deref for Game<'a> {
     type Target = Vec<Handle<GameObject>>;
 
     fn deref(&self) -> &Self::Target {
@@ -103,7 +103,7 @@ pub fn main() {
 
         engine.main_camera = Some(Camera::new());
 
-        let mut objects = GameObjectList::new();
+        let mut objects = Game::new();
 
         for rb in scene.world.rigid_bodies() {
             objects.add_object(&mut engine, rb.clone());

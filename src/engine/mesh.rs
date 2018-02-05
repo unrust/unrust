@@ -22,12 +22,12 @@ impl<T> IntoBytes for Vec<T> {
 
 pub struct Mesh {
     pub mesh_buffer: MeshBuffer,
-    pub gl_state: RefCell<Option<MeshGLState>>,
+    gl_state: RefCell<Option<MeshGLState>>,
 }
 
 impl ComponentBased for Mesh {}
 
-pub struct MeshGLState {
+struct MeshGLState {
     pub vb: WebGLBuffer,
     pub uvb: WebGLBuffer,
     pub ib: WebGLBuffer,
@@ -49,9 +49,6 @@ impl Mesh {
 
         let state_option = self.gl_state.borrow();
         let state = state_option.as_ref().unwrap();
-
-        let program_gl_state = program.gl_state.borrow();
-        let program = program_gl_state.as_ref().unwrap();
 
         /*======= Associating shaders to buffer objects =======*/
 
@@ -128,7 +125,7 @@ pub struct MeshBuffer {
     pub indices: Vec<u16>,
 }
 
-pub fn mesh_bind_buffer(
+fn mesh_bind_buffer(
     vertices: &Vec<f32>,
     uvs: &Vec<f32>,
     normals: &Vec<f32>,

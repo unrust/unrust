@@ -45,10 +45,8 @@ impl Texture {
         let state = state_option.as_ref().unwrap();
 
         gl.bind_texture(&state.tex);
-        let program_gl_state_b = program.gl_state.borrow();
-        let program_gl_state = program_gl_state_b.as_ref().unwrap();
 
-        let scoord = program_gl_state.get_uniform(gl, "uSampler");
+        let scoord = program.get_uniform(gl, "uSampler");
         gl.uniform_1i(&scoord, 0);
     }
 

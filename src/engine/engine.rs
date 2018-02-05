@@ -12,6 +12,7 @@ use GameObject;
 use ShaderProgram;
 use Material;
 use Mesh;
+use Texture;
 
 pub struct Engine {
     pub gl: WebGLRenderingContext,
@@ -25,16 +26,21 @@ pub struct Engine {
 #[derive(Default)]
 struct EngineContext {
     mesh: Option<u64>,
+    prog: Option<Rc<ShaderProgram>>,
+    tex: Option<Rc<Texture>>,
+
     switch_mesh: u32,
     switch_prog: u32,
-
-    current_prog: Option<Rc<ShaderProgram>>,
+    switch_tex: u32,
 }
 
 impl EngineContext {
     pub fn need_prepare_program(&self, prog: &Rc<ShaderProgram>) -> bool {
-        return self.current_prog.is_none()
-            || (!Rc::ptr_eq(prog, &self.current_prog.as_ref().unwrap()));
+        return self.prog.is_none() || (!Rc::ptr_eq(prog, self.prog.as_ref().unwrap()));
+    }
+
+    pub fn need_prepare_texture(&self, tex: &Rc<Texture>) -> bool {
+        return self.tex.is_none() || (!Rc::ptr_eq(tex, self.tex.as_ref().unwrap()));
     }
 }
 
@@ -50,14 +56,19 @@ impl Engine {
         if need_prepare {
             // Use the combined shader program object
             let p = material.program.clone();
-            p.prepare(&self.gl);
-            ctx.current_prog = Some(p);
+            p.bind(&self.gl);
+            ctx.prog = Some(p);
             ctx.switch_prog += 1;
         }
 
-        let curr = &mut ctx.current_prog;
-        // Binding texture
-        material.texture.bind(self, curr.as_ref().unwrap());
+        let need_prepare = ctx.need_prepare_texture(&material.texture);
+        if need_prepare {
+            let curr = &mut ctx.prog;
+            // Binding texture
+            material.texture.bind(self, curr.as_ref().unwrap());
+            ctx.tex = Some(material.texture.clone());
+            ctx.switch_tex += 1;
+        }
     }
 
     fn render_object(
@@ -69,20 +80,17 @@ impl Engine {
     ) {
         // Setup Matrices
         let modelm = object.transform.to_homogeneous();
+        let prog = ctx.prog.as_ref().unwrap();
 
-        let prog = ctx.current_prog.as_ref().unwrap();
-        let pstate = prog.gl_state.borrow();
-        let p = pstate.as_ref().unwrap();
-
-        let umv = p.get_uniform(gl, "uMVMatrix");
+        let umv = prog.get_uniform(gl, "uMVMatrix");
         gl.uniform_matrix_4fv(&umv, &(camera.v * modelm).into());
 
-        let up = p.get_uniform(gl, "uPMatrix");
+        let up = prog.get_uniform(gl, "uPMatrix");
         gl.uniform_matrix_4fv(&up, &camera.p.into());
 
         let normal_mat = (modelm).try_inverse().unwrap().transpose();
 
-        let nm = p.get_uniform(gl, "uNMatrix");
+        let nm = prog.get_uniform(gl, "uNMatrix");
         gl.uniform_matrix_4fv(&nm, &normal_mat.into());
 
         // Setup Mesh
@@ -108,10 +116,7 @@ impl Engine {
                 let object = obj.borrow();
                 let (material, _) = object.get_component_by_type::<Material>().unwrap();
 
-                {
-                    self.setup_material(&mut ctx, material);
-                }
-
+                self.setup_material(&mut ctx, material);
                 self.render_object(gl, &mut ctx, &object, camera);
 
                 let (_, meshcom) = object.get_component_by_type::<Mesh>().unwrap();

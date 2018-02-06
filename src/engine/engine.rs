@@ -86,16 +86,18 @@ impl Engine {
         let modelm = object.transform.to_homogeneous();
         let prog = ctx.prog.as_ref().unwrap();
 
-        let umv = prog.get_uniform(gl, "uMVMatrix");
-        gl.uniform_matrix_4fv(&umv, &(camera.v * modelm).into());
+        if let Some(umv) = prog.get_uniform(gl, "uMVMatrix") {
+            gl.uniform_matrix_4fv(&umv, &(camera.v * modelm).into());
+        }
 
-        let up = prog.get_uniform(gl, "uPMatrix");
-        gl.uniform_matrix_4fv(&up, &camera.p.into());
+        if let Some(up) = prog.get_uniform(gl, "uPMatrix") {
+            gl.uniform_matrix_4fv(&up, &camera.p.into());
+        }
 
-        let normal_mat = (modelm).try_inverse().unwrap().transpose();
-
-        let nm = prog.get_uniform(gl, "uNMatrix");
-        gl.uniform_matrix_4fv(&nm, &normal_mat.into());
+        if let Some(nm) = prog.get_uniform(gl, "uNMatrix") {
+            let normal_mat = (modelm).try_inverse().unwrap().transpose();
+            gl.uniform_matrix_4fv(&nm, &normal_mat.into());
+        }
 
         // Setup Mesh
         let (mesh, com) = object.get_component_by_type::<Mesh>().unwrap();

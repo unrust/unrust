@@ -8,6 +8,7 @@ use ShaderProgram;
 
 use Component;
 use PrimitiveMesh;
+use Quad;
 
 pub trait Asset {
     fn new(s: &str) -> Rc<Self>;
@@ -49,6 +50,8 @@ impl<'a> AssetDatabase<'a> {
     pub fn get_filename(&self, name: &'a str) -> String {
         match name {
             "default" => name.into(),
+            "default_font_bitmap" => name.into(),
+            "default_screen" => name.into(),
             _ => format!("{}{}", self.path, name),
         }
     }
@@ -68,6 +71,7 @@ impl<'a> AssetDatabase<'a> {
             let mut hm = HashMap::new();
             hm.insert("cube", PrimitiveMesh::new_cube_component());
             hm.insert("plane", PrimitiveMesh::new_plane_component());
+            hm.insert("screen_quad", Quad::new_quad_component());
             hm
         });
 

@@ -29,9 +29,9 @@ impl ComponentBased for Mesh {}
 
 struct MeshGLState {
     pub vb: WebGLBuffer,
-    pub uvb: WebGLBuffer,
+    pub uvb: Option<WebGLBuffer>,
+    pub nb: Option<WebGLBuffer>,
     pub ib: WebGLBuffer,
-    pub nb: WebGLBuffer,
 }
 
 impl Mesh {
@@ -56,36 +56,27 @@ impl Mesh {
         gl.bind_buffer(BufferKind::Array, &state.vb);
 
         // Point an position attribute to the currently bound VBO
-        gl.vertex_attrib_pointer(
-            program.get_coord(gl, "aVertexPosition"),
-            AttributeSize::Three,
-            DataType::Float,
-            false,
-            0,
-            0,
-        );
+        if let Some(coord) = program.get_coord(gl, "aVertexPosition") {
+            gl.vertex_attrib_pointer(coord, AttributeSize::Three, DataType::Float, false, 0, 0);
+        }
 
-        gl.bind_buffer(BufferKind::Array, &state.nb);
-        // Point an normal attribute to the currently bound VBO
-        gl.vertex_attrib_pointer(
-            program.get_coord(gl, "aVertexNormal"),
-            AttributeSize::Three,
-            DataType::Float,
-            false,
-            0,
-            0,
-        );
+        if let Some(ref nb) = state.nb {
+            gl.bind_buffer(BufferKind::Array, nb);
+            // Point an normal attribute to the currently bound VBO
 
-        gl.bind_buffer(BufferKind::Array, &state.uvb);
-        // Point an uv attribute to the currently bound VBO
-        gl.vertex_attrib_pointer(
-            program.get_coord(gl, "aTextureCoord"),
-            AttributeSize::Two,
-            DataType::Float,
-            false,
-            0,
-            0,
-        );
+            if let Some(coord) = program.get_coord(gl, "aVertexNormal") {
+                gl.vertex_attrib_pointer(coord, AttributeSize::Three, DataType::Float, false, 0, 0);
+            }
+        }
+
+        if let Some(ref uvb) = state.uvb {
+            gl.bind_buffer(BufferKind::Array, uvb);
+            // Point an uv attribute to the currently bound VBO
+
+            if let Some(coord) = program.get_coord(gl, "aTextureCoord") {
+                gl.vertex_attrib_pointer(coord, AttributeSize::Two, DataType::Float, false, 0, 0);
+            }
+        }
 
         // Bind index buffer object
         gl.bind_buffer(BufferKind::ElementArray, &state.ib);
@@ -120,15 +111,15 @@ impl Mesh {
 pub struct MeshBuffer {
     #[allow(dead_code)]
     pub vertices: Vec<f32>,
-    pub uvs: Vec<f32>,
-    pub normals: Vec<f32>,
+    pub uvs: Option<Vec<f32>>,
+    pub normals: Option<Vec<f32>>,
     pub indices: Vec<u16>,
 }
 
 fn mesh_bind_buffer(
     vertices: &Vec<f32>,
-    uvs: &Vec<f32>,
-    normals: &Vec<f32>,
+    uvs: &Option<Vec<f32>>,
+    normals: &Option<Vec<f32>>,
     indices: &Vec<u16>,
     engine: &Engine,
 ) -> MeshGLState {
@@ -149,31 +140,45 @@ fn mesh_bind_buffer(
     }
 
     // Create an empty buffer object to store uv buffer
-    let uv_buffer = gl.create_buffer();
-    {
-        // Bind appropriate array buffer to it
-        gl.bind_buffer(BufferKind::Array, &uv_buffer);
+    let uv_buffer = match uvs {
+        &Some(ref uvs) => {
+            let uv_buffer = gl.create_buffer();
+            {
+                // Bind appropriate array buffer to it
+                gl.bind_buffer(BufferKind::Array, &uv_buffer);
 
-        // Pass the vertex data to the buffer
-        let uvv = uvs.clone();
-        gl.buffer_data(BufferKind::Array, &uvv.into_bytes(), DrawMode::Static);
+                // Pass the vertex data to the buffer
+                let uvv = uvs.clone();
+                gl.buffer_data(BufferKind::Array, &uvv.into_bytes(), DrawMode::Static);
 
-        // Unbind the buffer
-        gl.unbind_buffer(BufferKind::Array);
-    }
+                // Unbind the buffer
+                gl.unbind_buffer(BufferKind::Array);
+
+                Some(uv_buffer)
+            }
+        }
+        _ => None,
+    };
 
     // Create an Normal Buffer
-    let normal_buffer = gl.create_buffer();
-    {
-        // Bind appropriate array buffer to it
-        gl.bind_buffer(BufferKind::Array, &normal_buffer);
+    let normal_buffer = match normals {
+        &Some(ref normals) => {
+            let normal_buffer = gl.create_buffer();
+            {
+                // Bind appropriate array buffer to it
+                gl.bind_buffer(BufferKind::Array, &normal_buffer);
 
-        let ns = normals.clone();
-        gl.buffer_data(BufferKind::Array, &ns.into_bytes(), DrawMode::Static);
+                let ns = normals.clone();
+                gl.buffer_data(BufferKind::Array, &ns.into_bytes(), DrawMode::Static);
 
-        // Unbind the buffer
-        gl.unbind_buffer(BufferKind::Array);
-    }
+                // Unbind the buffer
+                gl.unbind_buffer(BufferKind::Array);
+
+                Some(normal_buffer)
+            }
+        }
+        _ => None,
+    };
 
     // Create an empty buffer object to store Index buffer
     let index_buffer = gl.create_buffer();

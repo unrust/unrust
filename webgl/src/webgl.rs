@@ -231,8 +231,8 @@ impl GLContext {
         let value = js! {
             var ctx = Module.gl.get(@{&self.reference});
             var h = Module.gl.get(@{program.deref()});
-
-            return ctx.getAttribLocation(h.prog,@{name}) ;
+            var r = ctx.getAttribLocation(h.prog,@{name});
+            return r >= 0 ? r : null;
         };
         value.try_into().ok() as _
     }
@@ -257,12 +257,10 @@ impl GLContext {
             return uniform;
         };
 
-        let uni: i32 = value.try_into().unwrap();
-
-        return Some(WebGLUniformLocation {
+        value.try_into().ok().map(|uni| WebGLUniformLocation {
             reference: uni,
             name: name.into(),
-        });
+        })
     }
 
     pub fn vertex_attrib_pointer(

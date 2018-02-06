@@ -7,6 +7,7 @@ use std::rc::Rc;
 use ShaderProgram;
 use Asset;
 
+use super::default_font_bitmap::DEFAULT_FONT_DATA;
 use uni_app::{File, FileSystem, IoError};
 use std::io::ErrorKind;
 
@@ -21,6 +22,7 @@ impl Asset for Texture {
     fn new(s: &str) -> Rc<Self> {
         match s {
             "default" => Texture::new_default(),
+            "default_font_bitmap" => Texture::new_default_bitmap(),
             filename => {
                 Texture::new_texture(filename).expect(&format!("Cannot open file: {:?}", filename))
             }
@@ -74,6 +76,29 @@ impl Texture {
         })
     }
 
+    fn new_default_bitmap() -> Rc<Self> {
+        let img = ImageBuffer::from_fn(128, 64, |x, y| {
+            let cx: u32 = x / 8;
+            let cy: u32 = y / 8;
+            let c = &DEFAULT_FONT_DATA[(cx + cy * 16) as usize];
+
+            let bx: u8 = (x % 8) as u8;
+            let by: u8 = (y % 8) as u8;
+
+            if (c[by as usize] & (1 << bx)) != 0 {
+                image::Rgba([0xff, 0xff, 0xff, 0xff])
+            } else {
+                image::Rgba([0, 0, 0, 0xff])
+            }
+        });
+
+        Rc::new(Texture {
+            img: RefCell::new(Some(img)),
+            gl_state: RefCell::new(None),
+            file: None,
+        })
+    }
+
     pub fn bind(&self, engine: &Engine, program: &ShaderProgram) -> bool {
         if !self.prepare(engine) {
             return false;
@@ -85,8 +110,9 @@ impl Texture {
 
         gl.bind_texture(&state.tex);
 
-        let scoord = program.get_uniform(gl, "uSampler");
-        gl.uniform_1i(&scoord, 0);
+        if let Some(scoord) = program.get_uniform(gl, "uSampler") {
+            gl.uniform_1i(&scoord, 0);
+        }
 
         true
     }

@@ -7,9 +7,12 @@ mod game_object;
 mod texture;
 mod engine;
 mod asset_database;
+mod default_font_bitmap;
+mod quad;
 
 pub use self::mesh::{Mesh, MeshBuffer};
 pub use self::primitives::PrimitiveMesh;
+pub use self::quad::Quad;
 pub use self::shader_program::ShaderProgram;
 pub use self::camera::Camera;
 pub use self::material::Material;

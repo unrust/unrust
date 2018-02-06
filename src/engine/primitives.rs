@@ -133,8 +133,8 @@ impl CubeMesh {
 
         Mesh::new(MeshBuffer {
             vertices: vertices,
-            uvs: uvs,
-            normals: normals,
+            uvs: Some(uvs),
+            normals: Some(normals),
             indices: indices,
         })
     }
@@ -154,10 +154,10 @@ impl PlaneMesh {
 
         let uvs: Vec<f32> = vec![
             // Top face
-            0.0, 1.0,
             0.0, 0.0,
-            1.0, 0.0,
+            0.0, 1.0,
             1.0, 1.0,
+            1.0, 0.0,
         ];
 
         let normals = vec![
@@ -174,8 +174,8 @@ impl PlaneMesh {
 
         Mesh::new(MeshBuffer {
             vertices: vertices,
-            uvs: uvs,
-            normals: normals,
+            uvs: Some(uvs),
+            normals: Some(normals),
             indices: indices,
         })
     }

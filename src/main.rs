@@ -63,9 +63,9 @@ impl<'a> Game<'a> {
             let mut go_mut = go.borrow_mut();
 
             let texture = match self.counter % 5 {
-                0 => self.db.new_texture("tex_a.png"),
-                1 => self.db.new_texture("default"),
-                _ => self.db.new_texture("tex_b.png"),
+                // 0 => self.db.new_texture("tex_a.png"),
+                // 1 => self.db.new_texture("default"),
+                _ => self.db.new_texture("default_font_bitmap"),
             };
 
             self.counter += 1;
@@ -91,6 +91,19 @@ impl<'a> Game<'a> {
 
         return None;
     }
+
+    fn add_ui(&self, engine: &mut Engine) {
+        let go = engine.new_gameobject(&na::Isometry3::identity());
+        {
+            let mut go_mut = go.borrow_mut();
+
+            go_mut.add_component(self.db.new_mesh("screen_quad"));
+            go_mut.add_component(Material::new_component(
+                self.db.new_program("default_screen"),
+                self.db.new_texture("default_font_bitmap"),
+            ));
+        }
+    }
 }
 
 impl<'a> Deref for Game<'a> {
@@ -115,11 +128,13 @@ pub fn main() {
 
         let mut objects = Game::new();
 
-        for rb in scene.world.rigid_bodies() {
-            objects.add_object(&mut engine, rb.clone());
-        }
+        // for rb in scene.world.rigid_bodies() {
+        //     objects.add_object(&mut engine, rb.clone());
+        // }
 
         let mut fps = FPS::new();
+
+        objects.add_ui(&mut engine);
 
         app.run(move |app: &mut App| {
             fps.step();

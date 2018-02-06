@@ -57,17 +57,9 @@ impl Scene {
 
                     rb.append_translation(&Translation3::new(x, y, z));
 
-                    world.add_rigid_body(rb);
+                    //world.add_rigid_body(rb);
                 }
             }
-        }
-
-        {
-            let geom = Cuboid::new(Vector3::new(rad - 0.04, rad - 0.04, rad - 0.04));
-            let mut rb = RigidBody::new_dynamic(geom, 1.0, 0.3, 0.5);
-            rb.append_translation(&Translation3::new(-5.0, 30.0, -5.0));
-
-            world.add_rigid_body(rb);
         }
 
         Scene { world: world }

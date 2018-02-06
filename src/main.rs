@@ -41,6 +41,7 @@ impl ComponentBased for PhysicObject {}
 struct Game<'a> {
     db: AssetDatabase<'a>,
     list: Vec<Handle<GameObject>>,
+    counter: u32,
 }
 
 impl<'a> Game<'a> {
@@ -48,6 +49,7 @@ impl<'a> Game<'a> {
         Game {
             db: AssetDatabase::new(),
             list: Vec::new(),
+            counter: 0,
         }
     }
 
@@ -60,10 +62,18 @@ impl<'a> Game<'a> {
         {
             let mut go_mut = go.borrow_mut();
 
+            let texture = match self.counter % 5 {
+                0 => self.db.new_texture("tex_a.png"),
+                1 => self.db.new_texture("default"),
+                _ => self.db.new_texture("tex_b.png"),
+            };
+
+            self.counter += 1;
+
             go_mut.add_component(self.get(rb.borrow().shape().as_ref()).unwrap());
             go_mut.add_component(Material::new_component(
                 self.db.new_program("default"),
-                self.db.new_texture("tex_a.png"),
+                texture,
             ));
             go_mut.add_component(Component::new(PhysicObject(rb)));
         }

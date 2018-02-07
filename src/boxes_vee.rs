@@ -57,7 +57,7 @@ impl Scene {
 
                     rb.append_translation(&Translation3::new(x, y, z));
 
-                    //world.add_rigid_body(rb);
+                    world.add_rigid_body(rb);
                 }
             }
         }

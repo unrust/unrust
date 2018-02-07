@@ -59,9 +59,9 @@ impl Game {
             go_mut.transform = *rb.borrow().position();
 
             let texture = match self.counter % 5 {
-                // 0 => self.db.new_texture("tex_a.png"),
-                // 1 => self.db.new_texture("default"),
-                _ => db.new_texture("default_font_bitmap"),
+                0 => db.new_texture("tex_a.png"),
+                1 => db.new_texture("tex_r.png"),
+                _ => db.new_texture("tex_b.png"),
             };
 
             self.counter += 1;
@@ -125,13 +125,13 @@ pub fn main() {
 
         let mut game = Game::new(engine);
 
-        // for rb in scene.world.rigid_bodies() {
-        //     game.add_object(&mut engine, rb.clone());
-        // }
+        for rb in scene.world.rigid_bodies() {
+            game.add_object(rb.clone());
+        }
 
         let mut fps = FPS::new();
 
-        game.add_ui();
+        //game.add_ui();
 
         app.run(move |app: &mut App| {
             fps.step();

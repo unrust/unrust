@@ -1,9 +1,9 @@
 use webgl::*;
 use std::mem::size_of;
 
-use Engine;
-use ShaderProgram;
-use ComponentBased;
+use engine::Engine;
+use super::ShaderProgram;
+use engine::core::ComponentBased;
 use std::cell::RefCell;
 
 trait IntoBytes {

@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use webgl::*;
 
-use Asset;
+use engine::Asset;
 
 #[derive(Debug)]
 pub struct ShaderProgramGLState {

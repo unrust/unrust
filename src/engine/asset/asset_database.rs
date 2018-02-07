@@ -3,12 +3,14 @@ use std::cell::RefCell;
 use std::sync::Arc;
 use std::collections::HashMap;
 
-use Texture;
-use ShaderProgram;
+use engine::core::Component;
+use super::{PrimitiveMesh, Quad};
+use engine::{ShaderProgram, Texture};
 
-use Component;
-use PrimitiveMesh;
-use Quad;
+use image;
+use image::ImageBuffer;
+
+use super::default_font_bitmap::DEFAULT_FONT_DATA;
 
 pub trait Asset {
     fn new(s: &str) -> Rc<Self>;
@@ -44,7 +46,28 @@ impl<'a> AssetDatabase<'a> {
 
     pub fn new_texture(&self, name: &'a str) -> Rc<Texture> {
         let mut a = self.textures.borrow_mut();
-        self.new_asset(&mut a, name)
+        if name == "default_font_bitmap" {
+            Self::default_font_bitmap()
+        } else {
+            self.new_asset(&mut a, name)
+        }
+    }
+
+    fn default_font_bitmap() -> Rc<Texture> {
+        Texture::new_with_image_buffer(ImageBuffer::from_fn(128, 64, |x, y| {
+            let cx: u32 = x / 8;
+            let cy: u32 = y / 8;
+            let c = &DEFAULT_FONT_DATA[(cx + cy * 16) as usize];
+
+            let bx: u8 = (x % 8) as u8;
+            let by: u8 = (y % 8) as u8;
+
+            if (c[by as usize] & (1 << bx)) != 0 {
+                image::Rgba([0xff, 0xff, 0xff, 0xff])
+            } else {
+                image::Rgba([0, 0, 0, 0xff])
+            }
+        }))
     }
 
     pub fn get_filename(&self, name: &'a str) -> String {

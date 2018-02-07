@@ -3,18 +3,15 @@
 #![feature(integer_atomics)]
 
 /* common */
-extern crate image;
 extern crate nalgebra as na;
 extern crate ncollide;
 extern crate nphysics3d;
 extern crate uni_app;
-extern crate webgl;
+extern crate unigame;
 
 mod boxes_vee;
-mod engine;
-
 use boxes_vee::*;
-use engine::*;
+use unigame::engine::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 use uni_app::*;

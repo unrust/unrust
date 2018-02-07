@@ -1,9 +1,8 @@
-use ComponentBased;
-use Component;
+use engine::core::{Component, ComponentBased};
+use super::{ShaderProgram, Texture};
+
 use std::sync::Arc;
 use std::rc::Rc;
-use engine::texture::Texture;
-use ShaderProgram;
 
 pub struct Material {
     pub program: Rc<ShaderProgram>,

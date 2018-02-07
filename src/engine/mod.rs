@@ -1,22 +1,10 @@
-mod mesh;
-mod primitives;
-mod shader_program;
-mod camera;
-mod material;
-mod game_object;
-mod texture;
 mod engine;
-mod asset_database;
-mod default_font_bitmap;
-mod quad;
 
-pub use self::mesh::{Mesh, MeshBuffer};
-pub use self::primitives::PrimitiveMesh;
-pub use self::quad::Quad;
-pub use self::shader_program::ShaderProgram;
-pub use self::camera::Camera;
-pub use self::material::Material;
-pub use self::texture::Texture;
-pub use self::game_object::{Component, ComponentBased, GameObject};
+mod core;
+mod render;
+mod asset;
+
+pub use self::render::{Camera, Material, Mesh, ShaderProgram, Texture};
+pub use self::core::{Component, ComponentBased, GameObject};
+pub use self::asset::{Asset, AssetDatabase, PrimitiveMesh, Quad};
 pub use self::engine::Engine;
-pub use self::asset_database::{Asset, AssetDatabase};

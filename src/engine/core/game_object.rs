@@ -3,7 +3,14 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::any::{Any, TypeId};
 
-use Engine;
+use std::sync::atomic::AtomicU32;
+use std::sync::atomic::Ordering;
+
+fn next_component_id() -> u64 {
+    static CURR_COMPONENT_COUNTER: AtomicU32 = AtomicU32::new(1);;
+
+    CURR_COMPONENT_COUNTER.fetch_add(1, Ordering::SeqCst) as u64
+}
 
 pub trait Component: Any {
     fn id(&self) -> u64;
@@ -57,7 +64,7 @@ impl Component {
     {
         let c = ComponentType {
             com: Rc::new(value),
-            id: Engine::next_component_id(),
+            id: next_component_id(),
         };
 
         Arc::new(c)

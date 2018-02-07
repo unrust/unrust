@@ -1,13 +1,13 @@
+use super::ShaderProgram;
+use engine::{Asset, Engine};
+
 use webgl::*;
 use image;
 use image::{ImageBuffer, RgbaImage};
-use Engine;
+
 use std::cell::RefCell;
 use std::rc::Rc;
-use ShaderProgram;
-use Asset;
 
-use super::default_font_bitmap::DEFAULT_FONT_DATA;
 use uni_app::{File, FileSystem, IoError};
 use std::io::ErrorKind;
 
@@ -22,7 +22,6 @@ impl Asset for Texture {
     fn new(s: &str) -> Rc<Self> {
         match s {
             "default" => Texture::new_default(),
-            "default_font_bitmap" => Texture::new_default_bitmap(),
             filename => {
                 Texture::new_texture(filename).expect(&format!("Cannot open file: {:?}", filename))
             }
@@ -61,37 +60,16 @@ impl Texture {
         // Construct a new ImageBuffer with the specified width and height.
 
         // Construct a new by repeated calls to the supplied closure.
-        let img = ImageBuffer::from_fn(64, 64, |x, y| {
+        Self::new_with_image_buffer(ImageBuffer::from_fn(64, 64, |x, y| {
             if (x < 32 && y < 32) || (x > 32 && y > 32) {
                 image::Rgba([0xff, 0xff, 0xff, 0xff])
             } else {
                 image::Rgba([0, 0, 0, 0xff])
             }
-        });
-
-        Rc::new(Texture {
-            img: RefCell::new(Some(img)),
-            gl_state: RefCell::new(None),
-            file: None,
-        })
+        }))
     }
 
-    fn new_default_bitmap() -> Rc<Self> {
-        let img = ImageBuffer::from_fn(128, 64, |x, y| {
-            let cx: u32 = x / 8;
-            let cy: u32 = y / 8;
-            let c = &DEFAULT_FONT_DATA[(cx + cy * 16) as usize];
-
-            let bx: u8 = (x % 8) as u8;
-            let by: u8 = (y % 8) as u8;
-
-            if (c[by as usize] & (1 << bx)) != 0 {
-                image::Rgba([0xff, 0xff, 0xff, 0xff])
-            } else {
-                image::Rgba([0, 0, 0, 0xff])
-            }
-        });
-
+    pub fn new_with_image_buffer(img: RgbaImage) -> Rc<Self> {
         Rc::new(Texture {
             img: RefCell::new(Some(img)),
             gl_state: RefCell::new(None),

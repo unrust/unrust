@@ -1,6 +1,6 @@
-use Mesh;
-use MeshBuffer;
-use Component;
+use engine::core::Component;
+use engine::render::{Mesh, MeshBuffer};
+
 use std::sync::Arc;
 
 pub struct Quad(MeshBuffer);

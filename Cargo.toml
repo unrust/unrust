@@ -16,6 +16,14 @@ version = "*"
 default-features = false
 features = ["png_codec"]
 
+[lib]
+name = "unigame"
+path = "src/lib.rs"
+
+[[bin]]
+name = "unigame"
+path = "src/main.rs"
+
 [replace]
 "rand:0.3.20" = { path = "wasm-rand" }
 "rustc-serialize:0.3.24" = { path = "wasm-rustc-serialize" }

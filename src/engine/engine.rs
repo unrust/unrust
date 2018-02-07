@@ -1,18 +1,12 @@
+use webgl::*;
+use uni_app::App;
+
 use na::*;
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use uni_app::*;
-use webgl::*;
-use std::sync::atomic::AtomicU32;
-use std::sync::atomic::Ordering;
 
-use Camera;
-use GameObject;
-use ShaderProgram;
-use Material;
-use Mesh;
-use Texture;
+use super::{Camera, GameObject, Material, Mesh, ShaderProgram, Texture};
 
 pub struct Engine {
     pub gl: WebGLRenderingContext,
@@ -140,12 +134,6 @@ impl Engine {
 
         self.objects.push(go.clone());
         go
-    }
-
-    pub fn next_component_id() -> u64 {
-        static CURR_COMPONENT_COUNTER: AtomicU32 = AtomicU32::new(1);;
-
-        CURR_COMPONENT_COUNTER.fetch_add(1, Ordering::SeqCst) as u64
     }
 
     pub fn new(app: &App, size: (u32, u32)) -> Engine {

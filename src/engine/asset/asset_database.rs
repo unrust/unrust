@@ -4,28 +4,83 @@ use std::sync::Arc;
 use std::collections::HashMap;
 
 use engine::core::Component;
-use super::{PrimitiveMesh, Quad};
-use engine::{ShaderProgram, Texture};
+use super::{CubeMesh, PlaneMesh, Quad};
+use engine::{Mesh, ShaderProgram, Texture};
 
 use image;
 use image::ImageBuffer;
 
 use super::default_font_bitmap::DEFAULT_FONT_DATA;
 
+pub trait AssetSystem
+where
+    Self: Sized,
+{
+    fn new() -> Self;
+
+    fn new_program(&self, name: &str) -> Rc<ShaderProgram>;
+
+    fn new_texture(&self, name: &str) -> Rc<Texture>;
+
+    fn new_mesh(&self, name: &str) -> Arc<Component>;
+}
+
 pub trait Asset {
     fn new(s: &str) -> Rc<Self>;
 }
 
 #[derive(Default)]
-pub struct AssetDatabase<'a> {
-    path: &'static str,
-    textures: RefCell<HashMap<&'a str, Rc<Texture>>>,
-    meshes: RefCell<HashMap<&'a str, Arc<Component>>>,
-    programs: RefCell<HashMap<&'a str, Rc<ShaderProgram>>>,
+pub struct AssetDatabase {
+    path: String,
+    textures: RefCell<HashMap<String, Rc<Texture>>>,
+    meshes: RefCell<HashMap<String, Arc<Component>>>,
+    programs: RefCell<HashMap<String, Rc<ShaderProgram>>>,
 }
 
-impl<'a> AssetDatabase<'a> {
-    pub fn new_asset<R>(&self, hm: &mut HashMap<&'a str, Rc<R>>, name: &'a str) -> Rc<R>
+impl AssetSystem for AssetDatabase {
+    fn new_program(&self, name: &str) -> Rc<ShaderProgram> {
+        let mut a = self.programs.borrow_mut();
+        self.new_asset(&mut a, name)
+    }
+
+    fn new_texture(&self, name: &str) -> Rc<Texture> {
+        let mut a = self.textures.borrow_mut();
+        match name {
+            "default_font_bitmap" => Self::new_default_font_bitmap(),
+            "default" => Self::new_default_texture(),
+            name => self.new_asset(&mut a, name),
+        }
+    }
+
+    fn new_mesh(&self, name: &str) -> Arc<Component> {
+        let mut hm = self.meshes.borrow_mut();
+        match hm.get_mut(name) {
+            Some(tex) => tex.clone(),
+            None => panic!("No asset found."),
+        }
+    }
+
+    fn new() -> AssetDatabase {
+        let mut db = AssetDatabase::default();
+
+        db.meshes = RefCell::new({
+            let mut hm = HashMap::new();
+            hm.insert("cube".into(), Component::new(Mesh::new(CubeMesh::new())));
+            hm.insert("plane".into(), Component::new(Mesh::new(PlaneMesh::new())));
+            hm.insert("screen_quad".into(), Component::new(Mesh::new(Quad::new())));
+            hm
+        });
+
+        if cfg!(not(target_arch = "wasm32")) {
+            db.path = "static/".into();
+        }
+
+        db
+    }
+}
+
+impl AssetDatabase {
+    fn new_asset<R>(&self, hm: &mut HashMap<String, Rc<R>>, name: &str) -> Rc<R>
     where
         R: Asset,
     {
@@ -33,27 +88,13 @@ impl<'a> AssetDatabase<'a> {
             Some(asset) => asset.clone(),
             None => {
                 let asset = R::new(&self.get_filename(name));
-                hm.insert(name, asset.clone());
+                hm.insert(name.into(), asset.clone());
                 asset
             }
         }
     }
 
-    pub fn new_program(&self, name: &'a str) -> Rc<ShaderProgram> {
-        let mut a = self.programs.borrow_mut();
-        self.new_asset(&mut a, name)
-    }
-
-    pub fn new_texture(&self, name: &'a str) -> Rc<Texture> {
-        let mut a = self.textures.borrow_mut();
-        if name == "default_font_bitmap" {
-            Self::default_font_bitmap()
-        } else {
-            self.new_asset(&mut a, name)
-        }
-    }
-
-    fn default_font_bitmap() -> Rc<Texture> {
+    fn new_default_font_bitmap() -> Rc<Texture> {
         Texture::new_with_image_buffer(ImageBuffer::from_fn(128, 64, |x, y| {
             let cx: u32 = x / 8;
             let cy: u32 = y / 8;
@@ -70,38 +111,25 @@ impl<'a> AssetDatabase<'a> {
         }))
     }
 
-    pub fn get_filename(&self, name: &'a str) -> String {
+    fn new_default_texture() -> Rc<Texture> {
+        // Construct a new ImageBuffer with the specified width and height.
+
+        // Construct a new by repeated calls to the supplied closure.
+        Texture::new_with_image_buffer(ImageBuffer::from_fn(64, 64, |x, y| {
+            if (x < 32 && y < 32) || (x > 32 && y > 32) {
+                image::Rgba([0xff, 0xff, 0xff, 0xff])
+            } else {
+                image::Rgba([0, 0, 0, 0xff])
+            }
+        }))
+    }
+
+    pub fn get_filename(&self, name: &str) -> String {
         match name {
             "default" => name.into(),
             "default_font_bitmap" => name.into(),
             "default_screen" => name.into(),
             _ => format!("{}{}", self.path, name),
         }
-    }
-
-    pub fn new_mesh(&self, name: &'a str) -> Arc<Component> {
-        let mut hm = self.meshes.borrow_mut();
-        match hm.get_mut(name) {
-            Some(tex) => tex.clone(),
-            None => panic!("No asset found."),
-        }
-    }
-
-    pub fn new() -> AssetDatabase<'a> {
-        let mut db = AssetDatabase::default();
-
-        db.meshes = RefCell::new({
-            let mut hm = HashMap::new();
-            hm.insert("cube", PrimitiveMesh::new_cube_component());
-            hm.insert("plane", PrimitiveMesh::new_plane_component());
-            hm.insert("screen_quad", Quad::new_quad_component());
-            hm
-        });
-
-        if cfg!(not(target_arch = "wasm32")) {
-            db.path = "static/";
-        }
-
-        db
     }
 }

@@ -1,9 +1,9 @@
 use super::ShaderProgram;
-use engine::{Asset, Engine};
+use engine::Asset;
 
 use webgl::*;
 use image;
-use image::{ImageBuffer, RgbaImage};
+use image::RgbaImage;
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -13,7 +13,6 @@ use std::io::ErrorKind;
 
 pub struct Texture {
     gl_state: RefCell<Option<TextureGLState>>,
-
     img: RefCell<Option<RgbaImage>>,
     file: Option<RefCell<File>>,
 }
@@ -21,7 +20,6 @@ pub struct Texture {
 impl Asset for Texture {
     fn new(s: &str) -> Rc<Self> {
         match s {
-            "default" => Texture::new_default(),
             filename => {
                 Texture::new_texture(filename).expect(&format!("Cannot open file: {:?}", filename))
             }
@@ -56,19 +54,6 @@ impl Texture {
         }
     }
 
-    fn new_default() -> Rc<Self> {
-        // Construct a new ImageBuffer with the specified width and height.
-
-        // Construct a new by repeated calls to the supplied closure.
-        Self::new_with_image_buffer(ImageBuffer::from_fn(64, 64, |x, y| {
-            if (x < 32 && y < 32) || (x > 32 && y > 32) {
-                image::Rgba([0xff, 0xff, 0xff, 0xff])
-            } else {
-                image::Rgba([0, 0, 0, 0xff])
-            }
-        }))
-    }
-
     pub fn new_with_image_buffer(img: RgbaImage) -> Rc<Self> {
         Rc::new(Texture {
             img: RefCell::new(Some(img)),
@@ -77,12 +62,11 @@ impl Texture {
         })
     }
 
-    pub fn bind(&self, engine: &Engine, program: &ShaderProgram) -> bool {
-        if !self.prepare(engine) {
+    pub fn bind(&self, gl: &WebGLRenderingContext, program: &ShaderProgram) -> bool {
+        if !self.prepare(gl) {
             return false;
         }
 
-        let gl = &engine.gl;
         let state_option = self.gl_state.borrow();
         let state = state_option.as_ref().unwrap();
 
@@ -102,7 +86,7 @@ impl Texture {
         }
     }
 
-    pub fn prepare(&self, engine: &Engine) -> bool {
+    pub fn prepare(&self, gl: &WebGLRenderingContext) -> bool {
         if self.gl_state.borrow().is_some() {
             return true;
         }
@@ -123,16 +107,14 @@ impl Texture {
             let img = self.img.borrow();
 
             self.gl_state
-                .replace(Some(texture_bind_buffer(&img.as_ref().unwrap(), engine)));
+                .replace(Some(texture_bind_buffer(&img.as_ref().unwrap(), gl)));
         }
 
         true
     }
 }
 
-fn texture_bind_buffer(img: &RgbaImage, engine: &Engine) -> TextureGLState {
-    let gl = &engine.gl;
-
+fn texture_bind_buffer(img: &RgbaImage, gl: &WebGLRenderingContext) -> TextureGLState {
     let tex = gl.create_texture();
 
     gl.bind_texture(&tex);

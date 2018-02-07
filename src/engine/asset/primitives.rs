@@ -1,24 +1,9 @@
-use engine::render::{Mesh, MeshBuffer};
-use engine::core::Component;
-
-use std::sync::Arc;
-
-pub struct PrimitiveMesh {}
-
-impl PrimitiveMesh {
-    pub fn new_cube_component() -> Arc<Component> {
-        Component::new(CubeMesh::new())
-    }
-
-    pub fn new_plane_component() -> Arc<Component> {
-        Component::new(PlaneMesh::new())
-    }
-}
-
-pub struct CubeMesh(MeshBuffer);
+use engine::render::MeshBuffer;
+pub struct CubeMesh {}
+pub struct PlaneMesh {}
 
 impl CubeMesh {
-    pub fn new() -> Mesh {
+    pub fn new() -> MeshBuffer {
         let vertices: Vec<f32> = vec![
             -1.0, -1.0,  1.0,
              1.0, -1.0,  1.0,
@@ -131,19 +116,17 @@ impl CubeMesh {
             20, 21, 22,   20, 22, 23  // Left face
         ];
 
-        Mesh::new(MeshBuffer {
+        MeshBuffer {
             vertices: vertices,
             uvs: Some(uvs),
             normals: Some(normals),
             indices: indices,
-        })
+        }
     }
 }
 
-pub struct PlaneMesh(MeshBuffer);
-
 impl PlaneMesh {
-    pub fn new() -> Mesh {
+    pub fn new() -> MeshBuffer {
         let vertices: Vec<f32> = vec![
             // Top face
             -10.0,  0.0, -10.0,
@@ -172,11 +155,11 @@ impl PlaneMesh {
             0, 1, 2, 0, 2, 3 // Top face
         ];
 
-        Mesh::new(MeshBuffer {
+        MeshBuffer {
             vertices: vertices,
             uvs: Some(uvs),
             normals: Some(normals),
             indices: indices,
-        })
+        }
     }
 }

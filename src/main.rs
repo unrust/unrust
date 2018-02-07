@@ -35,43 +35,39 @@ impl PhysicObject {
 
 impl ComponentBased for PhysicObject {}
 
-struct Game<'a> {
-    db: AssetDatabase<'a>,
+struct Game {
     list: Vec<Handle<GameObject>>,
     counter: u32,
+    engine: Engine,
 }
 
-impl<'a> Game<'a> {
-    fn new() -> Game<'a> {
+impl Game {
+    fn new(engine: Engine) -> Game {
         Game {
-            db: AssetDatabase::new(),
             list: Vec::new(),
             counter: 0,
+            engine: engine,
         }
     }
 
-    fn add_object(
-        &mut self,
-        engine: &mut Engine,
-        rb: Handle<RigidBody<f32>>,
-    ) -> Handle<GameObject> {
-        let go = engine.new_gameobject(rb.borrow().position());
+    fn add_object(&mut self, rb: Handle<RigidBody<f32>>) -> Handle<GameObject> {
+        let go = { self.engine.new_gameobject() };
+
         {
+            let db = self.engine.asset_system();
             let mut go_mut = go.borrow_mut();
+            go_mut.transform = *rb.borrow().position();
 
             let texture = match self.counter % 5 {
                 // 0 => self.db.new_texture("tex_a.png"),
                 // 1 => self.db.new_texture("default"),
-                _ => self.db.new_texture("default_font_bitmap"),
+                _ => db.new_texture("default_font_bitmap"),
             };
 
             self.counter += 1;
 
             go_mut.add_component(self.get(rb.borrow().shape().as_ref()).unwrap());
-            go_mut.add_component(Material::new_component(
-                self.db.new_program("default"),
-                texture,
-            ));
+            go_mut.add_component(Material::new_component(db.new_program("default"), texture));
             go_mut.add_component(Component::new(PhysicObject(rb)));
         }
 
@@ -80,30 +76,34 @@ impl<'a> Game<'a> {
     }
 
     pub fn get(&self, shape: &Shape3<f32>) -> Option<Arc<Component>> {
+        let db = self.engine.asset_system();
+
         if let Some(_) = shape.as_shape::<Cuboid3<f32>>() {
-            return Some(self.db.new_mesh("cube"));
+            return Some(db.new_mesh("cube"));
         } else if let Some(_) = shape.as_shape::<Plane3<f32>>() {
-            return Some(self.db.new_mesh("plane"));
+            return Some(db.new_mesh("plane"));
         }
 
         return None;
     }
 
-    fn add_ui(&self, engine: &mut Engine) {
-        let go = engine.new_gameobject(&na::Isometry3::identity());
+    fn add_ui(&mut self) {
+        let go = self.engine.new_gameobject();
+
+        let db = self.engine.asset_system();
         {
             let mut go_mut = go.borrow_mut();
 
-            go_mut.add_component(self.db.new_mesh("screen_quad"));
+            go_mut.add_component(db.new_mesh("screen_quad"));
             go_mut.add_component(Material::new_component(
-                self.db.new_program("default_screen"),
-                self.db.new_texture("default_font_bitmap"),
+                db.new_program("default_screen"),
+                db.new_texture("default_font_bitmap"),
             ));
         }
     }
 }
 
-impl<'a> Deref for Game<'a> {
+impl Deref for Game {
     type Target = Vec<Handle<GameObject>>;
 
     fn deref(&self) -> &Self::Target {
@@ -123,15 +123,15 @@ pub fn main() {
 
         engine.main_camera = Some(Camera::new());
 
-        let mut objects = Game::new();
+        let mut game = Game::new(engine);
 
         // for rb in scene.world.rigid_bodies() {
-        //     objects.add_object(&mut engine, rb.clone());
+        //     game.add_object(&mut engine, rb.clone());
         // }
 
         let mut fps = FPS::new();
 
-        objects.add_ui(&mut engine);
+        game.add_ui();
 
         app.run(move |app: &mut App| {
             fps.step();
@@ -142,7 +142,7 @@ pub fn main() {
                 for evt in app.events.borrow().iter() {
                     match evt {
                         &AppEvent::Click => {
-                            objects.add_object(&mut engine, scene.add_box());
+                            game.add_object(scene.add_box());
                         }
                     }
                 }
@@ -150,7 +150,7 @@ pub fn main() {
 
             // Update Camera
             {
-                let cam = engine.main_camera.as_mut().unwrap();
+                let cam = game.engine.main_camera.as_mut().unwrap();
                 cam.lookat(
                     &Point3::new(-30.0, 30.0, -30.0),
                     &Point3::new(0.0, 0.0, 0.0),
@@ -165,7 +165,7 @@ pub fn main() {
                     rb.get_phy_transform()
                 };
 
-                for go in objects.iter() {
+                for go in game.iter() {
                     let tran = get_pb_tran(&go.borrow());
                     go.borrow_mut().transform = tran;
                 }
@@ -173,7 +173,7 @@ pub fn main() {
 
             // Render
             {
-                engine.render();
+                game.engine.render();
             }
         });
     }

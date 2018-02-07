@@ -1,7 +1,6 @@
 use webgl::*;
 use std::mem::size_of;
 
-use engine::Engine;
 use super::ShaderProgram;
 use engine::core::ComponentBased;
 use std::cell::RefCell;
@@ -42,10 +41,8 @@ impl Mesh {
         }
     }
 
-    pub fn bind(&self, engine: &Engine, program: &ShaderProgram) {
-        let gl = &engine.gl;
-
-        self.prepare(engine);
+    pub fn bind(&self, gl: &WebGLRenderingContext, program: &ShaderProgram) {
+        self.prepare(gl);
 
         let state_option = self.gl_state.borrow();
         let state = state_option.as_ref().unwrap();
@@ -95,14 +92,14 @@ impl Mesh {
         &self.mesh_buffer.indices
     }
 
-    pub fn prepare(&self, engine: &Engine) {
+    pub fn prepare(&self, gl: &WebGLRenderingContext) {
         if self.gl_state.borrow().is_none() {
             self.gl_state.replace(Some(mesh_bind_buffer(
                 &self.mesh_buffer.vertices,
                 &self.mesh_buffer.uvs,
                 &self.mesh_buffer.normals,
                 &self.mesh_buffer.indices,
-                engine,
+                gl,
             )));
         }
     }
@@ -121,10 +118,8 @@ fn mesh_bind_buffer(
     uvs: &Option<Vec<f32>>,
     normals: &Option<Vec<f32>>,
     indices: &Vec<u16>,
-    engine: &Engine,
+    gl: &WebGLRenderingContext,
 ) -> MeshGLState {
-    let gl = &engine.gl;
-
     // Create an empty buffer object to store vertex buffer
     let vertex_buffer = gl.create_buffer();
     {

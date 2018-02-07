@@ -1,16 +1,9 @@
-use engine::core::Component;
-use engine::render::{Mesh, MeshBuffer};
+use engine::render::MeshBuffer;
 
-use std::sync::Arc;
-
-pub struct Quad(MeshBuffer);
+pub struct Quad {}
 
 impl Quad {
-    pub fn new_quad_component() -> Arc<Component> {
-        Component::new(Quad::new_quad())
-    }
-
-    pub fn new_quad() -> Mesh {
+    pub fn new() -> MeshBuffer {
         let vertices: Vec<f32> = vec![
             -1.0, 1.0, 0.0, -1.0, -1.0, 0.0, 1.0, -1.0, 0.0, 1.0, 1.0, 0.0
         ];
@@ -27,11 +20,11 @@ impl Quad {
             0, 1, 2, 0, 2, 3 // Top face
         ];
 
-        Mesh::new(MeshBuffer {
+        MeshBuffer {
             vertices: vertices,
             uvs: Some(uvs),
             normals: None,
             indices: indices,
-        })
+        }
     }
 }

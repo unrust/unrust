@@ -7,14 +7,18 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use super::{Camera, GameObject, Material, Mesh, ShaderProgram, Texture};
+use super::asset::{AssetDatabase, AssetSystem};
 
-pub struct Engine {
+pub struct Engine<A = AssetDatabase>
+where
+    A: AssetSystem,
+{
     pub gl: WebGLRenderingContext,
     pub main_camera: Option<Camera>,
 
     pub objects: Vec<Rc<RefCell<GameObject>>>,
-
     pub program_cache: RefCell<HashMap<&'static str, Rc<ShaderProgram>>>,
+    pub asset_system: A,
 }
 
 #[derive(Default)]
@@ -38,11 +42,18 @@ impl EngineContext {
     }
 }
 
-impl Engine {
+impl<A> Engine<A>
+where
+    A: AssetSystem,
+{
     pub fn clear(&self) {
         self.gl.clear(BufferBit::Color);
         self.gl.clear(BufferBit::Depth);
         self.gl.clear_color(0.2, 0.2, 0.2, 1.0);
+    }
+
+    pub fn asset_system<'a>(&'a self) -> &'a A {
+        &self.asset_system
     }
 
     fn setup_material(&self, ctx: &mut EngineContext, material: &Material) -> bool {
@@ -59,7 +70,7 @@ impl Engine {
         if need_prepare {
             let curr = &mut ctx.prog;
             // Binding texture
-            if !material.texture.bind(self, curr.as_ref().unwrap()) {
+            if !material.texture.bind(&self.gl, curr.as_ref().unwrap()) {
                 return false;
             }
             ctx.tex = Some(material.texture.clone());
@@ -97,7 +108,7 @@ impl Engine {
         let (mesh, com) = object.get_component_by_type::<Mesh>().unwrap();
 
         if ctx.mesh.is_none() || ctx.mesh.unwrap() != com.id() {
-            mesh.bind(self, prog);
+            mesh.bind(&self.gl, prog);
             ctx.switch_mesh += 1;
         }
 
@@ -126,9 +137,9 @@ impl Engine {
         }
     }
 
-    pub fn new_gameobject(&mut self, transform: &Isometry3<f32>) -> Rc<RefCell<GameObject>> {
+    pub fn new_gameobject(&mut self) -> Rc<RefCell<GameObject>> {
         let go = Rc::new(RefCell::new(GameObject {
-            transform: *transform,
+            transform: Isometry3::identity(),
             components: vec![],
         }));
 
@@ -136,7 +147,7 @@ impl Engine {
         go
     }
 
-    pub fn new(app: &App, size: (u32, u32)) -> Engine {
+    pub fn new(app: &App, size: (u32, u32)) -> Engine<A> {
         let gl = WebGLRenderingContext::new(app.canvas());
 
         /*=========Drawing the triangle===========*/
@@ -159,6 +170,7 @@ impl Engine {
             main_camera: None,
             objects: vec![],
             program_cache: RefCell::new(HashMap::new()),
+            asset_system: A::new(),
         }
     }
 }

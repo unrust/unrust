@@ -4,6 +4,9 @@ use std::mem::size_of;
 use super::ShaderProgram;
 use engine::core::ComponentBased;
 use std::cell::RefCell;
+use std::f32::{MAX, MIN};
+
+use na::Vector3;
 
 trait IntoBytes {
     fn into_bytes(self) -> Vec<u8>;
@@ -22,6 +25,7 @@ impl<T> IntoBytes for Vec<T> {
 pub struct Mesh {
     pub mesh_buffer: MeshBuffer,
     gl_state: RefCell<Option<MeshGLState>>,
+    bounds: RefCell<Option<(Vector3<f32>, Vector3<f32>)>>,
 }
 
 impl ComponentBased for Mesh {}
@@ -38,6 +42,7 @@ impl Mesh {
         Mesh {
             mesh_buffer: mesh_buffer,
             gl_state: RefCell::new(None),
+            bounds: RefCell::new(None),
         }
     }
 
@@ -54,6 +59,7 @@ impl Mesh {
 
         // Point an position attribute to the currently bound VBO
         if let Some(coord) = program.get_coord(gl, "aVertexPosition") {
+            gl.enable_vertex_attrib_array(coord);
             gl.vertex_attrib_pointer(coord, AttributeSize::Three, DataType::Float, false, 0, 0);
         }
 
@@ -62,6 +68,7 @@ impl Mesh {
             // Point an normal attribute to the currently bound VBO
 
             if let Some(coord) = program.get_coord(gl, "aVertexNormal") {
+                gl.enable_vertex_attrib_array(coord);
                 gl.vertex_attrib_pointer(coord, AttributeSize::Three, DataType::Float, false, 0, 0);
             }
         }
@@ -71,6 +78,7 @@ impl Mesh {
             // Point an uv attribute to the currently bound VBO
 
             if let Some(coord) = program.get_coord(gl, "aTextureCoord") {
+                gl.enable_vertex_attrib_array(coord);
                 gl.vertex_attrib_pointer(coord, AttributeSize::Two, DataType::Float, false, 0, 0);
             }
         }
@@ -103,10 +111,34 @@ impl Mesh {
             )));
         }
     }
+
+    pub fn compute_bounds(&self) -> (Vector3<f32>, Vector3<f32>) {
+        let mut min = Vector3::new(MAX, MAX, MAX);
+        let mut max = Vector3::new(MIN, MIN, MIN);
+
+        for (i, v) in self.mesh_buffer.vertices.iter().enumerate() {
+            min[i % 3] = v.min(min[i % 3]);
+            max[i % 3] = v.max(max[i % 3]);
+        }
+
+        (min, max)
+    }
+
+    /// bounds return (vmin, vmax)
+    pub fn bounds(&self) -> (Vector3<f32>, Vector3<f32>) {
+        let mut bounds = self.bounds.borrow_mut();
+
+        match *bounds {
+            Some(ref k) => *k,
+            None => {
+                *bounds = Some(self.compute_bounds());
+                bounds.unwrap()
+            }
+        }
+    }
 }
 
 pub struct MeshBuffer {
-    #[allow(dead_code)]
     pub vertices: Vec<f32>,
     pub uvs: Option<Vec<f32>>,
     pub normals: Option<Vec<f32>>,

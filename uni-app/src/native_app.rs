@@ -51,8 +51,6 @@ impl App {
         }
     }
 
-    pub fn add_control_text(&self) {}
-
     pub fn window(&self) -> &glutin::GlWindow {
         &self.window
     }

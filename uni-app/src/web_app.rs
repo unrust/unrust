@@ -1,8 +1,8 @@
 use stdweb;
 use AppConfig;
 
-use stdweb::web::{Element, IEventTarget, INode};
-use stdweb::web::{document, window};
+use stdweb::web::{Element, IEventTarget};
+use stdweb::web::{window};
 use stdweb::web::event::ClickEvent;
 use stdweb::unstable::TryInto;
 
@@ -67,32 +67,10 @@ impl App {
 
         stdweb::event_loop();
     }
-
-    pub fn add_control_text(&self) {
-        let div = document().create_element("div");
-        let content = document().create_text_node("Click on canvas to drop new box.");
-        div.append_child(&content);
-
-        let body = document().query_selector("body").unwrap();
-        body.append_child(&div);
-
-        js!{
-            var div = @{div};
-            div.id = "caption";
-            div.style.position = "fixed";
-            div.style.top = "580px";
-            div.style.left = "5px";
-            div.style.padding = "5px";
-            div.style.backgroundColor = "lightblue";
-            div.style.textAlign = "center";
-        };
-    }
 }
 
 impl FPS {
     pub fn new() -> FPS {
-        FPS::setup_div();
-
         let fps = FPS {
             counter: 0,
             last: FPS::now(),
@@ -100,26 +78,6 @@ impl FPS {
         };
 
         fps
-    }
-
-    fn setup_div() {
-        let div = document().create_element("div");
-        let content = document().create_text_node("None");
-        div.append_child(&content);
-
-        let body = document().query_selector("body").unwrap();
-        body.append_child(&div);
-
-        js!{
-            var div = @{div};
-            div.id = "fps";
-            div.style.position = "fixed";
-            div.style.top = "5px";
-            div.style.left = "5px";
-            div.style.padding = "5px";
-            div.style.backgroundColor = "lightblue";
-            div.style.textAlign = "center";
-        };
     }
 
     fn now() -> f64 {
@@ -134,8 +92,6 @@ impl FPS {
             self.last = curr;
             self.fps = self.counter;
             self.counter = 0;
-            let _content = document().query_selector("#fps");
-            js!( @{_content}.innerText = "fps : " + @{self.fps} );
         }
     }
 }

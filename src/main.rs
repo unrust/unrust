@@ -104,8 +104,6 @@ pub fn main() {
         let mut engine = Engine::new(&app, size);
         let mut scene = Scene::new();
 
-        app.add_control_text();
-
         engine.main_camera = Some(Camera::new());
 
         let mut game = Game::new(engine);
@@ -116,14 +114,22 @@ pub fn main() {
 
         let mut fps = FPS::new();
 
-        //game.add_ui();
-
         app.run(move |app: &mut App| {
             game.engine.begin();
             fps.step();
             scene.step();
 
-            imgui::label(-0.3, 0.3, &format!("fps: {}", fps.fps));
+            imgui::pivot((0.0, 0.0));
+            imgui::label(
+                Metric::Native(0.0, 0.0) + Metric::Pixel(8.0, 8.0),
+                &format!("fps: {} nobj: {}", fps.fps, game.len()),
+            );
+
+            imgui::pivot((1.0, 1.0));
+            imgui::label(
+                Metric::Native(1.0, 1.0) - Metric::Pixel(8.0, 8.0),
+                "Click on canvas to drop new box.",
+            );
 
             // Handle Events
             {

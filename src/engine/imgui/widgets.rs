@@ -1,7 +1,8 @@
 use engine::core::{Component, GameObject};
 use engine::render::{Material, Mesh};
-
 use engine::engine::IEngine;
+
+use super::Metric;
 
 use std::fmt::Debug;
 use engine::render::MeshBuffer;
@@ -9,6 +10,8 @@ use engine::render::MeshBuffer;
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::any::Any;
+
+use na::{Translation3, Vector3};
 
 pub trait Widget: Send + Sync + Debug {
     fn id(&self) -> u32;
@@ -27,95 +30,121 @@ impl PartialEq for Widget {
 #[derive(Debug, PartialEq)]
 pub struct Label {
     id: u32,
-    x: f32,
-    y: f32,
+    pos: Metric,
+    pivot: Metric,
     s: String,
 }
 
+fn make_text_mesh(s: &str, size: (u32, u32)) -> MeshBuffer {
+    let mut vertices = vec![];
+    let mut uvs = vec![];
+    let mut indices = vec![];
+
+    let icw = 8.0 / 128.0;
+    let ich = 8.0 / 64.0;
+
+    let mut i = 0;
+    let nrow = 128 / 8;
+
+    let gw = ((8 as f32) / size.0 as f32) * 2.0;
+    let gh = ((8 as f32) / size.1 as f32) * 2.0;
+
+    for c in s.chars() {
+        let mut c: u8 = c as u8;
+        if c >= 128 {
+            c = 128;
+        }
+
+        let g_row = (c / nrow) as f32;
+        let g_col = (c % nrow) as f32;
+
+        let gx = (i as f32) * gw;
+
+        vertices.append(&mut vec![
+            gx + 0.0, // 0
+            0.0,
+            0.0,
+            gx + 0.0, // 1
+            -gh,
+            0.0,
+            gx + gw, // 2
+            -gh,
+            0.0,
+            gx + gw, // 3
+            0.0,
+            0.0,
+        ]);
+
+        uvs.append(&mut vec![
+            g_col * icw + 0.0, // 0
+            g_row * ich,
+            g_col * icw + 0.0, // 1
+            g_row * ich + ich,
+            g_col * icw + icw, // 2
+            g_row * ich + ich,
+            g_col * icw + icw, // 3
+            g_row * ich,
+        ]);
+
+        indices.append(&mut vec![
+            i * 4,
+            i * 4 + 1,
+            i * 4 + 2,
+            i * 4 + 0,
+            i * 4 + 2,
+            i * 4 + 3, // Top face
+        ]);
+
+        i += 1;
+    }
+
+    MeshBuffer {
+        vertices: vertices,
+        uvs: Some(uvs),
+        normals: None,
+        indices: indices,
+    }
+}
+
 impl Label {
-    pub fn new(id: u32, x: f32, y: f32, s: String) -> Label {
+    pub fn new(id: u32, pos: Metric, pivot: Metric, s: String) -> Label {
         Self {
             id: id,
-            x: x,
-            y: y,
+            pos: pos,
+            pivot: pivot,
             s: s,
         }
     }
+}
 
-    pub fn mesh(&self, size: (u32, u32)) -> MeshBuffer {
-        let mut vertices = vec![];
-        let mut uvs = vec![];
-        let mut indices = vec![];
+fn to_pixel_pos(px: f32, py: f32, ssize: &(u32, u32)) -> (f32, f32) {
+    (((px * 2.0) / (ssize.0 as f32), (py * 2.0) / (ssize.1 as f32)))
+}
 
-        let icw = 8.0 / 128.0;
-        let ich = 8.0 / 64.0;
+fn compute_translate(
+    pos: &Metric,
+    pivot: &Metric,
+    ssize: &(u32, u32),
+    bounds: (Vector3<f32>, Vector3<f32>),
+) -> Translation3<f32> {
+    let w = bounds.1.x - bounds.0.x;
+    let h = bounds.1.y - bounds.0.y;
 
-        let mut i = 0;
-        let nrow = 128 / 8;
-
-        let mut gw = ((8 as f32) / size.0 as f32) * 2.0;
-        let mut gh = ((8 as f32) / size.1 as f32) * 2.0;
-
-        // Scale the font 2x
-        gw *= 2.0;
-        gh *= 2.0;
-
-        for c in self.s.chars() {
-            let mut c: u8 = c as u8;
-            if c >= 128 {
-                c = 128;
-            }
-
-            let g_row = (c / nrow) as f32;
-            let g_col = (c % nrow) as f32;
-
-            let gx = (i as f32) * gw;
-
-            vertices.append(&mut vec![
-                gx + 0.0, // 0
-                0.0,
-                0.0,
-                gx + 0.0, // 1
-                -gh,
-                0.0,
-                gx + gw, // 2
-                -gh,
-                0.0,
-                gx + gw, // 3
-                0.0,
-                0.0,
-            ]);
-
-            uvs.append(&mut vec![
-                g_col * icw + 0.0, // 0
-                g_row * ich,
-                g_col * icw + 0.0, // 1
-                g_row * ich + ich,
-                g_col * icw + icw, // 2
-                g_row * ich + ich,
-                g_col * icw + icw, // 3
-                g_row * ich,
-            ]);
-
-            indices.append(&mut vec![
-                i * 4,
-                i * 4 + 1,
-                i * 4 + 2,
-                i * 4 + 0,
-                i * 4 + 2,
-                i * 4 + 3, // Top face
-            ]);
-
-            i += 1;
+    let (x, y) = match pos {
+        &Metric::Native(px, py) => (px * 2.0, py * 2.0),
+        &Metric::Pixel(px, py) => to_pixel_pos(px, py, ssize),
+        &Metric::Mixed((ax, ay), (bx, by)) => {
+            let vp = to_pixel_pos(bx, by, ssize);
+            (ax * 2.0 + vp.0, ay * 2.0 + vp.1)
         }
+    };
 
-        MeshBuffer {
-            vertices: vertices,
-            uvs: Some(uvs),
-            normals: None,
-            indices: indices,
-        }
-    }
+    let (offsetx, offsety) = match pivot {
+        &Metric::Native(px, py) => (px * w, py * h),
+        _ => unreachable!(),
+    };
+
+    Translation3::new(x - 1.0 - offsetx, y * -1.0 + 1.0 + offsety, 0.0)
 }
 
 impl Widget for Label {
@@ -129,10 +158,15 @@ impl Widget for Label {
 
         {
             let mut gomut = go.borrow_mut();
-            // go.transform
-            //     .append_translation_mut(&Translation3::new(0.0, 0.2, 0.0));
+            let mesh = Mesh::new(make_text_mesh(&self.s, ssize));
+            gomut.transform.append_translation_mut(&compute_translate(
+                &self.pos,
+                &self.pivot,
+                &ssize,
+                mesh.bounds(),
+            ));
 
-            gomut.add_component(Component::new(Mesh::new(self.mesh(ssize))));
+            gomut.add_component(Component::new(mesh));
             gomut.add_component(Material::new_component(
                 db.new_program("default_screen"),
                 db.new_texture("default_font_bitmap"),

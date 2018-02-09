@@ -125,18 +125,6 @@ impl ShaderProgram {
                 ));
                 *self.gl_state.borrow_mut() = state;
             }
-
-            if let Some(pcoord) = self.get_coord(gl, "aVertexPosition") {
-                gl.enable_vertex_attrib_array(pcoord);
-            }
-
-            if let Some(ncoord) = self.get_coord(gl, "aVertexNormal") {
-                gl.enable_vertex_attrib_array(ncoord);
-            }
-
-            if let Some(texcoord) = self.get_coord(gl, "aTextureCoord") {
-                gl.enable_vertex_attrib_array(texcoord);
-            }
         }
     }
 

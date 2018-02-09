@@ -8,4 +8,7 @@ extern crate nalgebra as na;
 extern crate uni_app;
 extern crate webgl;
 
+#[macro_use]
+extern crate lazy_static;
+
 pub mod engine;

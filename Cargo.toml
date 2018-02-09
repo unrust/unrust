@@ -10,6 +10,10 @@ ncollide = "0.13.0"
 webgl = {path="webgl"}
 uni-app = {path="uni-app"}
 
+[dependencies.lazy_static]
+version = "1.0"
+features = ["nightly"]
+
 # Image related dependencies
 [dependencies.image]
 version = "*"

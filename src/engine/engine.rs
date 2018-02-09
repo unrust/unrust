@@ -2,12 +2,22 @@ use webgl::*;
 use uni_app::App;
 
 use na::*;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 use std::collections::HashMap;
 
 use super::{Camera, GameObject, Material, Mesh, ShaderProgram, Texture};
 use super::asset::{AssetDatabase, AssetSystem};
+
+use super::imgui;
+
+pub trait IEngine {
+    fn new_gameobject(&mut self) -> Rc<RefCell<GameObject>>;
+
+    fn asset_system<'a>(&'a self) -> &'a AssetSystem;
+
+    fn gui_context(&mut self) -> Rc<RefCell<imgui::Context>>;
+}
 
 pub struct Engine<A = AssetDatabase>
 where
@@ -16,9 +26,11 @@ where
     pub gl: WebGLRenderingContext,
     pub main_camera: Option<Camera>,
 
-    pub objects: Vec<Rc<RefCell<GameObject>>>,
+    pub objects: Vec<Weak<RefCell<GameObject>>>,
     pub program_cache: RefCell<HashMap<&'static str, Rc<ShaderProgram>>>,
-    pub asset_system: A,
+    pub asset_system: Rc<A>,
+
+    pub gui_context: Rc<RefCell<imgui::Context>>,
 }
 
 #[derive(Default)]
@@ -50,10 +62,6 @@ where
         self.gl.clear(BufferBit::Color);
         self.gl.clear(BufferBit::Depth);
         self.gl.clear_color(0.2, 0.2, 0.2, 1.0);
-    }
-
-    pub fn asset_system<'a>(&'a self) -> &'a A {
-        &self.asset_system
     }
 
     fn setup_material(&self, ctx: &mut EngineContext, material: &Material) -> bool {
@@ -88,7 +96,9 @@ where
         camera: &Camera,
     ) {
         // Setup Matrices
-        let modelm = object.transform.to_homogeneous();
+        let mut modelm = object.transform.to_homogeneous();
+        modelm = modelm * Matrix4::new_nonuniform_scaling(&object.scale);
+
         let prog = ctx.prog.as_ref().unwrap();
 
         if let Some(umv) = prog.get_uniform(gl, "uMVMatrix") {
@@ -104,6 +114,10 @@ where
             gl.uniform_matrix_4fv(&nm, &normal_mat.into());
         }
 
+        if let Some(mm) = prog.get_uniform(gl, "uMMatrix") {
+            gl.uniform_matrix_4fv(&mm, &(modelm).into());
+        }
+
         // Setup Mesh
         let (mesh, com) = object.get_component_by_type::<Mesh>().unwrap();
 
@@ -115,36 +129,38 @@ where
         mesh.render(gl);
     }
 
+    pub fn begin(&mut self) {
+        imgui::begin();
+    }
+
+    pub fn end(&mut self) {}
+
     pub fn render(&mut self) {
         self.clear();
-        let objects = &self.objects;
-        let gl = &self.gl;
+        imgui::pre_render(self);
 
+        let gl = &self.gl;
+        let objects = &self.objects;
         if let &Some(camera) = &self.main_camera.as_ref() {
             let mut ctx: EngineContext = Default::default();
 
             for obj in objects.iter() {
-                let object = obj.borrow();
-                let (material, _) = object.get_component_by_type::<Material>().unwrap();
+                obj.upgrade().map(|obj| {
+                    let object = obj.borrow();
+                    if let Some((material, _)) = object.get_component_by_type::<Material>() {
+                        if self.setup_material(&mut ctx, material) {
+                            self.render_object(gl, &mut ctx, &object, camera);
 
-                if self.setup_material(&mut ctx, material) {
-                    self.render_object(gl, &mut ctx, &object, camera);
-
-                    let (_, meshcom) = object.get_component_by_type::<Mesh>().unwrap();
-                    ctx.mesh = Some(meshcom.id());
-                }
+                            let (_, meshcom) = object.get_component_by_type::<Mesh>().unwrap();
+                            ctx.mesh = Some(meshcom.id());
+                        }
+                    }
+                });
             }
         }
-    }
 
-    pub fn new_gameobject(&mut self) -> Rc<RefCell<GameObject>> {
-        let go = Rc::new(RefCell::new(GameObject {
-            transform: Isometry3::identity(),
-            components: vec![],
-        }));
-
-        self.objects.push(go.clone());
-        go
+        // drop all gameobjects if there are only references
+        self.objects.retain(|obj| obj.upgrade().is_some());
     }
 
     pub fn new(app: &App, size: (u32, u32)) -> Engine<A> {
@@ -153,14 +169,18 @@ where
         /*=========Drawing the triangle===========*/
 
         // Clear the canvas
-        gl.clear_color(0.5, 0.5, 0.5, 0.9);
+        gl.clear_color(0.5, 0.5, 0.5, 1.0);
 
         // Enable the depth test
         gl.enable(Flag::DepthTest);
 
+        // Enable alpha blending
+        gl.enable(Flag::Blend);
+
         // Clear the color buffer bit
         gl.clear(BufferBit::Color);
         gl.clear(BufferBit::Depth);
+        gl.blend_func(BlendMode::SrcAlpha, BlendMode::OneMinusSrcAlpha);
 
         // Set the view port
         gl.viewport(0, 0, size.0, size.1);
@@ -170,7 +190,29 @@ where
             main_camera: None,
             objects: vec![],
             program_cache: RefCell::new(HashMap::new()),
-            asset_system: A::new(),
+            asset_system: Rc::new(A::new()),
+            gui_context: Rc::new(RefCell::new(imgui::Context::new(size.0, size.1))),
         }
+    }
+}
+
+impl<A: AssetSystem> IEngine for Engine<A> {
+    fn new_gameobject(&mut self) -> Rc<RefCell<GameObject>> {
+        let go = Rc::new(RefCell::new(GameObject {
+            transform: Isometry3::identity(),
+            scale: Vector3::new(1.0, 1.0, 1.0),
+            components: vec![],
+        }));
+
+        self.objects.push(Rc::downgrade(&go));
+        go
+    }
+
+    fn gui_context(&mut self) -> Rc<RefCell<imgui::Context>> {
+        self.gui_context.clone()
+    }
+
+    fn asset_system<'a>(&'a self) -> &'a AssetSystem {
+        &*self.asset_system
     }
 }

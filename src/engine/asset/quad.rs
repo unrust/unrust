@@ -5,7 +5,10 @@ pub struct Quad {}
 impl Quad {
     pub fn new() -> MeshBuffer {
         let vertices: Vec<f32> = vec![
-            -1.0, 1.0, 0.0, -1.0, -1.0, 0.0, 1.0, -1.0, 0.0, 1.0, 1.0, 0.0
+            -1.0, 1.0, 0.0,     // 0
+            -1.0, -1.0, 0.0,    // 1
+            1.0, -1.0, 0.0,     // 2
+            1.0, 1.0, 0.0       // 3
         ];
 
         let uvs: Vec<f32> = vec![

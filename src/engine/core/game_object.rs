@@ -73,6 +73,8 @@ impl Component {
 
 pub struct GameObject {
     pub transform: Isometry3<f32>,
+    pub scale: Vector3<f32>,
+
     pub components: Vec<Arc<Component>>,
 }
 

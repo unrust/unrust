@@ -2,7 +2,7 @@ use std;
 use stdweb::web::TypedArray;
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::io::{Error, ErrorKind};
+use std::io::ErrorKind;
 
 pub type IoError = std::io::Error;
 

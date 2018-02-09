@@ -60,5 +60,5 @@ pub enum AppEvent {
 pub struct FPS {
     counter: u32,
     last: f64,
-    fps: u32,
+    pub fps: u32,
 }

@@ -5,18 +5,17 @@ use std::collections::HashMap;
 
 use engine::core::Component;
 use super::{CubeMesh, PlaneMesh, Quad};
-use engine::{Mesh, ShaderProgram, Texture};
+use engine::{Mesh, ShaderProgram, Texture, TextureFiltering};
 
 use image;
 use image::ImageBuffer;
 
 use super::default_font_bitmap::DEFAULT_FONT_DATA;
 
-pub trait AssetSystem
-where
-    Self: Sized,
-{
-    fn new() -> Self;
+pub trait AssetSystem {
+    fn new() -> Self
+    where
+        Self: Sized;
 
     fn new_program(&self, name: &str) -> Rc<ShaderProgram>;
 
@@ -46,8 +45,6 @@ impl AssetSystem for AssetDatabase {
     fn new_texture(&self, name: &str) -> Rc<Texture> {
         let mut a = self.textures.borrow_mut();
         match name {
-            "default_font_bitmap" => Self::new_default_font_bitmap(),
-            "default" => Self::new_default_texture(),
             name => self.new_asset(&mut a, name),
         }
     }
@@ -63,13 +60,21 @@ impl AssetSystem for AssetDatabase {
     fn new() -> AssetDatabase {
         let mut db = AssetDatabase::default();
 
-        db.meshes = RefCell::new({
-            let mut hm = HashMap::new();
+        {
+            let mut hm = db.meshes.borrow_mut();
             hm.insert("cube".into(), Component::new(Mesh::new(CubeMesh::new())));
             hm.insert("plane".into(), Component::new(Mesh::new(PlaneMesh::new())));
             hm.insert("screen_quad".into(), Component::new(Mesh::new(Quad::new())));
-            hm
-        });
+        }
+
+        {
+            let mut hm = db.textures.borrow_mut();
+            hm.insert(
+                "default_font_bitmap".into(),
+                Self::new_default_font_bitmap(),
+            );
+            hm.insert("default".into(), Self::new_default_texture());
+        }
 
         if cfg!(not(target_arch = "wasm32")) {
             db.path = "static/".into();
@@ -95,7 +100,7 @@ impl AssetDatabase {
     }
 
     fn new_default_font_bitmap() -> Rc<Texture> {
-        Texture::new_with_image_buffer(ImageBuffer::from_fn(128, 64, |x, y| {
+        let mut tex = Texture::new_with_image_buffer(ImageBuffer::from_fn(128, 64, |x, y| {
             let cx: u32 = x / 8;
             let cy: u32 = y / 8;
             let c = &DEFAULT_FONT_DATA[(cx + cy * 16) as usize];
@@ -106,9 +111,13 @@ impl AssetDatabase {
             if (c[by as usize] & (1 << bx)) != 0 {
                 image::Rgba([0xff, 0xff, 0xff, 0xff])
             } else {
-                image::Rgba([0, 0, 0, 0xff])
+                image::Rgba([0, 0, 0, 0])
             }
-        }))
+        }));
+
+        Rc::get_mut(&mut tex).unwrap().filtering = TextureFiltering::Nearest;
+
+        tex
     }
 
     fn new_default_texture() -> Rc<Texture> {

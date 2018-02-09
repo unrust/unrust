@@ -86,21 +86,6 @@ impl Game {
 
         return None;
     }
-
-    fn add_ui(&mut self) {
-        let go = self.engine.new_gameobject();
-
-        let db = self.engine.asset_system();
-        {
-            let mut go_mut = go.borrow_mut();
-
-            go_mut.add_component(db.new_mesh("screen_quad"));
-            go_mut.add_component(Material::new_component(
-                db.new_program("default_screen"),
-                db.new_texture("default_font_bitmap"),
-            ));
-        }
-    }
 }
 
 impl Deref for Game {
@@ -134,8 +119,11 @@ pub fn main() {
         //game.add_ui();
 
         app.run(move |app: &mut App| {
+            game.engine.begin();
             fps.step();
             scene.step();
+
+            imgui::label(-0.3, 0.3, &format!("fps: {}", fps.fps));
 
             // Handle Events
             {
@@ -172,9 +160,10 @@ pub fn main() {
             }
 
             // Render
-            {
-                game.engine.render();
-            }
+            game.engine.render();
+
+            // End
+            game.engine.end();
         });
     }
 }

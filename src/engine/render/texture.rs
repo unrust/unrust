@@ -11,7 +11,13 @@ use std::rc::Rc;
 use uni_app::{File, FileSystem, IoError};
 use std::io::ErrorKind;
 
+pub enum TextureFiltering {
+    Nearest,
+    Linear,
+}
+
 pub struct Texture {
+    pub filtering: TextureFiltering,
     gl_state: RefCell<Option<TextureGLState>>,
     img: RefCell<Option<RgbaImage>>,
     file: Option<RefCell<File>>,
@@ -36,6 +42,7 @@ impl Texture {
         let mut f = FileSystem::open(filename)?;
         if !f.is_ready() {
             return Ok(Rc::new(Texture {
+                filtering: TextureFiltering::Linear,
                 img: RefCell::new(None),
                 file: Some(RefCell::new(f)),
                 gl_state: RefCell::new(None),
@@ -46,6 +53,7 @@ impl Texture {
 
         match image::load_from_memory(&buf) {
             Ok(img) => Ok(Rc::new(Texture {
+                filtering: TextureFiltering::Linear,
                 img: RefCell::new(Some(img.to_rgba())),
                 gl_state: RefCell::new(None),
                 file: None,
@@ -56,6 +64,7 @@ impl Texture {
 
     pub fn new_with_image_buffer(img: RgbaImage) -> Rc<Self> {
         Rc::new(Texture {
+            filtering: TextureFiltering::Linear,
             img: RefCell::new(Some(img)),
             gl_state: RefCell::new(None),
             file: None,
@@ -106,15 +115,22 @@ impl Texture {
         if self.gl_state.borrow().is_none() {
             let img = self.img.borrow();
 
-            self.gl_state
-                .replace(Some(texture_bind_buffer(&img.as_ref().unwrap(), gl)));
+            self.gl_state.replace(Some(texture_bind_buffer(
+                &img.as_ref().unwrap(),
+                gl,
+                &self.filtering,
+            )));
         }
 
         true
     }
 }
 
-fn texture_bind_buffer(img: &RgbaImage, gl: &WebGLRenderingContext) -> TextureGLState {
+fn texture_bind_buffer(
+    img: &RgbaImage,
+    gl: &WebGLRenderingContext,
+    texfilter: &TextureFiltering,
+) -> TextureGLState {
     let tex = gl.create_texture();
 
     gl.bind_texture(&tex);
@@ -135,15 +151,14 @@ fn texture_bind_buffer(img: &RgbaImage, gl: &WebGLRenderingContext) -> TextureGL
         &*img,                       // data
     );
 
-    gl.tex_parameteri(
-        TextureParameter::TextureMagFilter,
-        TextureMagFilter::Linear as i32,
-    );
+    let filtering: i32 = match texfilter {
+        &TextureFiltering::Nearest => TextureMagFilter::Nearest as i32,
+        _ => TextureMagFilter::Linear as i32,
+    };
 
-    gl.tex_parameteri(
-        TextureParameter::TextureMinFilter,
-        TextureMagFilter::Linear as i32,
-    );
+    gl.tex_parameteri(TextureParameter::TextureMagFilter, filtering);
+
+    gl.tex_parameteri(TextureParameter::TextureMinFilter, filtering);
 
     gl.unbind_texture();
 

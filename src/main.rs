@@ -132,7 +132,7 @@ pub fn main() {
             imgui::pivot((1.0, 1.0));
             imgui::label(
                 Native(1.0, 1.0) - Pixel(8.0, 8.0),
-                "Click on canvas to drop new box.",
+                "Click on canvas to drop new box. Use WASD to control camera.",
             );
 
             imgui::pivot((1.0, 0.0));

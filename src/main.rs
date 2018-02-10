@@ -1,4 +1,3 @@
-#![feature(nll)]
 #![recursion_limit = "512"]
 #![feature(integer_atomics)]
 
@@ -11,10 +10,8 @@ extern crate unigame;
 
 mod boxes_vee;
 use boxes_vee::*;
-use unigame::engine::*;
 use std::cell::RefCell;
 use std::rc::Rc;
-use uni_app::*;
 use std::sync::Arc;
 use std::ops::Deref;
 use na::Isometry3;
@@ -22,6 +19,9 @@ use na::Isometry3;
 use nphysics3d::object::RigidBody;
 use na::{Point3, Vector3};
 use ncollide::shape::{Cuboid3, Plane3, Shape3};
+
+use unigame::engine::*;
+use uni_app::*;
 
 type Handle<T> = Rc<RefCell<T>>;
 
@@ -118,6 +118,8 @@ pub fn main() {
         let mut last_event = None;
         let mut eye = Vector3::new(-30.0, 30.0, -30.0);
 
+        let up = Vector3::new(0.0, 1.0, 0.0);
+
         app.run(move |app: &mut App| {
             game.engine.begin();
             fps.step();
@@ -143,27 +145,26 @@ pub fn main() {
 
             // Handle Events
             {
+                let target = Vector3::new(0.0, 0.0, 0.0);
+                let front = (eye - target).normalize();
+
                 let events = app.events.borrow();
                 for evt in events.iter() {
                     last_event = Some(evt.clone());
-
-                    let target = Vector3::new(0.0, 0.0, 0.0);
-                    let front = na::normalize(&(eye - target));
-                    let up = Vector3::new(0.0, 1.0, 0.0);
-                    let left = up.cross(&front);
-
                     match evt {
                         &AppEvent::Click(_) => {
                             game.add_object(scene.add_box());
                         }
 
-                        &AppEvent::KeyDown(ref key) => match key.code.as_str() {
-                            "KeyA" => eye = eye - left * 2.0,
-                            "KeyD" => eye = eye + left * 2.0,
-                            "KeyW" => eye = eye - front * 2.0,
-                            "KeyS" => eye = eye + front * 2.0,
-                            _ => (),
-                        },
+                        &AppEvent::KeyDown(ref key) => {
+                            match key.code.as_str() {
+                                "KeyA" => eye = na::Rotation3::new(up * -0.02) * eye,
+                                "KeyD" => eye = na::Rotation3::new(up * 0.02) * eye,
+                                "KeyW" => eye = eye - front * 2.0,
+                                "KeyS" => eye = eye + front * 2.0,
+                                _ => (),
+                            };
+                        }
 
                         e => {
                             last_event = Some(e.clone());

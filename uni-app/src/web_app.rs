@@ -2,8 +2,8 @@ use stdweb;
 use AppConfig;
 
 use stdweb::web::{Element, IEventTarget};
-use stdweb::web::{window};
-use stdweb::web::event::ClickEvent;
+use stdweb::web::window;
+use stdweb::web::event::{ClickEvent, IKeyboardEvent, KeydownEvent, KeyupEvent};
 use stdweb::unstable::TryInto;
 
 use std::cell::RefCell;
@@ -17,6 +17,28 @@ pub struct App {
     pub events: Rc<RefCell<Vec<AppEvent>>>,
 }
 
+use super::events;
+
+macro_rules! map_event {
+    ($events:expr, $x:ident,$y:ident, $ee:ident, $e:expr ) => {
+        {
+            let events = $events.clone();
+            move |$ee: $x| {
+                events.borrow_mut().push(AppEvent::$y($e));
+            }
+        }
+    };
+
+    ($events:expr, $x:ident,$y:ident, $e:expr ) => {
+        {
+            let events = $events.clone();
+            move |_: $x| {
+                events.borrow_mut().push(AppEvent::$y($e));
+            }
+        }
+    };
+}
+
 impl App {
     pub fn new(config: AppConfig) -> App {
         use stdweb::web::*;
@@ -24,7 +46,14 @@ impl App {
         let _ = stdweb::initialize();
         let canvas = document().create_element("canvas");
 
-        js!{ (@{&canvas}).width = @{config.size.0} ; @{&canvas}.height = @{config.size.1};  };
+        js!{
+            (@{&canvas}).width = @{config.size.0};
+            @{&canvas}.height = @{config.size.1};
+
+            // Make it focusable
+            // https://stackoverflow.com/questions/12886286/addeventlistener-for-keydown-on-canvas
+            @{&canvas}.tabIndex = 1;
+        };
 
         document()
             .query_selector("body")
@@ -56,10 +85,41 @@ impl App {
         F: 'static + FnMut(&mut Self) -> (),
     {
         let canvas: &Element = self.canvas();
-        canvas.add_event_listener({
-            let events = self.events.clone();
-            move |_: ClickEvent| {
-                events.borrow_mut().push(AppEvent::Click);
+
+        canvas.add_event_listener(map_event!{
+            self.events,
+            ClickEvent,
+            Click,
+            events::ClickEvent {}
+        });
+
+        canvas.add_event_listener(map_event!{
+            self.events,
+            KeydownEvent,
+            KeyDown,
+            e,
+            events::KeyDownEvent {
+                code: e.code()
+            }
+        });
+
+        // canvas.add_event_listener(map_event!{
+        //     self.events,
+        //     KeypressEvent,
+        //     KeyPress,
+        //     e,
+        //     events::KeyPressEvent {
+        //         code: e.code()
+        //     }
+        // });
+
+        canvas.add_event_listener(map_event!{
+            self.events,
+            KeyupEvent,
+            KeyUp,
+            e,
+            events::KeyUpEvent {
+                code: e.code()
             }
         });
 

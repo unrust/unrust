@@ -112,7 +112,11 @@ pub fn main() {
             game.add_object(rb.clone());
         }
 
+        use imgui::Metric::*;
+
         let mut fps = FPS::new();
+        let mut last_event = None;
+        let mut eye = Vector3::new(-30.0, 30.0, -30.0);
 
         app.run(move |app: &mut App| {
             game.engine.begin();
@@ -121,22 +125,48 @@ pub fn main() {
 
             imgui::pivot((0.0, 0.0));
             imgui::label(
-                Metric::Native(0.0, 0.0) + Metric::Pixel(8.0, 8.0),
+                Native(0.0, 0.0) + Pixel(8.0, 8.0),
                 &format!("fps: {} nobj: {}", fps.fps, game.len()),
             );
 
             imgui::pivot((1.0, 1.0));
             imgui::label(
-                Metric::Native(1.0, 1.0) - Metric::Pixel(8.0, 8.0),
+                Native(1.0, 1.0) - Pixel(8.0, 8.0),
                 "Click on canvas to drop new box.",
+            );
+
+            imgui::pivot((1.0, 0.0));
+            imgui::label(
+                Native(1.0, 0.0) + Pixel(-8.0, 8.0),
+                &format!("last event: {:?}", last_event),
             );
 
             // Handle Events
             {
-                for evt in app.events.borrow().iter() {
+                let events = app.events.borrow();
+                for evt in events.iter() {
+                    last_event = Some(evt.clone());
+
+                    let target = Vector3::new(0.0, 0.0, 0.0);
+                    let front = na::normalize(&(eye - target));
+                    let up = Vector3::new(0.0, 1.0, 0.0);
+                    let left = up.cross(&front);
+
                     match evt {
-                        &AppEvent::Click => {
+                        &AppEvent::Click(_) => {
                             game.add_object(scene.add_box());
+                        }
+
+                        &AppEvent::KeyDown(ref key) => match key.code.as_str() {
+                            "KeyA" => eye = eye - left * 2.0,
+                            "KeyD" => eye = eye + left * 2.0,
+                            "KeyW" => eye = eye - front * 2.0,
+                            "KeyS" => eye = eye + front * 2.0,
+                            _ => (),
+                        },
+
+                        e => {
+                            last_event = Some(e.clone());
                         }
                     }
                 }
@@ -146,7 +176,7 @@ pub fn main() {
             {
                 let cam = game.engine.main_camera.as_mut().unwrap();
                 cam.lookat(
-                    &Point3::new(-30.0, 30.0, -30.0),
+                    &Point3::from_coordinates(eye),
                     &Point3::new(0.0, 0.0, 0.0),
                     &Vector3::new(0.0, 1.0, 0.0),
                 );

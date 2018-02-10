@@ -1,3 +1,5 @@
+mod native_keycode;
+
 use glutin;
 use std::os::raw::c_void;
 use glutin::{ElementState, Event, WindowEvent};
@@ -7,8 +9,10 @@ use time;
 
 use AppConfig;
 use AppEvent;
-
 use FPS;
+
+use super::events;
+use self::native_keycode::translate_keycode;
 
 pub struct App {
     window: glutin::GlWindow,
@@ -16,19 +20,42 @@ pub struct App {
     pub events: Rc<RefCell<Vec<AppEvent>>>,
 }
 
+fn translate_keyevent(input: glutin::KeyboardInput) -> String {
+    match input.virtual_keycode {
+        Some(k) => {
+            let mut s = translate_keycode(k).into();
+            if s == "" {
+                s = format!("{:?}", k);
+            }
+            s
+        }
+        None => "".into(),
+    }
+}
+
 fn translate_event(e: glutin::Event) -> Option<AppEvent> {
     if let Event::WindowEvent {
         event: winevent, ..
     } = e
     {
-        if let WindowEvent::MouseInput { state, .. } = winevent {
-            if state == ElementState::Released {
-                return Some(AppEvent::Click);
+        match winevent {
+            WindowEvent::MouseInput { state, .. } if state == ElementState::Released => {
+                Some(AppEvent::Click(events::ClickEvent {}))
             }
-        }
-    }
+            WindowEvent::KeyboardInput { input, .. } => match input.state {
+                ElementState::Pressed => Some(AppEvent::KeyDown(events::KeyDownEvent {
+                    code: translate_keyevent(input),
+                })),
+                ElementState::Released => Some(AppEvent::KeyUp(events::KeyUpEvent {
+                    code: translate_keyevent(input),
+                })),
+            },
 
-    None
+            _ => None,
+        }
+    } else {
+        None
+    }
 }
 
 impl App {

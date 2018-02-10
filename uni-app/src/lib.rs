@@ -7,16 +7,12 @@
 extern crate stdweb;
 
 #[cfg(target_arch = "wasm32")]
-pub mod web_app;
+#[path = "web_app.rs"]
+pub mod sys;
 
 #[cfg(target_arch = "wasm32")]
-pub mod web_fs;
-
-#[cfg(target_arch = "wasm32")]
-pub use self::web_fs::*;
-
-#[cfg(target_arch = "wasm32")]
-pub use self::web_app::*;
+#[path = "web_fs.rs"]
+pub mod fs;
 
 // NOT wasm-unknown-unknown
 #[cfg(not(target_arch = "wasm32"))]
@@ -26,16 +22,15 @@ extern crate glutin;
 extern crate time;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub mod native_app;
+#[path = "native_app.rs"]
+pub mod sys;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub mod native_fs;
+#[path = "native_fs.rs"]
+pub mod fs;
 
-#[cfg(not(target_arch = "wasm32"))]
-pub use self::native_app::*;
-
-#[cfg(not(target_arch = "wasm32"))]
-pub use self::native_fs::*;
+pub use self::sys::*;
+pub use self::fs::*;
 
 pub struct AppConfig {
     pub title: String,
@@ -53,8 +48,33 @@ impl AppConfig {
     }
 }
 
+mod events {
+    #[derive(Debug,Clone)]
+    pub struct ClickEvent;
+    
+    #[derive(Debug,Clone)]
+    pub struct KeyDownEvent {
+        pub code: String,
+    }
+
+    #[derive(Debug,Clone)]
+    pub struct KeyPressEvent {
+        pub code: String,
+    }
+
+    #[derive(Debug,Clone)]
+    pub struct KeyUpEvent {
+        pub code: String,
+    }
+}
+
+pub use events::*;
+
+#[derive(Debug, Clone)]
 pub enum AppEvent {
-    Click,
+    Click(ClickEvent),
+    KeyDown(KeyDownEvent),
+    KeyUp(KeyUpEvent),
 }
 
 pub struct FPS {

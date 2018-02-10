@@ -445,6 +445,12 @@ impl GLContext {
         }
     }
 
+    pub fn uniform_3f(&self, location: &WebGLUniformLocation, value: (f32, f32, f32)) {
+        unsafe {
+            gl::Uniform3f(*location.deref() as _, value.0, value.1, value.2);
+        }
+    }
+
     pub fn uniform_4f(&self, location: &WebGLUniformLocation, value: (f32, f32, f32, f32)) {
         unsafe {
             gl::Uniform4f(*location.deref() as _, value.0, value.1, value.2, value.3);

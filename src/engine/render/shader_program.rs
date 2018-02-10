@@ -3,11 +3,32 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use webgl::*;
 
+use na::{Matrix4, Vector3};
 use engine::Asset;
+use std::fmt::Debug;
+
+use std::collections::hash_map::DefaultHasher;
+use std::hash::Hasher;
+use std::mem::size_of;
 
 #[derive(Debug)]
 pub struct ShaderProgramGLState {
     prog: WebGLProgram,
+}
+
+trait IntoBytes {
+    fn into_bytes(&self) -> Vec<u8>;
+}
+
+impl<T: Clone> IntoBytes for [T] {
+    fn into_bytes(&self) -> Vec<u8> {
+        let v = self.to_vec();
+        let len = size_of::<T>() * v.len();
+        unsafe {
+            let slice = v.into_boxed_slice();
+            Vec::<u8>::from_raw_parts(Box::into_raw(slice) as _, len, len)
+        }
+    }
 }
 
 #[derive(Debug, Default)]
@@ -19,6 +40,52 @@ pub struct ShaderProgram {
 
     vs_shader: String,
     ps_shader: String,
+
+    pending_uniforms: RefCell<HashMap<&'static str, Box<IntoUniformSetter>>>,
+    committed_unforms: RefCell<HashMap<&'static str, u64>>,
+}
+
+pub trait IntoUniformSetter: Debug {
+    fn set(&self, gl: &WebGLRenderingContext, loc: &WebGLUniformLocation);
+
+    fn to_hash(&self) -> u64;
+}
+
+impl IntoUniformSetter for Matrix4<f32> {
+    fn set(&self, gl: &WebGLRenderingContext, loc: &WebGLUniformLocation) {
+        let m = *self;
+        gl.uniform_matrix_4fv(&loc, &m.into());
+    }
+
+    fn to_hash(&self) -> u64 {
+        let mut s = DefaultHasher::new();
+        s.write(&self.as_slice().into_bytes());
+        s.finish()
+    }
+}
+
+impl IntoUniformSetter for i32 {
+    fn set(&self, gl: &WebGLRenderingContext, loc: &WebGLUniformLocation) {
+        gl.uniform_1i(&loc, *self);
+    }
+
+    fn to_hash(&self) -> u64 {
+        let mut s = DefaultHasher::new();
+        s.write_i32(*self);
+        s.finish()
+    }
+}
+
+impl IntoUniformSetter for Vector3<f32> {
+    fn set(&self, gl: &WebGLRenderingContext, loc: &WebGLUniformLocation) {
+        gl.uniform_3f(&loc, (self.x, self.y, self.z));
+    }
+
+    fn to_hash(&self) -> u64 {
+        let mut s = DefaultHasher::new();
+        s.write(&self.as_slice().into_bytes());
+        s.finish()
+    }
 }
 
 impl ShaderProgram {
@@ -34,6 +101,8 @@ impl ShaderProgram {
         uniform mat4 uMVMatrix;
         uniform mat4 uPMatrix;
         uniform mat4 uNMatrix;
+        uniform vec3 uDirectionalLight;
+
         varying vec3 vColor;
 
         varying vec2 vTextureCoord;
@@ -41,7 +110,7 @@ impl ShaderProgram {
         void main(void) {
             gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
 
-            vec3 uLightingDirection = normalize(vec3(1.0, -1.0, 0.3));
+            vec3 uLightingDirection = uDirectionalLight;
         
             vec4 transformedNormal = uNMatrix * vec4(aVertexNormal, 1.0);
             float directionalLightWeighting = max(dot(transformedNormal.xyz, -uLightingDirection), 0.0);
@@ -111,6 +180,10 @@ impl ShaderProgram {
 
         let gl_state = self.gl_state.borrow();
         gl.use_program(&gl_state.as_ref().unwrap().prog);
+
+        // after use, we should clean up the committed uniform state.
+        // https://www.khronos.org/registry/OpenGL-Refpages/gl4/html/glUniform.xhtml
+        self.committed_unforms.borrow_mut().clear();
     }
 
     fn prepare(&self, gl: &WebGLRenderingContext) {
@@ -144,7 +217,40 @@ impl ShaderProgram {
         }
     }
 
-    pub fn get_uniform(
+    pub fn set<T>(&self, s: &'static str, data: T)
+    where
+        T: 'static + IntoUniformSetter,
+    {
+        let mut unis = self.pending_uniforms.borrow_mut();
+        let mut commited = self.committed_unforms.borrow_mut();
+
+        // Check if the data is committed
+        if let Some(cs) = commited.get(s) {
+            if *cs == data.to_hash() {
+                return;
+            }
+
+            commited.remove(&s);
+        }
+
+        unis.insert(s, Box::new(data));
+    }
+
+    pub fn commit(&self, gl: &WebGLRenderingContext) {
+        let unis = self.pending_uniforms.borrow();
+        let mut commited = self.committed_unforms.borrow_mut();
+
+        for (s, data) in &*unis {
+            if !commited.contains_key(s) {
+                if let Some(u) = self.get_uniform(gl, s) {
+                    data.set(gl, &u);
+                    commited.insert(s, data.to_hash());
+                }
+            }
+        }
+    }
+
+    fn get_uniform(
         &self,
         gl: &WebGLRenderingContext,
         s: &'static str,

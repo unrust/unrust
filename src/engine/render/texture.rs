@@ -81,9 +81,7 @@ impl Texture {
 
         gl.bind_texture(&state.tex);
 
-        if let Some(scoord) = program.get_uniform(gl, "uSampler") {
-            gl.uniform_1i(&scoord, 0);
-        }
+        program.set("uSampler", 0);
 
         true
     }

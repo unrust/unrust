@@ -112,6 +112,16 @@ pub fn main() {
             game.add_object(rb.clone());
         }
 
+        // add a directional light to scene.
+        let light_go = {
+            let go = game.engine.new_gameobject();
+            let mut go_mut = go.borrow_mut();
+            go_mut.add_component(Component::new(Light::Directional(DirectionalLight {
+                dir: Vector3::new(0.0, 0.0, 1.0),
+            })));
+            go.clone()
+        };
+
         use imgui::Metric::*;
 
         let mut fps = FPS::new();
@@ -183,11 +193,21 @@ pub fn main() {
                 );
             }
 
+            // Update Light
+            {
+                let go_mut = light_go.borrow();
+
+                if let Some((lr, _)) = go_mut.find_component::<Light>() {
+                    let mut light = lr.borrow_mut();
+                    light.directional_mut().unwrap().dir = -eye.normalize();
+                }
+            }
+
             // Update Transforms by physic object
             {
                 let get_pb_tran = |o: &GameObject| {
-                    let (rb, _) = o.get_component_by_type::<PhysicObject>().unwrap();
-                    rb.get_phy_transform()
+                    let (rb, _) = o.find_component::<PhysicObject>().unwrap();
+                    rb.borrow().get_phy_transform()
                 };
 
                 for go in game.iter() {

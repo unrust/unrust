@@ -1,5 +1,6 @@
 use na::*;
 use std::rc::Rc;
+use std::cell::RefCell;
 use std::sync::Arc;
 use std::any::{Any, TypeId};
 
@@ -23,7 +24,7 @@ pub struct ComponentType<T>
 where
     T: ComponentBased,
 {
-    com: Rc<T>,
+    com: Rc<RefCell<T>>,
     id: u64,
 }
 
@@ -47,7 +48,7 @@ where
 pub trait ComponentBased {}
 
 impl Component {
-    fn try_into<T>(&self) -> Option<&T>
+    pub fn try_into<T>(&self) -> Option<&RefCell<T>>
     where
         T: 'static + ComponentBased,
     {
@@ -63,7 +64,7 @@ impl Component {
         T: 'static + ComponentBased,
     {
         let c = ComponentType {
-            com: Rc::new(value),
+            com: Rc::new(RefCell::new(value)),
             id: next_component_id(),
         };
 
@@ -79,7 +80,7 @@ pub struct GameObject {
 }
 
 impl GameObject {
-    pub fn get_component_by_type<T>(&self) -> Option<(&T, &Component)>
+    pub fn find_component<T>(&self) -> Option<(&RefCell<T>, Arc<Component>)>
     where
         T: 'static + ComponentBased,
     {
@@ -88,7 +89,7 @@ impl GameObject {
         match self.components.iter().find(|c| c.typeid() == typeid) {
             Some(c) => {
                 let com: &Component = c.as_ref();
-                Some((com.try_into::<T>().unwrap(), com))
+                Some((com.try_into::<T>().unwrap(), c.clone()))
             }
             _ => None,
         }

@@ -5,8 +5,10 @@ use na::*;
 use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::sync::Arc;
 
-use super::{Camera, GameObject, Material, Mesh, ShaderProgram, Texture};
+use super::core::{Component, ComponentBased};
+use super::{Camera, DirectionalLight, GameObject, Light, Material, Mesh, ShaderProgram, Texture};
 use super::asset::{AssetDatabase, AssetSystem};
 
 use super::imgui;
@@ -38,6 +40,8 @@ struct EngineContext {
     mesh: Option<u64>,
     prog: Option<Rc<ShaderProgram>>,
     tex: Option<Rc<Texture>>,
+
+    light: Option<Arc<Component>>,
 
     switch_mesh: u32,
     switch_prog: u32,
@@ -101,31 +105,30 @@ where
 
         let prog = ctx.prog.as_ref().unwrap();
 
-        if let Some(umv) = prog.get_uniform(gl, "uMVMatrix") {
-            gl.uniform_matrix_4fv(&umv, &(camera.v * modelm).into());
-        }
+        prog.set("uMVMatrix", camera.v * modelm);
+        prog.set("uPMatrix", camera.p);
+        prog.set("uNMatrix", modelm.try_inverse().unwrap().transpose());
+        prog.set("uMMatrix", modelm);
 
-        if let Some(up) = prog.get_uniform(gl, "uPMatrix") {
-            gl.uniform_matrix_4fv(&up, &camera.p.into());
-        }
-
-        if let Some(nm) = prog.get_uniform(gl, "uNMatrix") {
-            let normal_mat = (modelm).try_inverse().unwrap().transpose();
-            gl.uniform_matrix_4fv(&nm, &normal_mat.into());
-        }
-
-        if let Some(mm) = prog.get_uniform(gl, "uMMatrix") {
-            gl.uniform_matrix_4fv(&mm, &(modelm).into());
+        {
+            let light_com = ctx.light.as_ref().unwrap();
+            let light = light_com.try_into::<Light>().unwrap();
+            // We must have at least one direction light.
+            let dir = light.borrow().directional().unwrap().dir;
+            prog.set("uDirectionalLight", dir);
         }
 
         // Setup Mesh
-        let (mesh, com) = object.get_component_by_type::<Mesh>().unwrap();
+        let (mesh_ref, com) = object.find_component::<Mesh>().unwrap();
+
+        let mesh = mesh_ref.borrow();
 
         if ctx.mesh.is_none() || ctx.mesh.unwrap() != com.id() {
             mesh.bind(&self.gl, prog);
             ctx.switch_mesh += 1;
         }
 
+        prog.commit(gl);
         mesh.render(gl);
     }
 
@@ -134,6 +137,28 @@ where
     }
 
     pub fn end(&mut self) {}
+
+    fn find_component<T>(&self) -> Option<Arc<Component>>
+    where
+        T: 'static + ComponentBased,
+    {
+        let objects = &self.objects;
+        for obj in objects.iter() {
+            let r = obj.upgrade().map_or(None, |obj| {
+                let object = obj.borrow();
+                match object.find_component::<T>() {
+                    Some((_, c)) => Some(c),
+                    None => None,
+                }
+            });
+
+            if r.is_some() {
+                return r;
+            }
+        }
+
+        None
+    }
 
     pub fn render(&mut self) {
         self.clear();
@@ -144,14 +169,23 @@ where
         if let &Some(camera) = &self.main_camera.as_ref() {
             let mut ctx: EngineContext = Default::default();
 
+            // prepare light.
+            ctx.light = Some(self.find_component::<Light>().unwrap_or({
+                Component::new(Light::Directional(DirectionalLight {
+                    dir: Vector3::new(0.0, -1.0, 1.0).normalize(),
+                }))
+            }));
+
             for obj in objects.iter() {
                 obj.upgrade().map(|obj| {
                     let object = obj.borrow();
-                    if let Some((material, _)) = object.get_component_by_type::<Material>() {
-                        if self.setup_material(&mut ctx, material) {
+                    if let Some((material_ref, _)) = object.find_component::<Material>() {
+                        let material = material_ref.borrow();
+
+                        if self.setup_material(&mut ctx, &material) {
                             self.render_object(gl, &mut ctx, &object, camera);
 
-                            let (_, meshcom) = object.get_component_by_type::<Mesh>().unwrap();
+                            let (_, meshcom) = object.find_component::<Mesh>().unwrap();
                             ctx.mesh = Some(meshcom.id());
                         }
                     }

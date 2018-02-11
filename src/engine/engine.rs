@@ -41,7 +41,8 @@ struct EngineContext {
     prog: Option<Rc<ShaderProgram>>,
     tex: Option<Rc<Texture>>,
 
-    light: Option<Arc<Component>>,
+    main_light: Option<Arc<Component>>,
+    point_lights: Vec<Arc<Component>>,
 
     switch_mesh: u32,
     switch_prog: u32,
@@ -97,6 +98,35 @@ where
         true
     }
 
+    fn setup_camera(&self, ctx: &mut EngineContext, object: &GameObject, camera: &Camera) {
+        // Setup Matrices
+        let mut modelm = object.transform.to_homogeneous();
+        modelm = modelm * Matrix4::new_nonuniform_scaling(&object.scale);
+
+        let prog = ctx.prog.as_ref().unwrap();
+        // setup_camera
+        prog.set("uMVMatrix", camera.v * modelm);
+        prog.set("uPMatrix", camera.p);
+        prog.set("uNMatrix", modelm.try_inverse().unwrap().transpose());
+        prog.set("uMMatrix", modelm);
+        prog.set("uViewPos", camera.eye());
+    }
+
+    fn setup_light(&self, ctx: &EngineContext, prog: &ShaderProgram) {
+        // Setup light
+
+        let light_com = ctx.main_light.as_ref().unwrap();
+        let light = light_com.try_into::<Light>().unwrap();
+        light.borrow().bind("uDirectionalLight", &prog);
+
+        for (i, plight_com) in ctx.point_lights.iter().enumerate() {
+            let plight = plight_com.try_into::<Light>().unwrap();
+            let name = format!("uPointLights[{}]", i);
+
+            plight.borrow().bind(&name, &prog);
+        }
+    }
+
     fn render_object(
         &self,
         gl: &WebGLRenderingContext,
@@ -104,31 +134,11 @@ where
         object: &GameObject,
         camera: &Camera,
     ) {
-        // Setup Matrices
-        let mut modelm = object.transform.to_homogeneous();
-        modelm = modelm * Matrix4::new_nonuniform_scaling(&object.scale);
+        self.setup_camera(ctx, object, camera);
 
         let prog = ctx.prog.as_ref().unwrap();
 
-        prog.set("uMVMatrix", camera.v * modelm);
-        prog.set("uPMatrix", camera.p);
-        prog.set("uNMatrix", modelm.try_inverse().unwrap().transpose());
-        prog.set("uMMatrix", modelm);
-        prog.set("uViewPos", camera.eye());
-
-        {
-            let light_com = ctx.light.as_ref().unwrap();
-            let light = light_com.try_into::<Light>().unwrap();
-            let light_br = light.borrow();
-
-            // We must have at least one direction light.
-            let dir_light = light_br.directional().unwrap();
-
-            prog.set("uDirectionalLight.direction", dir_light.direction);
-            prog.set("uDirectionalLight.ambient", dir_light.ambient);
-            prog.set("uDirectionalLight.diffuse", dir_light.diffuse);
-            prog.set("uDirectionalLight.specular", dir_light.specular);
-        }
+        self.setup_light(ctx, prog);
 
         // Setup Mesh
         let (mesh_ref, com) = object.find_component::<Mesh>().unwrap();
@@ -149,6 +159,30 @@ where
     }
 
     pub fn end(&mut self) {}
+
+    fn find_all_components<T>(&self) -> Vec<Arc<Component>>
+    where
+        T: 'static + ComponentBased,
+    {
+        let mut result = Vec::new();
+
+        let objects = &self.objects;
+        for obj in objects.iter() {
+            let r = obj.upgrade().map_or(None, |obj| {
+                let object = obj.borrow();
+                match object.find_component::<T>() {
+                    Some((_, c)) => Some(c),
+                    None => None,
+                }
+            });
+
+            if r.is_some() {
+                result.push(r.unwrap())
+            }
+        }
+
+        result
+    }
 
     fn find_component<T>(&self) -> Option<Arc<Component>>
     where
@@ -181,8 +215,8 @@ where
         if let &Some(camera) = &self.main_camera.as_ref() {
             let mut ctx: EngineContext = Default::default();
 
-            // prepare light.
-            ctx.light = Some(self.find_component::<Light>().unwrap_or({
+            // prepare main light.
+            ctx.main_light = Some(self.find_component::<Light>().unwrap_or({
                 Component::new(Light::Directional(DirectionalLight {
                     direction: Vector3::new(0.5, -1.0, 1.0).normalize(),
                     ambient: Vector3::new(0.2, 0.2, 0.2),
@@ -190,6 +224,18 @@ where
                     specular: Vector3::new(1.0, 1.0, 1.0),
                 }))
             }));
+
+            ctx.point_lights = self.find_all_components::<Light>()
+                .into_iter()
+                .filter(|c| {
+                    let light_com = c.try_into::<Light>().unwrap();
+                    match *light_com.borrow() {
+                        Light::Point(_) => true,
+                        _ => false,
+                    }
+                })
+                .take(4)            // only take 4 points light.
+                .collect();
 
             for obj in objects.iter() {
                 obj.upgrade().map(|obj| {

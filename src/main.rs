@@ -135,25 +135,38 @@ pub fn main() {
             com
         };
 
-        let point_light_com = {
+        // Add 4 points light to scene
+        let point_light_positions = vec![
+            Vector3::new(-30.0, 30.0, -30.0),
+            // Vector3::new(-15.0, 300.0, -10.0),
+            // Vector3::new(30.0, 50.0, 30.0),
+            // Vector3::new(30.0, 100.0, -20.0),
+        ];
+
+        let mut point_light_coms = vec![];
+        for p in point_light_positions.into_iter() {
             let go = game.engine.new_gameobject();
             // Make sure it is store some where, else it will gc
             game.push(go.clone());
 
             let mut go_mut = go.borrow_mut();
 
-            go_mut.add_component(Light::new(PointLight {
-                pos: Vector3::new(0.0, 0.0, 0.0),
-                color: Vector3::new(1.0, 1.0, 1.0),
-            }))
-        };
+            point_light_coms.push(go_mut.add_component(Light::new(PointLight {
+                position: p,
+                ambient: Vector3::new(0.05, 0.05, 0.05),
+                diffuse: Vector3::new(0.8, 0.8, 0.8),
+                specular: Vector3::new(1.0, 1.0, 1.0),
+                constant: 1.0,
+                linear: 0.022,
+                quadratic: 0.0019,
+            })));
+        }
 
         use imgui::Metric::*;
 
         let mut fps = FPS::new();
         let mut last_event = None;
         let mut eye = Vector3::new(-30.0, 30.0, -30.0);
-
         let up = Vector3::new(0.0, 1.0, 0.0);
 
         app.run(move |app: &mut App| {
@@ -220,10 +233,13 @@ pub fn main() {
             }
 
             // Update Light
-            {
-                if let Some(lr) = point_light_com.try_into::<Light>() {
+            for light_com in point_light_coms.iter_mut() {
+                if let Some(lr) = light_com.try_into::<Light>() {
                     let mut light = lr.borrow_mut();
-                    light.point_mut().unwrap().pos = eye;
+                    let mut pos = light.point().unwrap().position;
+
+                    pos = na::Rotation3::new(up * 0.02) * pos;
+                    light.point_mut().unwrap().position = pos;
                 }
             }
 

@@ -35,14 +35,14 @@ impl<T: Clone> IntoBytes for [T] {
 pub struct ShaderProgram {
     gl_state: RefCell<Option<ShaderProgramGLState>>,
 
-    coord_map: RefCell<HashMap<&'static str, Option<u32>>>,
-    uniform_map: RefCell<HashMap<&'static str, Option<Rc<WebGLUniformLocation>>>>,
+    coord_map: RefCell<HashMap<String, Option<u32>>>,
+    uniform_map: RefCell<HashMap<String, Option<Rc<WebGLUniformLocation>>>>,
 
     vs_shader: String,
-    ps_shader: String,
+    fs_shader: String,
 
-    pending_uniforms: RefCell<HashMap<&'static str, Box<IntoUniformSetter>>>,
-    committed_unforms: RefCell<HashMap<&'static str, u64>>,
+    pending_uniforms: RefCell<HashMap<String, Box<IntoUniformSetter>>>,
+    committed_unforms: RefCell<HashMap<String, u64>>,
 }
 
 pub trait IntoUniformSetter: Debug {
@@ -103,80 +103,7 @@ impl IntoUniformSetter for Vector3<f32> {
 
 impl ShaderProgram {
     pub fn new_default() -> ShaderProgram {
-        Self::new(
-            // Vertex shader source code
-            "       
-#ifndef GL_ES
-#define attribute in
-#define varying out
-#endif
-
-        attribute vec3 aVertexPosition;
-        attribute vec3 aVertexNormal;
-        attribute vec2 aTextureCoord;
-
-        uniform mat4 uMVMatrix;
-        uniform mat4 uPMatrix;
-        uniform mat4 uNMatrix;
-        uniform mat4 uMMatrix;
-
-        varying vec3 vFragPos;
-        varying vec3 vNormal;
-        varying vec2 vTexCoords;
-        
-        void main(void) {
-            vFragPos = vec3(uMMatrix * vec4(aVertexPosition, 1.0));            
-            vNormal = mat3(uNMatrix) * aVertexNormal;
-            vTexCoords = aTextureCoord;
-
-            gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
-        }    
-        ",
-            //fragment shader source code
-            "
-#ifndef GL_ES
-#define varying in
-#define gl_FragColor FragColor
-
-out vec4 FragColor;
-#endif
-
-        struct DirectionalLight {
-            vec3 direction;
-            vec3 ambient;
-            vec3 diffuse;
-            vec3 specular;
-        };
-
-        uniform DirectionalLight uDirectionalLight;
-        uniform vec3 uViewPos;
-        uniform sampler2D uDiffuse;
-        uniform float uShininess;
-
-        varying vec3 vFragPos;
-        varying vec2 vTexCoords;       
-        varying vec3 vNormal;                       
-
-        void main(void) {
-            vec3 ambient = uDirectionalLight.ambient * texture2D(uDiffuse, vTexCoords).rgb;
-
-            // diffuse
-            vec3 norm = normalize(vNormal);
-            vec3 lightDir = normalize(-uDirectionalLight.direction);  
-            float diff = max(dot(norm, lightDir), 0.0);
-            vec3 diffuse = uDirectionalLight.diffuse * diff * texture2D(uDiffuse, vTexCoords).rgb;  
-
-            // specular
-            vec3 viewDir = normalize(uViewPos - vFragPos);
-            vec3 reflectDir = reflect(-lightDir, norm);  
-            float spec = pow(max(dot(viewDir, reflectDir), 0.0), uShininess);
-            vec3 specular = uDirectionalLight.specular * spec; 
-
-            vec3 result = ambient + diffuse + specular;            
-            gl_FragColor = vec4(result, 1.0);
-        }
-        ",
-        )
+        Self::new(DEFAULT_VS, DEFAULT_FS)
     }
 
     pub fn new_default_screen() -> ShaderProgram {
@@ -207,20 +134,20 @@ out vec4 FragColor;
         )
     }
 
-    pub fn new(vs: &str, ps: &str) -> ShaderProgram {
+    pub fn new(vs: &str, fs: &str) -> ShaderProgram {
         let mut program: ShaderProgram = Default::default();
 
         // Vertex shader source code
         program.vs_shader = vs.into();
 
         //fragment shader source code
-        program.ps_shader = ps.into();
+        program.fs_shader = fs.into();
 
         if !IS_GL_ES {
             program.vs_shader = String::from("#version 130\n") + &program.vs_shader;
-            program.ps_shader = String::from("#version 130\n") + &program.ps_shader;
+            program.fs_shader = String::from("#version 130\n") + &program.fs_shader;
         } else {
-            program.ps_shader = String::from("precision highp float;\n") + &program.ps_shader;
+            program.fs_shader = String::from("precision highp float;\n") + &program.fs_shader;
         }
 
         program
@@ -245,14 +172,14 @@ out vec4 FragColor;
                 let state = Some(ShaderProgramGLState::new(
                     gl,
                     &self.vs_shader,
-                    &self.ps_shader,
+                    &self.fs_shader,
                 ));
                 *self.gl_state.borrow_mut() = state;
             }
         }
     }
 
-    pub fn get_coord(&self, gl: &WebGLRenderingContext, s: &'static str) -> Option<u32> {
+    pub fn get_coord(&self, gl: &WebGLRenderingContext, s: &str) -> Option<u32> {
         let mut m = self.coord_map.borrow_mut();
 
         let gl_state_opt = self.gl_state.borrow();
@@ -268,7 +195,7 @@ out vec4 FragColor;
         }
     }
 
-    pub fn set<T>(&self, s: &'static str, data: T)
+    pub fn set<T>(&self, s: &str, data: T)
     where
         T: 'static + IntoUniformSetter,
     {
@@ -281,10 +208,10 @@ out vec4 FragColor;
                 return;
             }
 
-            commited.remove(&s);
+            commited.remove(s.into());
         }
 
-        unis.insert(s, Box::new(data));
+        unis.insert(s.into(), Box::new(data));
     }
 
     pub fn commit(&self, gl: &WebGLRenderingContext) {
@@ -295,17 +222,13 @@ out vec4 FragColor;
             if !commited.contains_key(s) {
                 if let Some(u) = self.get_uniform(gl, s) {
                     data.set(gl, &u);
-                    commited.insert(s, data.to_hash());
+                    commited.insert(s.clone(), data.to_hash());
                 }
             }
         }
     }
 
-    fn get_uniform(
-        &self,
-        gl: &WebGLRenderingContext,
-        s: &'static str,
-    ) -> Option<Rc<WebGLUniformLocation>> {
+    fn get_uniform(&self, gl: &WebGLRenderingContext, s: &str) -> Option<Rc<WebGLUniformLocation>> {
         let mut m = self.uniform_map.borrow_mut();
         let gl_state = self.gl_state.borrow();
 
@@ -381,3 +304,137 @@ impl ShaderProgramGLState {
         prog
     }
 }
+
+// Default vertex shader source code
+const DEFAULT_VS: &'static str = r##"
+#ifndef GL_ES
+#define attribute in
+#define varying out
+#endif
+
+attribute vec3 aVertexPosition;
+attribute vec3 aVertexNormal;
+attribute vec2 aTextureCoord;
+
+uniform mat4 uMVMatrix;
+uniform mat4 uPMatrix;
+uniform mat4 uNMatrix;
+uniform mat4 uMMatrix;
+
+varying vec3 vFragPos;
+varying vec3 vNormal;
+varying vec2 vTexCoords;
+
+void main(void) {
+    vFragPos = vec3(uMMatrix * vec4(aVertexPosition, 1.0));            
+    vNormal = mat3(uNMatrix) * aVertexNormal;
+    vTexCoords = aTextureCoord;
+
+    gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+}    
+"##;
+
+const DEFAULT_FS: &'static str = r##"
+#ifndef GL_ES
+#define varying in
+#define gl_FragColor FragColor
+out vec4 FragColor;
+#endif
+
+#define UNI_POINT_LIGHTS 4
+
+struct DirectionalLight {
+    vec3 direction;
+  
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+};
+
+struct PointLight {
+    vec3 position;
+    
+    float constant;
+    float linear;
+    float quadratic;
+	
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+
+    float rate;
+};
+
+uniform vec3 uViewPos;
+uniform sampler2D uDiffuse;
+uniform float uShininess;
+
+varying vec3 vFragPos;
+varying vec2 vTexCoords;       
+varying vec3 vNormal;                       
+
+// Lights
+uniform DirectionalLight uDirectionalLight;
+uniform PointLight uPointLights[UNI_POINT_LIGHTS];
+
+vec3 CalcDirectionalLight(DirectionalLight light, vec3 normal, vec3 viewDir);
+vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir);
+
+void main(void) {
+    vec3 norm = normalize(vNormal);
+    vec3 viewDir = normalize(uViewPos - vFragPos);
+
+    // Directional Light
+    vec3 result = CalcDirectionalLight(uDirectionalLight, norm, viewDir);
+    
+    // Point Lights
+    for(int i = 0; i < UNI_POINT_LIGHTS; i++)
+        result += CalcPointLight(uPointLights[i], norm, vFragPos, viewDir);
+
+    gl_FragColor = vec4(result, 1.0);           
+}
+
+vec3 CalcDirectionalLight(DirectionalLight light, vec3 normal, vec3 viewDir)
+{
+    // diffuse
+    vec3 ambient = light.ambient * vec3(texture2D(uDiffuse, vTexCoords));
+
+    vec3 lightDir = normalize(-light.direction);  
+    float diff = max(dot(normal, lightDir), 0.0);
+    vec3 diffuse = light.diffuse * diff * texture2D(uDiffuse, vTexCoords).rgb;  
+
+    // specular    
+    vec3 reflectDir = reflect(-lightDir, normal);  
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), uShininess);
+    vec3 specular = light.specular * spec; 
+
+    return ambient + diffuse + specular;
+}
+
+vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
+{
+    vec3 lightDir = normalize(light.position - fragPos);
+    
+    // diffuse shading
+    float diff = max(dot(normal, lightDir), 0.0);
+    // specular shading
+    vec3 reflectDir = reflect(-lightDir, normal);
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), uShininess);
+    
+    // attenuation
+    float distance = length(light.position - fragPos);
+    float attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
+    
+    // combine results
+    vec3 ambient = light.ambient * vec3(texture2D(uDiffuse, vTexCoords));
+    vec3 diffuse = light.diffuse * diff * vec3(texture2D(uDiffuse, vTexCoords));
+    vec3 specular = light.specular * spec;
+    
+    // ambient *= attenuation;
+    // diffuse *= attenuation;
+    // specular *= attenuation;
+    
+    return (ambient + diffuse + specular) * light.rate;    
+    
+}
+"##;

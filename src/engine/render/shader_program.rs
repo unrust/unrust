@@ -64,6 +64,19 @@ impl IntoUniformSetter for Matrix4<f32> {
     }
 }
 
+impl IntoUniformSetter for f32 {
+    fn set(&self, gl: &WebGLRenderingContext, loc: &WebGLUniformLocation) {
+        gl.uniform_1f(&loc, *self);
+    }
+
+    fn to_hash(&self) -> u64 {
+        let mut s = DefaultHasher::new();
+        let f: f32 = *self;
+        s.write(&[f].into_bytes());
+        s.finish()
+    }
+}
+
 impl IntoUniformSetter for i32 {
     fn set(&self, gl: &WebGLRenderingContext, loc: &WebGLUniformLocation) {
         gl.uniform_1i(&loc, *self);
@@ -91,9 +104,13 @@ impl IntoUniformSetter for Vector3<f32> {
 impl ShaderProgram {
     pub fn new_default() -> ShaderProgram {
         Self::new(
+            // Vertex shader source code
+            "       
+#ifndef GL_ES
+#define attribute in
+#define varying out
+#endif
 
-        // Vertex shader source code
-        "       
         attribute vec3 aVertexPosition;
         attribute vec3 aVertexNormal;
         attribute vec2 aTextureCoord;
@@ -101,38 +118,65 @@ impl ShaderProgram {
         uniform mat4 uMVMatrix;
         uniform mat4 uPMatrix;
         uniform mat4 uNMatrix;
-        uniform vec3 uDirectionalLight;
+        uniform mat4 uMMatrix;
 
-        varying vec3 vColor;
-
-        varying vec2 vTextureCoord;
+        varying vec3 vFragPos;
+        varying vec3 vNormal;
+        varying vec2 vTexCoords;
         
         void main(void) {
+            vFragPos = vec3(uMMatrix * vec4(aVertexPosition, 1.0));            
+            vNormal = mat3(uNMatrix) * aVertexNormal;
+            vTexCoords = aTextureCoord;
+
             gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
-
-            vec3 uLightingDirection = uDirectionalLight;
-        
-            vec4 transformedNormal = uNMatrix * vec4(aVertexNormal, 1.0);
-            float directionalLightWeighting = max(dot(transformedNormal.xyz, -uLightingDirection), 0.0);
-        
-            vColor = vec3(1.0, 1.0, 1.0) * directionalLightWeighting;
-
-            vTextureCoord = aTextureCoord;
         }    
         ",
+            //fragment shader source code
+            "
+#ifndef GL_ES
+#define varying in
+#define gl_FragColor FragColor
 
-        //fragment shader source code
-        "
-        precision mediump float;
+out vec4 FragColor;
+#endif
 
-        varying vec3 vColor;
-        varying vec2 vTextureCoord;
-        uniform sampler2D uSampler;
+        struct DirectionalLight {
+            vec3 direction;
+            vec3 ambient;
+            vec3 diffuse;
+            vec3 specular;
+        };
+
+        uniform DirectionalLight uDirectionalLight;
+        uniform vec3 uViewPos;
+        uniform sampler2D uDiffuse;
+        uniform float uShininess;
+
+        varying vec3 vFragPos;
+        varying vec2 vTexCoords;       
+        varying vec3 vNormal;                       
 
         void main(void) {
-            gl_FragColor = vec4(vColor, 1.0) * texture2D(uSampler, vec2(vTextureCoord.s, vTextureCoord.t));
+            vec3 ambient = uDirectionalLight.ambient * texture2D(uDiffuse, vTexCoords).rgb;
+
+            // diffuse
+            vec3 norm = normalize(vNormal);
+            vec3 lightDir = normalize(-uDirectionalLight.direction);  
+            float diff = max(dot(norm, lightDir), 0.0);
+            vec3 diffuse = uDirectionalLight.diffuse * diff * texture2D(uDiffuse, vTexCoords).rgb;  
+
+            // specular
+            vec3 viewDir = normalize(uViewPos - vFragPos);
+            vec3 reflectDir = reflect(-lightDir, norm);  
+            float spec = pow(max(dot(viewDir, reflectDir), 0.0), uShininess);
+            vec3 specular = uDirectionalLight.specular * spec; 
+
+            vec3 result = ambient + diffuse + specular;            
+            gl_FragColor = vec4(result, 1.0);
         }
-        ")
+        ",
+        )
     }
 
     pub fn new_default_screen() -> ShaderProgram {
@@ -171,6 +215,13 @@ impl ShaderProgram {
 
         //fragment shader source code
         program.ps_shader = ps.into();
+
+        if !IS_GL_ES {
+            program.vs_shader = String::from("#version 130\n") + &program.vs_shader;
+            program.ps_shader = String::from("#version 130\n") + &program.ps_shader;
+        } else {
+            program.ps_shader = String::from("precision highp float;\n") + &program.ps_shader;
+        }
 
         program
     }

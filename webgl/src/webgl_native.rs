@@ -5,6 +5,8 @@ use std::os::raw::c_void;
 
 use std::ffi::CString;
 use common::*;
+use std::ptr;
+use std::str;
 
 pub fn check_gl_error(msg: &str) {
     unsafe {
@@ -93,7 +95,31 @@ impl GLContext {
     pub fn compile_shader(&self, shader: &WebGLShader) {
         unsafe {
             gl::CompileShader(shader.0);
+
+            // Get the compile status
+            let mut status = gl::FALSE as gl::types::GLint;
+            gl::GetShaderiv(shader.0, gl::COMPILE_STATUS, &mut status);
+
+            // Fail on error
+            if status != (gl::TRUE as gl::types::GLint) {
+                let mut len = 0;
+                gl::GetShaderiv(shader.0, gl::INFO_LOG_LENGTH, &mut len);
+                let mut buf = Vec::with_capacity(len as usize);
+                buf.set_len((len as usize) - 1); // subtract 1 to skip the trailing null character
+                gl::GetShaderInfoLog(
+                    shader.0,
+                    len,
+                    ptr::null_mut(),
+                    buf.as_mut_ptr() as *mut gl::types::GLchar,
+                );
+
+                match String::from_utf8(buf) {
+                    Ok(s) => panic!(s),
+                    Err(_) => panic!("Compile shader fail, reason unknown"),
+                }
+            }
         }
+
         check_gl_error("compile_shader");
     }
 

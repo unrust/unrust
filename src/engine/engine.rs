@@ -89,6 +89,11 @@ where
             ctx.switch_tex += 1;
         }
 
+        // temp set the material shiness here
+        if let Some(ref prog) = ctx.prog {
+            prog.set("uShininess", 32.0);
+        }
+
         true
     }
 
@@ -109,13 +114,20 @@ where
         prog.set("uPMatrix", camera.p);
         prog.set("uNMatrix", modelm.try_inverse().unwrap().transpose());
         prog.set("uMMatrix", modelm);
+        prog.set("uViewPos", camera.eye());
 
         {
             let light_com = ctx.light.as_ref().unwrap();
             let light = light_com.try_into::<Light>().unwrap();
+            let light_br = light.borrow();
+
             // We must have at least one direction light.
-            let dir = light.borrow().directional().unwrap().dir;
-            prog.set("uDirectionalLight", dir);
+            let dir_light = light_br.directional().unwrap();
+
+            prog.set("uDirectionalLight.direction", dir_light.direction);
+            prog.set("uDirectionalLight.ambient", dir_light.ambient);
+            prog.set("uDirectionalLight.diffuse", dir_light.diffuse);
+            prog.set("uDirectionalLight.specular", dir_light.specular);
         }
 
         // Setup Mesh
@@ -172,7 +184,10 @@ where
             // prepare light.
             ctx.light = Some(self.find_component::<Light>().unwrap_or({
                 Component::new(Light::Directional(DirectionalLight {
-                    dir: Vector3::new(0.0, -1.0, 1.0).normalize(),
+                    direction: Vector3::new(0.5, -1.0, 1.0).normalize(),
+                    ambient: Vector3::new(0.2, 0.2, 0.2),
+                    diffuse: Vector3::new(0.5, 0.5, 0.5),
+                    specular: Vector3::new(1.0, 1.0, 1.0),
                 }))
             }));
 

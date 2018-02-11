@@ -19,6 +19,12 @@ pub use glenum::*;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod webgl_native;
 
+#[cfg(not(target_arch = "wasm32"))]
+pub const IS_GL_ES: bool = false;
+
+#[cfg(target_arch = "wasm32")]
+pub const IS_GL_ES: bool = true;
+
 pub mod common {
     use std::ops::Deref;
 

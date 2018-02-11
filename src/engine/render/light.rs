@@ -41,7 +41,10 @@ impl Light {
 impl ComponentBased for Light {}
 
 pub struct DirectionalLight {
-    pub dir: Vector3<f32>,
+    pub direction: Vector3<f32>,
+    pub ambient: Vector3<f32>,
+    pub diffuse: Vector3<f32>,
+    pub specular: Vector3<f32>,
 }
 
 impl From<DirectionalLight> for Light {
@@ -52,6 +55,7 @@ impl From<DirectionalLight> for Light {
 
 pub struct PointLight {
     pub pos: Vector3<f32>,
+    pub color: Vector3<f32>,
 }
 
 impl From<PointLight> for Light {

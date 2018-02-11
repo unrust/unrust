@@ -13,7 +13,7 @@ use boxes_vee::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use na::Isometry3;
 
 use nphysics3d::object::RigidBody;
@@ -96,6 +96,12 @@ impl Deref for Game {
     }
 }
 
+impl DerefMut for Game {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.list
+    }
+}
+
 pub fn main() {
     let size = (800, 600);
     let config = AppConfig::new("Test", size);
@@ -112,13 +118,33 @@ pub fn main() {
             game.add_object(rb.clone());
         }
 
-        // add a directional light to scene.
-        let light_com = {
+        // add direction light to scene.
+        let _dir_light_com = {
             let go = game.engine.new_gameobject();
+            // Make sure it is store some where, else it will gc
+            game.push(go.clone());
+
+            let mut go_mut = go.borrow_mut();
+            let com = go_mut.add_component(Light::new(DirectionalLight {
+                direction: Vector3::new(0.5, -1.0, 1.0).normalize(),
+                ambient: Vector3::new(0.2, 0.2, 0.2),
+                diffuse: Vector3::new(0.5, 0.5, 0.5),
+                specular: Vector3::new(1.0, 1.0, 1.0),
+            }));
+
+            com
+        };
+
+        let point_light_com = {
+            let go = game.engine.new_gameobject();
+            // Make sure it is store some where, else it will gc
+            game.push(go.clone());
+
             let mut go_mut = go.borrow_mut();
 
-            go_mut.add_component(Light::new(Directional {
-                dir: Vector3::new(0.0, 0.0, 1.0),
+            go_mut.add_component(Light::new(PointLight {
+                pos: Vector3::new(0.0, 0.0, 0.0),
+                color: Vector3::new(1.0, 1.0, 1.0),
             }))
         };
 
@@ -138,7 +164,7 @@ pub fn main() {
             imgui::pivot((0.0, 0.0));
             imgui::label(
                 Native(0.0, 0.0) + Pixel(8.0, 8.0),
-                &format!("fps: {} nobj: {}", fps.fps, game.len()),
+                &format!("fps: {} nobj: {}", fps.fps, game.engine.objects.len()),
             );
 
             imgui::pivot((1.0, 1.0));
@@ -195,22 +221,27 @@ pub fn main() {
 
             // Update Light
             {
-                if let Some(lr) = light_com.try_into::<Light>() {
+                if let Some(lr) = point_light_com.try_into::<Light>() {
                     let mut light = lr.borrow_mut();
-                    light.directional_mut().unwrap().dir = -eye.normalize();
+                    light.point_mut().unwrap().pos = eye;
                 }
             }
 
             // Update Transforms by physic object
             {
                 let get_pb_tran = |o: &GameObject| {
-                    let (rb, _) = o.find_component::<PhysicObject>().unwrap();
-                    rb.borrow().get_phy_transform()
+                    if let Some((rb, _)) = o.find_component::<PhysicObject>() {
+                        Some(rb.borrow().get_phy_transform())
+                    } else {
+                        None
+                    }
                 };
 
                 for go in game.iter() {
-                    let tran = get_pb_tran(&go.borrow());
-                    go.borrow_mut().transform = tran;
+                    let mut go_mut = go.borrow_mut();
+                    if let Some(tran) = get_pb_tran(&go_mut) {
+                        go_mut.transform = tran;
+                    }
                 }
             }
 

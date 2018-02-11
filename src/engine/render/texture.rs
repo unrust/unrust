@@ -81,7 +81,7 @@ impl Texture {
 
         gl.bind_texture(&state.tex);
 
-        program.set("uSampler", 0);
+        program.set("uDiffuse", 0);
 
         true
     }

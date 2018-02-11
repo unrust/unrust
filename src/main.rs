@@ -67,8 +67,8 @@ impl Game {
             self.counter += 1;
 
             go_mut.add_component(self.get(rb.borrow().shape().as_ref()).unwrap());
-            go_mut.add_component(Material::new_component(db.new_program("default"), texture));
-            go_mut.add_component(Component::new(PhysicObject(rb)));
+            go_mut.add_component(Material::new(db.new_program("default"), texture));
+            go_mut.add_component(PhysicObject(rb));
         }
 
         self.list.push(go.clone());
@@ -113,13 +113,13 @@ pub fn main() {
         }
 
         // add a directional light to scene.
-        let light_go = {
+        let light_com = {
             let go = game.engine.new_gameobject();
             let mut go_mut = go.borrow_mut();
-            go_mut.add_component(Component::new(Light::Directional(DirectionalLight {
+
+            go_mut.add_component(Light::new(Directional {
                 dir: Vector3::new(0.0, 0.0, 1.0),
-            })));
-            go.clone()
+            }))
         };
 
         use imgui::Metric::*;
@@ -195,9 +195,7 @@ pub fn main() {
 
             // Update Light
             {
-                let go_mut = light_go.borrow();
-
-                if let Some((lr, _)) = go_mut.find_component::<Light>() {
+                if let Some(lr) = light_com.try_into::<Light>() {
                     let mut light = lr.borrow_mut();
                     light.directional_mut().unwrap().dir = -eye.normalize();
                 }

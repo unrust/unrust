@@ -3,6 +3,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::sync::Arc;
 use std::any::{Any, TypeId};
+//use std::marker::PhantomData;
 
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
@@ -20,17 +21,14 @@ pub trait Component: Any {
     fn as_any(&self) -> &Any;
 }
 
-pub struct ComponentType<T>
-where
-    T: ComponentBased,
-{
+pub struct ComponentType<T> {
     com: Rc<RefCell<T>>,
     id: u64,
 }
 
 impl<T> Component for ComponentType<T>
 where
-    T: 'static + ComponentBased,
+    T: 'static,
 {
     fn id(&self) -> u64 {
         self.id
@@ -50,7 +48,7 @@ pub trait ComponentBased {}
 impl Component {
     pub fn try_into<T>(&self) -> Option<&RefCell<T>>
     where
-        T: 'static + ComponentBased,
+        T: 'static,
     {
         let a = self.as_any();
         match a.downcast_ref::<ComponentType<T>>() {
@@ -61,7 +59,7 @@ impl Component {
 
     pub fn new<T>(value: T) -> Arc<Component>
     where
-        T: 'static + ComponentBased,
+        T: 'static,
     {
         let c = ComponentType {
             com: Rc::new(RefCell::new(value)),
@@ -79,10 +77,29 @@ pub struct GameObject {
     pub components: Vec<Arc<Component>>,
 }
 
+pub trait IntoComponentPtr {
+    fn into_component_ptr(self) -> Arc<Component>;
+}
+
+impl<T> IntoComponentPtr for T
+where
+    T: ComponentBased + 'static,
+{
+    fn into_component_ptr(self) -> Arc<Component> {
+        Component::new(self)
+    }
+}
+
+impl IntoComponentPtr for Arc<Component> {
+    fn into_component_ptr(self) -> Arc<Component> {
+        self
+    }
+}
+
 impl GameObject {
     pub fn find_component<T>(&self) -> Option<(&RefCell<T>, Arc<Component>)>
     where
-        T: 'static + ComponentBased,
+        T: 'static,
     {
         let typeid = TypeId::of::<T>();
 
@@ -95,7 +112,12 @@ impl GameObject {
         }
     }
 
-    pub fn add_component(&mut self, c: Arc<Component>) {
-        self.components.push(c.clone());
+    pub fn add_component<T>(&mut self, c: T) -> Arc<Component>
+    where
+        T: IntoComponentPtr,
+    {
+        let p: Arc<Component> = c.into_component_ptr();
+        self.components.push(p.clone());
+        p
     }
 }

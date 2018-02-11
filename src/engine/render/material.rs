@@ -1,7 +1,6 @@
-use engine::core::{Component, ComponentBased};
+use engine::core::ComponentBased;
 use super::{ShaderProgram, Texture};
 
-use std::sync::Arc;
 use std::rc::Rc;
 
 pub struct Material {
@@ -15,10 +14,6 @@ impl Material {
             program: program,
             texture: texture,
         };
-    }
-
-    pub fn new_component(program: Rc<ShaderProgram>, texture: Rc<Texture>) -> Arc<Component> {
-        Component::new(Material::new(program, texture))
     }
 }
 

@@ -1,4 +1,4 @@
-use engine::core::{Component, GameObject};
+use engine::core::GameObject;
 use engine::render::{Material, Mesh};
 use engine::engine::IEngine;
 
@@ -166,8 +166,8 @@ impl Widget for Label {
                 mesh.bounds(),
             ));
 
-            gomut.add_component(Component::new(mesh));
-            gomut.add_component(Material::new_component(
+            gomut.add_component(mesh);
+            gomut.add_component(Material::new(
                 db.new_program("default_screen"),
                 db.new_texture("default_font_bitmap"),
             ));

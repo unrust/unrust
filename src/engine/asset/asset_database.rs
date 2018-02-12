@@ -1,11 +1,9 @@
 use std::rc::Rc;
 use std::cell::RefCell;
-use std::sync::Arc;
 use std::collections::HashMap;
 
-use engine::core::Component;
 use super::{CubeMesh, PlaneMesh, Quad};
-use engine::{Mesh, ShaderProgram, Texture, TextureFiltering};
+use engine::{MeshBuffer, ShaderProgram, Texture, TextureFiltering};
 
 use image;
 use image::ImageBuffer;
@@ -21,7 +19,7 @@ pub trait AssetSystem {
 
     fn new_texture(&self, name: &str) -> Rc<Texture>;
 
-    fn new_mesh(&self, name: &str) -> Arc<Component>;
+    fn new_mesh_buffer(&self, name: &str) -> Rc<MeshBuffer>;
 }
 
 pub trait Asset {
@@ -32,7 +30,7 @@ pub trait Asset {
 pub struct AssetDatabase {
     path: String,
     textures: RefCell<HashMap<String, Rc<Texture>>>,
-    meshes: RefCell<HashMap<String, Arc<Component>>>,
+    mesh_buffers: RefCell<HashMap<String, Rc<MeshBuffer>>>,
     programs: RefCell<HashMap<String, Rc<ShaderProgram>>>,
 }
 
@@ -49,8 +47,8 @@ impl AssetSystem for AssetDatabase {
         }
     }
 
-    fn new_mesh(&self, name: &str) -> Arc<Component> {
-        let mut hm = self.meshes.borrow_mut();
+    fn new_mesh_buffer(&self, name: &str) -> Rc<MeshBuffer> {
+        let mut hm = self.mesh_buffers.borrow_mut();
         match hm.get_mut(name) {
             Some(tex) => tex.clone(),
             None => panic!("No asset found."),
@@ -61,10 +59,10 @@ impl AssetSystem for AssetDatabase {
         let mut db = AssetDatabase::default();
 
         {
-            let mut hm = db.meshes.borrow_mut();
-            hm.insert("cube".into(), Component::new(Mesh::new(CubeMesh::new())));
-            hm.insert("plane".into(), Component::new(Mesh::new(PlaneMesh::new())));
-            hm.insert("screen_quad".into(), Component::new(Mesh::new(Quad::new())));
+            let mut hm = db.mesh_buffers.borrow_mut();
+            hm.insert("cube".into(), Rc::new(CubeMesh::new()));
+            hm.insert("plane".into(), Rc::new(PlaneMesh::new()));
+            hm.insert("screen_quad".into(), Rc::new(Quad::new()));
         }
 
         {

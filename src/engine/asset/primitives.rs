@@ -116,12 +116,12 @@ impl CubeMesh {
             20, 21, 22,   20, 22, 23  // Left face
         ];
 
-        MeshBuffer {
-            vertices: vertices,
-            uvs: Some(uvs),
-            normals: Some(normals),
-            indices: indices,
-        }
+        let mut m = MeshBuffer::default();
+        m.vertices = vertices;
+        m.uvs = Some(uvs);
+        m.normals = Some(normals);
+        m.indices = indices;
+        m
     }
 }
 
@@ -155,11 +155,11 @@ impl PlaneMesh {
             0, 1, 2, 0, 2, 3 // Top face
         ];
 
-        MeshBuffer {
-            vertices: vertices,
-            uvs: Some(uvs),
-            normals: Some(normals),
-            indices: indices,
-        }
+        let mut m = MeshBuffer::default();
+        m.vertices = vertices;
+        m.uvs = Some(uvs);
+        m.normals = Some(normals);
+        m.indices = indices;
+        m
     }
 }

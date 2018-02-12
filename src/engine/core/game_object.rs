@@ -46,7 +46,7 @@ where
 pub trait ComponentBased {}
 
 impl Component {
-    pub fn try_into<T>(&self) -> Option<&RefCell<T>>
+    pub fn try_as<T>(&self) -> Option<&RefCell<T>>
     where
         T: 'static,
     {
@@ -106,7 +106,7 @@ impl GameObject {
         match self.components.iter().find(|c| c.typeid() == typeid) {
             Some(c) => {
                 let com: &Component = c.as_ref();
-                Some((com.try_into::<T>().unwrap(), c.clone()))
+                Some((com.try_as::<T>().unwrap(), c.clone()))
             }
             _ => None,
         }

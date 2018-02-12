@@ -12,7 +12,6 @@ mod boxes_vee;
 use boxes_vee::*;
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::Arc;
 use std::ops::{Deref, DerefMut};
 use na::Isometry3;
 
@@ -28,7 +27,7 @@ type Handle<T> = Rc<RefCell<T>>;
 // Physic Object Component
 struct PhysicObject(Handle<RigidBody<f32>>);
 impl PhysicObject {
-    fn get_phy_transform(&self) -> Isometry3<f32> {
+    fn phy_transform(&self) -> Isometry3<f32> {
         *self.0.borrow().position()
     }
 }
@@ -75,16 +74,16 @@ impl Game {
         go
     }
 
-    pub fn get(&self, shape: &Shape3<f32>) -> Option<Arc<Component>> {
+    pub fn get(&self, shape: &Shape3<f32>) -> Option<Mesh> {
         let db = self.engine.asset_system();
 
         if let Some(_) = shape.as_shape::<Cuboid3<f32>>() {
-            return Some(db.new_mesh("cube"));
+            Some(Mesh::new(db.new_mesh_buffer("cube")))
         } else if let Some(_) = shape.as_shape::<Plane3<f32>>() {
-            return Some(db.new_mesh("plane"));
+            Some(Mesh::new(db.new_mesh_buffer("plane")))
+        } else {
+            None
         }
-
-        return None;
     }
 }
 
@@ -107,12 +106,10 @@ pub fn main() {
     let config = AppConfig::new("Test", size);
     let app = App::new(config);
     {
-        let mut engine = Engine::new(&app, size);
         let mut scene = Scene::new();
 
-        engine.main_camera = Some(Camera::new());
-
-        let mut game = Game::new(engine);
+        let mut game = Game::new(Engine::new(&app, size));
+        game.engine.main_camera = Some(Camera::new());
 
         for rb in scene.world.rigid_bodies() {
             game.add_object(rb.clone());
@@ -138,9 +135,9 @@ pub fn main() {
         // Add 4 points light to scene
         let point_light_positions = vec![
             Vector3::new(-30.0, 30.0, -30.0),
-            // Vector3::new(-15.0, 300.0, -10.0),
-            // Vector3::new(30.0, 50.0, 30.0),
-            // Vector3::new(30.0, 100.0, -20.0),
+            Vector3::new(-15.0, 300.0, -10.0),
+            Vector3::new(30.0, 50.0, 30.0),
+            Vector3::new(30.0, 100.0, -20.0),
         ];
 
         let mut point_light_coms = vec![];
@@ -215,9 +212,7 @@ pub fn main() {
                             };
                         }
 
-                        e => {
-                            last_event = Some(e.clone());
-                        }
+                        _ => (),
                     }
                 }
             }
@@ -234,12 +229,11 @@ pub fn main() {
 
             // Update Light
             for light_com in point_light_coms.iter_mut() {
-                if let Some(lr) = light_com.try_into::<Light>() {
+                if let Some(lr) = light_com.try_as::<Light>() {
                     let mut light = lr.borrow_mut();
                     let mut pos = light.point().unwrap().position;
 
-                    pos = na::Rotation3::new(up * 0.02) * pos;
-                    light.point_mut().unwrap().position = pos;
+                    light.point_mut().unwrap().position = na::Rotation3::new(up * 0.02) * pos;
                 }
             }
 
@@ -247,7 +241,7 @@ pub fn main() {
             {
                 let get_pb_tran = |o: &GameObject| {
                     if let Some((rb, _)) = o.find_component::<PhysicObject>() {
-                        Some(rb.borrow().get_phy_transform())
+                        Some(rb.borrow().phy_transform())
                     } else {
                         None
                     }

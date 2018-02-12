@@ -23,11 +23,11 @@ impl Quad {
             0, 1, 2, 0, 2, 3 // Top face
         ];
 
-        MeshBuffer {
-            vertices: vertices,
-            uvs: Some(uvs),
-            normals: None,
-            indices: indices,
-        }
+        let mut m = MeshBuffer::default();
+        m.vertices = vertices;
+        m.uvs = Some(uvs);
+        m.normals = None;
+        m.indices = indices;
+        m
     }
 }

@@ -1,4 +1,5 @@
 use engine::core::ComponentBased;
+use engine::Asset;
 use super::{ShaderProgram, Texture};
 
 use std::rc::Rc;
@@ -14,6 +15,12 @@ impl Material {
             program: program,
             texture: texture,
         };
+    }
+}
+
+impl Asset for Material {
+    fn new(_s: &str) -> Rc<Self> {
+        unimplemented!();
     }
 }
 

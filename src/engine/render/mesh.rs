@@ -3,7 +3,10 @@ use std::mem::size_of;
 
 use super::ShaderProgram;
 use engine::core::ComponentBased;
+use engine::Asset;
+
 use std::cell::RefCell;
+use std::rc::Rc;
 use std::f32::{MAX, MIN};
 
 use na::Vector3;
@@ -23,9 +26,7 @@ impl<T> IntoBytes for Vec<T> {
 }
 
 pub struct Mesh {
-    pub mesh_buffer: MeshBuffer,
-    gl_state: RefCell<Option<MeshGLState>>,
-    bounds: RefCell<Option<(Vector3<f32>, Vector3<f32>)>>,
+    pub mesh_buffer: Rc<MeshBuffer>,
 }
 
 impl ComponentBased for Mesh {}
@@ -38,11 +39,81 @@ struct MeshGLState {
 }
 
 impl Mesh {
-    pub fn new(mesh_buffer: MeshBuffer) -> Mesh {
+    pub fn new(mesh_buffer: Rc<MeshBuffer>) -> Mesh {
         Mesh {
             mesh_buffer: mesh_buffer,
-            gl_state: RefCell::new(None),
-            bounds: RefCell::new(None),
+        }
+    }
+
+    pub fn bind(&self, gl: &WebGLRenderingContext, program: &ShaderProgram) {
+        self.mesh_buffer.bind(gl, program);
+    }
+
+    pub fn render(&self, gl: &WebGLRenderingContext) {
+        gl.draw_elements(
+            Primitives::Triangles,
+            self.indices().len(),
+            DataType::U16,
+            0,
+        );
+    }
+
+    pub fn indices(&self) -> &Vec<u16> {
+        &self.mesh_buffer.indices
+    }
+}
+
+#[derive(Default)]
+pub struct MeshBuffer {
+    pub vertices: Vec<f32>,
+    pub uvs: Option<Vec<f32>>,
+    pub normals: Option<Vec<f32>>,
+    pub indices: Vec<u16>,
+    gl_state: RefCell<Option<MeshGLState>>,
+    bounds: RefCell<Option<(Vector3<f32>, Vector3<f32>)>>,
+}
+
+impl Asset for MeshBuffer {
+    fn new(_s: &str) -> Rc<Self> {
+        unimplemented!();
+    }
+}
+
+impl MeshBuffer {
+    pub fn prepare(&self, gl: &WebGLRenderingContext) {
+        if self.gl_state.borrow().is_none() {
+            self.gl_state.replace(Some(mesh_bind_buffer(
+                &self.vertices,
+                &self.uvs,
+                &self.normals,
+                &self.indices,
+                gl,
+            )));
+        }
+    }
+
+    pub fn compute_bounds(&self) -> (Vector3<f32>, Vector3<f32>) {
+        let mut min = Vector3::new(MAX, MAX, MAX);
+        let mut max = Vector3::new(MIN, MIN, MIN);
+
+        for (i, v) in self.vertices.iter().enumerate() {
+            min[i % 3] = v.min(min[i % 3]);
+            max[i % 3] = v.max(max[i % 3]);
+        }
+
+        (min, max)
+    }
+
+    /// bounds return (vmin, vmax)
+    pub fn bounds(&self) -> (Vector3<f32>, Vector3<f32>) {
+        let mut bounds = self.bounds.borrow_mut();
+
+        match *bounds {
+            Some(ref k) => *k,
+            None => {
+                *bounds = Some(self.compute_bounds());
+                bounds.unwrap()
+            }
         }
     }
 
@@ -86,63 +157,6 @@ impl Mesh {
         // Bind index buffer object
         gl.bind_buffer(BufferKind::ElementArray, &state.ib);
     }
-
-    pub fn render(&self, gl: &WebGLRenderingContext) {
-        gl.draw_elements(
-            Primitives::Triangles,
-            self.indices().len(),
-            DataType::U16,
-            0,
-        );
-    }
-
-    pub fn indices(&self) -> &Vec<u16> {
-        &self.mesh_buffer.indices
-    }
-
-    pub fn prepare(&self, gl: &WebGLRenderingContext) {
-        if self.gl_state.borrow().is_none() {
-            self.gl_state.replace(Some(mesh_bind_buffer(
-                &self.mesh_buffer.vertices,
-                &self.mesh_buffer.uvs,
-                &self.mesh_buffer.normals,
-                &self.mesh_buffer.indices,
-                gl,
-            )));
-        }
-    }
-
-    pub fn compute_bounds(&self) -> (Vector3<f32>, Vector3<f32>) {
-        let mut min = Vector3::new(MAX, MAX, MAX);
-        let mut max = Vector3::new(MIN, MIN, MIN);
-
-        for (i, v) in self.mesh_buffer.vertices.iter().enumerate() {
-            min[i % 3] = v.min(min[i % 3]);
-            max[i % 3] = v.max(max[i % 3]);
-        }
-
-        (min, max)
-    }
-
-    /// bounds return (vmin, vmax)
-    pub fn bounds(&self) -> (Vector3<f32>, Vector3<f32>) {
-        let mut bounds = self.bounds.borrow_mut();
-
-        match *bounds {
-            Some(ref k) => *k,
-            None => {
-                *bounds = Some(self.compute_bounds());
-                bounds.unwrap()
-            }
-        }
-    }
-}
-
-pub struct MeshBuffer {
-    pub vertices: Vec<f32>,
-    pub uvs: Option<Vec<f32>>,
-    pub normals: Option<Vec<f32>>,
-    pub indices: Vec<u16>,
 }
 
 fn mesh_bind_buffer(

@@ -35,7 +35,7 @@ pub struct Label {
     s: String,
 }
 
-fn make_text_mesh(s: &str, size: (u32, u32)) -> MeshBuffer {
+fn make_text_mesh_buffer(s: &str, size: (u32, u32)) -> MeshBuffer {
     let mut vertices = vec![];
     let mut uvs = vec![];
     let mut indices = vec![];
@@ -98,12 +98,12 @@ fn make_text_mesh(s: &str, size: (u32, u32)) -> MeshBuffer {
         i += 1;
     }
 
-    MeshBuffer {
-        vertices: vertices,
-        uvs: Some(uvs),
-        normals: None,
-        indices: indices,
-    }
+    let mut m = MeshBuffer::default();
+    m.vertices = vertices;
+    m.uvs = Some(uvs);
+    m.normals = None;
+    m.indices = indices;
+    m
 }
 
 impl Label {
@@ -158,12 +158,12 @@ impl Widget for Label {
 
         {
             let mut gomut = go.borrow_mut();
-            let mesh = Mesh::new(make_text_mesh(&self.s, ssize));
+            let mesh = Mesh::new(Rc::new(make_text_mesh_buffer(&self.s, ssize)));
             gomut.transform.append_translation_mut(&compute_translate(
                 &self.pos,
                 &self.pivot,
                 &ssize,
-                mesh.bounds(),
+                mesh.mesh_buffer.bounds(),
             ));
 
             gomut.add_component(mesh);

@@ -10,6 +10,8 @@ use std::str::FromStr;
 use std::collections::HashMap;
 use std::error;
 
+use super::operators::{operator, Operator};
+
 type CS<'a> = CompleteStr<'a>;
 
 #[derive(Clone, PartialEq)]
@@ -19,7 +21,7 @@ pub enum Constant {
     Float(f32),
 }
 
-macro_rules! impl_from_constant {
+macro_rules! impl_constant_from {
     ($t:ty, $i:ident) => {
         impl From<$t> for Constant {
             fn from(i: $t) -> Self {
@@ -29,9 +31,9 @@ macro_rules! impl_from_constant {
     }
 }
 
-impl_from_constant!(i64, Integer);
-impl_from_constant!(bool, Bool);
-impl_from_constant!(f32, Float);
+impl_constant_from!(i64, Integer);
+impl_constant_from!(bool, Bool);
+impl_constant_from!(f32, Float);
 
 impl Constant {
     fn from<T>(v: T) -> Self
@@ -52,7 +54,6 @@ impl Debug for Constant {
     }
 }
 
-#[macro_export]
 macro_rules! spe {
   ($i:expr, $($args:tt)*) => {{
     delimited!($i, opt!(space), $($args)*, opt!(space))
@@ -60,7 +61,6 @@ macro_rules! spe {
 }
 
 pub type Identifier = String;
-pub type Operator = String;
 
 /* Parser */
 #[derive(Clone, PartialEq)]
@@ -165,44 +165,15 @@ named!(
 
 /// Constant macro
 named!(
-    constant<CS, Constant>,
+    pub constant<CS, Constant>,
     alt_complete!(
-        map!(float_constant, Constant::from) |
         map!(integer_constant, Constant::from) |
+        map!(float_constant, Constant::from) |        
         map!(bool_constant, Constant::from)
     )
 );
 
-/// operator macro
-named!(operator<CS,Operator>, 
-    map!(alt!(tag!(".") |
-        tag!("+") |
-        tag!("-") |
-        tag!("/") |
-        tag!("*") |
-        tag!("%") |
-        tag!("<") |
-        tag!(">") |
-        tag!("[") |
-        tag!("]") |
-        tag!("(") |
-        tag!(")") |
-        tag!("{") |
-        tag!("}") |
-        tag!("^") |
-        tag!("|") |
-        tag!("&") |
-        tag!("~") |
-        tag!("=") |
-        tag!("!") |
-        tag!(":") |
-        tag!(";") |
-        tag!(",") |
-        tag!("?") 
-    ), |cs| cs.0.into())
-);
-
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum BasicType {
     Void,
     Bool,
@@ -222,9 +193,10 @@ pub enum BasicType {
     Mat4,
     Sampler2D,
     SamplerCube,
+    TypeName(Identifier),
 }
 
-named!(basic_type<CS,BasicType>,
+named!(pub basic_type<CS,BasicType>,
     alt!(
         value!(BasicType::Void, tag!("void")) |
         value!(BasicType::Bool, tag!("boid")) |

@@ -41,14 +41,12 @@ fn line_concat(input: Vec<CompleteStr>) -> String {
 }
 
 // Parser rewriter, discarding whitespaces and comments.
-#[macro_export]
 macro_rules! comment_eater {
   ($i:expr, $($args:tt)*) => {{
     sep!($i, comment, $($args)*)
   }}
 }
 
-#[macro_export]
 macro_rules! spe {
   ($i:expr, $($args:tt)*) => {{
     delimited!($i, opt!(space), $($args)*, opt!(space))
@@ -260,7 +258,7 @@ fn preprocess_token(tt: Token, state: &mut PreprocessState) {
                 }
             }
         }
-        Token::Operator(s, ..) => {
+        Token::Operator(_, s) => {
             state.normal_tokens.push(s);
         }
         Token::Constant(_, s) => {

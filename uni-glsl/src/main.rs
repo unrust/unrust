@@ -3,6 +3,8 @@ extern crate nom;
 
 mod preprocessor;
 mod tokens;
+mod operators;
+mod parser;
 
 fn main() {
     use std::fs::File;

@@ -1,7 +1,7 @@
 #![allow(unused_imports)]
 
 use nom::types::CompleteStr;
-use nom::{digit, recognize_float, sp, space, Err, IResult};
+use nom::{digit, hex_digit, oct_digit, recognize_float, sp, space, Err, IResult};
 use nom::line_ending;
 use std::fmt::Debug;
 use std::fmt;
@@ -12,27 +12,33 @@ use std::error;
 
 type CS<'a> = CompleteStr<'a>;
 
-pub type Identifier = String;
-pub type Operator = String;
-
 #[derive(Clone, PartialEq)]
 pub enum Constant {
     Bool(bool),
-    Integer(u32),
-    Float32(f32),
+    Integer(i64),
+    Float(f32),
 }
 
+macro_rules! impl_from_constant {
+    ($t:ty, $i:ident) => {
+        impl From<$t> for Constant {
+            fn from(i: $t) -> Self {
+                Constant::$i(i)
+            }
+        }
+    }
+}
+
+impl_from_constant!(i64, Integer);
+impl_from_constant!(bool, Bool);
+impl_from_constant!(f32, Float);
+
 impl Constant {
-    fn from_u32(u: u32) -> Constant {
-        Constant::Integer(u)
-    }
-
-    fn from_f32(f: f32) -> Constant {
-        Constant::Float32(f)
-    }
-
-    fn from_bool(b: bool) -> Constant {
-        Constant::Bool(b)
+    fn from<T>(v: T) -> Self
+    where
+        T: Into<Self>,
+    {
+        v.into()
     }
 }
 
@@ -40,7 +46,7 @@ impl Debug for Constant {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             &Constant::Integer(ref s) => write!(f, "Constant::Integer {{ {:?} }}", s),
-            &Constant::Float32(ref s) => write!(f, "Constant::Float32 {{ {:?} }}", s),
+            &Constant::Float(ref s) => write!(f, "Constant::Float {{ {:?} }}", s),
             &Constant::Bool(ref b) => write!(f, "Constant::Bool {{ {:?} }}", b),
         }
     }
@@ -52,6 +58,9 @@ macro_rules! spe {
     delimited!($i, opt!(space), $($args)*, opt!(space))
   }}
 }
+
+pub type Identifier = String;
+pub type Operator = String;
 
 /* Parser */
 #[derive(Clone, PartialEq)]
@@ -107,25 +116,60 @@ fn verify_identifier(s: CompleteStr) -> bool {
     }
 }
 
-/// unsigned_integer macro
+named!(non_zero_digit<CS,char>, one_of!("123456789"));
+
+/// integer parsers
 named!(
-    pub unsigned_integer<CS, u32>,
-    map_res!(digit, |cs:CS| FromStr::from_str(cs.0) )    
+    decimal_constant<CS, i64>,
+    map_res!(recognize!( do_parse!(
+        non_zero_digit >>
+        opt!(digit) >>
+        ()
+    )), |cs:CS| FromStr::from_str(cs.0) )    
 );
 
-/// float_s macro
 named!(
-    pub float_s<CS, f32>,
+    octal_constant<CS, i64>,
+    map_res!(recognize!( do_parse!(
+        tag!("0") >>
+        opt!(oct_digit) >>
+        ()
+    )), |cs:CS| FromStr::from_str(cs.0) )
+);
+
+named!(
+    hexadecimal_constant<CS, i64>,
+    map_res!(recognize!( do_parse!(
+        tag_no_case!("0x") >>
+        hex_digit >>
+        ()
+    )), |cs:CS| i64::from_str_radix(&cs.0[2..], 16))
+);
+
+named!(
+    pub integer_constant<CS, i64>,
+    alt_complete!(hexadecimal_constant|decimal_constant|octal_constant)
+);
+
+/// float constant parser
+named!(
+    pub float_constant<CS, f32>,
     map_res!(recognize_float, |cs:CS| FromStr::from_str(cs.0) )
+);
+
+/// bool constant parser
+named!(
+    pub bool_constant<CS, bool>,
+    alt!(value!(true, tag!("true")) | value!(false, tag!("false")))
 );
 
 /// Constant macro
 named!(
     constant<CS, Constant>,
-    alt!(
-        map!(float_s, Constant::from_f32) |
-        map!(unsigned_integer, Constant::from_u32) |
-        map!(alt!(value!(true, tag!("true")) | value!(false, tag!("false"))), Constant::from_bool)
+    alt_complete!(
+        map!(float_constant, Constant::from) |
+        map!(integer_constant, Constant::from) |
+        map!(bool_constant, Constant::from)
     )
 );
 
@@ -224,3 +268,23 @@ named!(pub token<CS, Token>, do_parse!(
     )) >> 
     (tt)
 ));
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_integer() {
+        // dec integer
+        let i = integer_constant(CompleteStr("123456"));
+        assert_eq!(i, Ok((CompleteStr(""), 123456i64)));
+
+        // // oct integer
+        let i = integer_constant(CompleteStr("0123456"));
+        assert_eq!(i, Ok((CompleteStr(""), 0123456)));
+
+        // hex integer
+        let i = integer_constant(CompleteStr("0x1f4Fa"));
+        assert_eq!(i, Ok((CompleteStr(""), 0x1f4Fa)));
+    }
+}

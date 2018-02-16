@@ -1,0 +1,23 @@
+[[package]]
+name = "memchr"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "nom"
+version = "4.0.0-alpha2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "memchr 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "uni-glsl"
+version = "0.1.0"
+dependencies = [
+ "nom 4.0.0-alpha2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[metadata]
+"checksum memchr 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "796fba70e76612589ed2ce7f45282f5af869e0fdd7cc6199fa1aa1f1d591ba9d"
+"checksum nom 4.0.0-alpha2 (registry+https://github.com/rust-lang/crates.io-index)" = "d4f398298df131460f70080b7df382eb550f71125a18a305da79873e9d620559"

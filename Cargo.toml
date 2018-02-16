@@ -9,6 +9,7 @@ nphysics3d = "0.7.2"
 ncollide = "0.13.0"
 webgl = {path="webgl"}
 uni-app = {path="uni-app"}
+uni-glsl = {path="uni-glsl"}
 
 [dependencies.lazy_static]
 version = "1.0"
@@ -35,4 +36,4 @@ path = "src/main.rs"
 # wasm compilation isn't currently compatible with incremental compilation
 # see https://github.com/rust-lang/rust/issues/47643
 [profile.dev]
-incremental = false
+incremental = true

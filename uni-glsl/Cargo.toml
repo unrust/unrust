@@ -1,0 +1,13 @@
+[package]
+name = "uni-glsl"
+version = "0.1.0"
+authors = ["Edwin Cheng <edwin0cheng@gmail.com>"]
+
+[[bin]]
+name = "uni-glsl-demo"
+path="src/main.rs"
+
+[dependencies.nom]
+version = "4.0.0-alpha2"
+default-features = false
+features = []

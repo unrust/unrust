@@ -51,6 +51,7 @@ operator_enum_define! {
     EqOp         >> "==",
     NeOp         >> "!=",
     AndOp        >> "&&",
+    OrOp         >> "||",
     XorOp        >> "^^",
     MulAssign    >> "*=",
     DivAssign    >> "/=",

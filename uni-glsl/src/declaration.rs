@@ -29,6 +29,11 @@ pub enum PrecisionQualifier {
     Low,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct Struct {
+    name: Option<Identifier>,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct TypeSpecifier {
     pub precision: Option<PrecisionQualifier>,

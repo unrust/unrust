@@ -3,6 +3,7 @@ use nom::{digit, hex_digit, oct_digit, recognize_float, space};
 use std::convert::From;
 use std::str;
 use super::operator::{operator, Operator};
+use declaration::Struct;
 
 type CS<'a> = CompleteStr<'a>;
 
@@ -11,29 +12,6 @@ pub enum Constant {
     Bool(bool),
     Integer(i64),
     Float(f32),
-}
-
-macro_rules! impl_constant_from {
-    ($t:ty, $i:ident) => {
-        impl From<$t> for Constant {
-            fn from(i: $t) -> Self {
-                Constant::$i(i)
-            }
-        }
-    }
-}
-
-impl_constant_from!(i64, Integer);
-impl_constant_from!(bool, Bool);
-impl_constant_from!(f32, Float);
-
-impl Constant {
-    fn from<T>(v: T) -> Self
-    where
-        T: Into<Self>,
-    {
-        v.into()
-    }
 }
 
 macro_rules! spe {
@@ -51,24 +29,6 @@ pub enum Token {
     Constant(Constant, String),
     BasicType(BasicType, String),
     Identifier(Identifier, String),
-}
-
-impl Token {
-    fn from_identifier((s, cs): (Identifier, CompleteStr)) -> Token {
-        Token::Identifier(s, cs.0.into())
-    }
-
-    fn from_operator((s, cs): (Operator, CompleteStr)) -> Token {
-        Token::Operator(s, cs.0.into())
-    }
-
-    fn from_constant((n, cs): (Constant, CompleteStr)) -> Token {
-        Token::Constant(n, cs.0.into())
-    }
-
-    fn from_basic_type((n, cs): (BasicType, CompleteStr)) -> Token {
-        Token::BasicType(n, cs.0.into())
-    }
 }
 
 /// identifier macro
@@ -139,9 +99,9 @@ named!(
 named!(
     pub constant<CS, Constant>,
     alt_complete!(
-        map!(integer_constant, Constant::from) |
-        map!(float_constant, Constant::from) |        
-        map!(bool_constant, Constant::from)
+        map!(integer_constant, Constant::Integer) |
+        map!(float_constant, Constant::Float) |        
+        map!(bool_constant, Constant::Bool)
     )
 );
 
@@ -165,6 +125,7 @@ pub enum BasicType {
     Mat4,
     Sampler2D,
     SamplerCube,
+    Struct(Struct),
     TypeName(Identifier),
 }
 
@@ -207,10 +168,10 @@ macro_rules! value_text {
 /// token macro
 named!(pub token<CS, Token>, do_parse!(
     tt: spe!(alt!(
-        map!( value_text!(operator), Token::from_operator) |   
-        map!( value_text!(constant),Token::from_constant) |
-        map!( value_text!(basic_type), Token::from_basic_type) |        
-        map!( value_text!(identifier), Token::from_identifier)         
+        map!( value_text!(operator), |(s,cs)| Token::Operator(s, cs.0.into())) |
+        map!( value_text!(constant), |(s,cs)| Token::Constant(s, cs.0.into())) |
+        map!( value_text!(basic_type), |(s,cs)| Token::BasicType(s, cs.0.into())) |
+        map!( value_text!(identifier), |(s,cs)| Token::Identifier(s, cs.0.into()))
     )) >> 
     (tt)
 ));

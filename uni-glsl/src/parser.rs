@@ -65,14 +65,6 @@ enum Expression {
     Binary(BinaryOp, Box<Expression>, Box<Expression>),
 }
 
-named!(expression<CS, Expression>, 
-    call!(postfix_expression)
-);
-
-named!(assignment_expression<CS, Expression>, 
-    call!(postfix_expression)
-);
-
 named!(
     function_call<CS, Expression>,
     do_parse!(
@@ -154,174 +146,96 @@ named!(
     )
 );
 
-#[cfg_attr(rustfmt, rustfmt_skip)]
-named!(
-    mult_expression<CS, Expression>,
-    ows!(
-        do_parse!(
-            init_expr: unary_expression >>
-            part: fold_left_alt!(e; init_expr;
-                map!( preceded!(op!(Operator::Star), unary_expression),
-                    |e1| Expression::Binary(BinaryOp::Mult, Box::new(e.clone()), Box::new(e1))) |
-                map!( preceded!(op!(Operator::Slash), unary_expression),
-                    |e1| Expression::Binary(BinaryOp::Div, Box::new(e.clone()), Box::new(e1))) |
-                map!( preceded!(op!(Operator::Percent), unary_expression),
-                    |e1| Expression::Binary(BinaryOp::Mod, Box::new(e.clone()), Box::new(e1)))
-            ) >> (part)
-        )
-    )
+macro_rules! binary_op_expr {
+    ($name:ident, $start_expr:ident, $($op:expr => $binop:expr),* ) => {
+        named!(
+            $name<CS, Expression>,
+            ows!(
+                do_parse!(
+                    init_expr: $start_expr >>
+                    part: fold_left_alt!(e; init_expr;
+                        $(
+                        map!( preceded!(op!($op), $start_expr),
+                            |e1| Expression::Binary($binop, Box::new(e.clone()), Box::new(e1)))
+                        )|*
+                    ) >> (part)
+                )
+            )
+        );
+    };
+}
+
+binary_op_expr!(
+    mult_expression, unary_expression, 
+    Operator::Star => BinaryOp::Mult,
+    Operator::Slash => BinaryOp::Div,
+    Operator::Percent => BinaryOp::Mod
 );
 
-#[cfg_attr(rustfmt, rustfmt_skip)]
-named!(
-    add_expression<CS, Expression>,
-    ows!(
-        do_parse!(
-            init_expr: mult_expression >>
-            part: fold_left_alt!(e; init_expr;
-                map!( preceded!(op!(Operator::Plus), mult_expression), 
-                    |e1| Expression::Binary(BinaryOp::Add, Box::new(e.clone()), Box::new(e1))) |
-                map!( preceded!(op!(Operator::Dash), mult_expression), 
-                    |e1| Expression::Binary(BinaryOp::Sub, Box::new(e.clone()), Box::new(e1)))                
-            ) >> (part)
-        )
-    )
+binary_op_expr!(
+    add_expression, mult_expression, 
+    Operator::Plus => BinaryOp::Add,
+    Operator::Dash => BinaryOp::Sub
 );
 
-#[cfg_attr(rustfmt, rustfmt_skip)]
-named!(
-    shift_expression<CS, Expression>,
-    ows!(
-        do_parse!(
-            init_expr: add_expression >>
-            part: fold_left_alt!(e; init_expr;
-                map!( preceded!(op!(Operator::LeftOp), add_expression), 
-                    |e1| Expression::Binary(BinaryOp::LShift, Box::new(e.clone()), Box::new(e1))) |
-                map!( preceded!(op!(Operator::RightOp), add_expression), 
-                    |e1| Expression::Binary(BinaryOp::RShift, Box::new(e.clone()), Box::new(e1)))                
-            ) >> (part)
-        )
-    )
+binary_op_expr!(
+    shift_expression, add_expression, 
+    Operator::LeftOp => BinaryOp::LShift,
+    Operator::RightOp => BinaryOp::RShift
 );
 
-#[cfg_attr(rustfmt, rustfmt_skip)]
-named!(
-    relational_expression<CS, Expression>,
-    ows!(
-        do_parse!(
-            init_expr: shift_expression >>
-            part: fold_left_alt!(e; init_expr;
-                map!( preceded!(op!(Operator::LeftAngle), shift_expression), 
-                    |e1| Expression::Binary(BinaryOp::LT, Box::new(e.clone()), Box::new(e1))) |
-                map!( preceded!(op!(Operator::RightAngle), shift_expression), 
-                    |e1| Expression::Binary(BinaryOp::GT, Box::new(e.clone()), Box::new(e1))) |
-                map!( preceded!(op!(Operator::LeOp), shift_expression), 
-                    |e1| Expression::Binary(BinaryOp::LTE, Box::new(e.clone()), Box::new(e1))) |
-                map!( preceded!(op!(Operator::GeOp), shift_expression), 
-                    |e1| Expression::Binary(BinaryOp::GTE, Box::new(e.clone()), Box::new(e1)))                
-            ) >> (part)
-        )
-    )
+binary_op_expr!(
+    relational_expression, shift_expression, 
+    Operator::LeftAngle => BinaryOp::LT,
+    Operator::RightAngle => BinaryOp::GT,
+    Operator::LeOp => BinaryOp::LTE,
+    Operator::GeOp => BinaryOp::GTE
 );
 
-#[cfg_attr(rustfmt, rustfmt_skip)]
-named!(
-    equality_expression<CS, Expression>,
-    ows!(
-        do_parse!(
-            init_expr: relational_expression >>
-            part: fold_left_alt!(e; init_expr;
-                map!( preceded!(op!(Operator::EqOp), relational_expression), 
-                    |e1| Expression::Binary(BinaryOp::Equal, Box::new(e.clone()), Box::new(e1))) |
-                map!( preceded!(op!(Operator::NeOp), relational_expression), 
-                    |e1| Expression::Binary(BinaryOp::NonEqual, Box::new(e.clone()), Box::new(e1))) 
-            ) >> (part)
-        )
-    )
+binary_op_expr!(
+    equality_expression, relational_expression, 
+    Operator::EqOp => BinaryOp::Equal,
+    Operator::NeOp => BinaryOp::NonEqual
 );
 
-#[cfg_attr(rustfmt, rustfmt_skip)]
-named!(
-    bit_and_expression<CS, Expression>,
-    ows!(
-        do_parse!(
-            init_expr: equality_expression >>
-            part: fold_left_alt!(e; init_expr;
-                map!( preceded!(op!(Operator::Ampersand), equality_expression), 
-                    |e1| Expression::Binary(BinaryOp::BitAnd, Box::new(e.clone()), Box::new(e1))) 
-            ) >> (part)
-        )
-    )
+binary_op_expr!(
+    bit_and_expression, equality_expression, 
+    Operator::Ampersand => BinaryOp::BitAnd
 );
 
-#[cfg_attr(rustfmt, rustfmt_skip)]
-named!(
-    bit_xor_expression<CS, Expression>,
-    ows!(
-        do_parse!(
-            init_expr: bit_and_expression >>
-            part: fold_left_alt!(e; init_expr;
-                map!( preceded!(op!(Operator::Caret), bit_and_expression), 
-                    |e1| Expression::Binary(BinaryOp::BitXor, Box::new(e.clone()), Box::new(e1))) 
-            ) >> (part)
-        )
-    )
+binary_op_expr!(
+    bit_xor_expression, bit_and_expression, 
+    Operator::Caret => BinaryOp::BitXor
 );
 
-#[cfg_attr(rustfmt, rustfmt_skip)]
-named!(
-    bit_or_expression<CS, Expression>,
-    ows!(
-        do_parse!(
-            init_expr: bit_and_expression >>
-            part: fold_left_alt!(e; init_expr;
-                map!( preceded!(op!(Operator::VerticalBar), bit_xor_expression), 
-                    |e1| Expression::Binary(BinaryOp::BitOr, Box::new(e.clone()), Box::new(e1))) 
-            ) >> (part)
-        )
-    )
+binary_op_expr!(
+    bit_or_expression, bit_and_expression, 
+    Operator::VerticalBar => BinaryOp::BitOr
 );
 
-#[cfg_attr(rustfmt, rustfmt_skip)]
-named!(
-    logical_and_expression<CS, Expression>,
-    ows!(
-        do_parse!(
-            init_expr: bit_or_expression >>
-            part: fold_left_alt!(e; init_expr;
-                map!( preceded!(op!(Operator::AndOp), bit_or_expression), 
-                    |e1| Expression::Binary(BinaryOp::And, Box::new(e.clone()), Box::new(e1))) 
-            ) >> (part)
-        )
-    )
+binary_op_expr!(
+    logical_and_expression, bit_or_expression, 
+    Operator::AndOp => BinaryOp::And
 );
 
-#[cfg_attr(rustfmt, rustfmt_skip)]
-named!(
-    logical_xor_expression<CS, Expression>,
-    ows!(
-        do_parse!(
-            init_expr: logical_and_expression >>
-            part: fold_left_alt!(e; init_expr;
-                map!( preceded!(op!(Operator::XorOp), logical_and_expression), 
-                    |e1| Expression::Binary(BinaryOp::Xor, Box::new(e.clone()), Box::new(e1))) 
-            ) >> (part)
-        )
-    )
+binary_op_expr!(
+    logical_xor_expression,
+    logical_and_expression,
+    Operator::XorOp => BinaryOp::Xor
 );
 
-#[cfg_attr(rustfmt, rustfmt_skip)]
-named!(
-    logical_or_expression<CS, Expression>,
-    ows!(
-        do_parse!(
-            init_expr: logical_xor_expression >>
-            part: fold_left_alt!(e; init_expr;
-                map!( preceded!(op!(Operator::OrOp), logical_xor_expression), 
-                    |e1| Expression::Binary(BinaryOp::Or, Box::new(e.clone()), Box::new(e1))) 
-            ) >> (part)
-        )
-    )
+binary_op_expr!(
+    logical_or_expression,
+    logical_xor_expression,
+    Operator::OrOp => BinaryOp::Or
+);
+
+named!(expression<CS, Expression>, 
+    call!(postfix_expression)
+);
+
+named!(assignment_expression<CS, Expression>, 
+    call!(postfix_expression)
 );
 
 #[cfg(test)]

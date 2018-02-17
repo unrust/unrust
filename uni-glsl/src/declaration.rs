@@ -30,8 +30,16 @@ pub enum PrecisionQualifier {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct StructMember {
+    pub ts: TypeSpecifier,
+    pub name: Identifier,
+    pub array_spec: Option<Expression>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct Struct {
-    name: Option<Identifier>,
+    pub name: Option<Identifier>,
+    pub members: Vec<StructMember>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -99,11 +107,49 @@ named!(
     )
 );
 
+named!(
+    struct_member_declaration<CS, Vec<StructMember>>,
+    do_parse!(
+        ts: type_specifier >>
+        members: separated_nonempty_list!(
+            op!(Operator::Comma),
+            do_parse!(
+                name: identifier >>
+                ar: opt!(array_expression_specifier) >>
+                (StructMember{
+                    ts: ts.clone(),
+                    name: name,
+                    array_spec: ar,
+                })                
+            )
+        ) >>
+        op!(Operator::SemiColon) >>
+        (members)
+    )        
+);
+
+named!(
+    struct_specifier<CS, BasicType>,
+    ows!(do_parse!(
+         tag!("struct") >>
+         n: opt!(identifier) >>
+         op!(Operator::LeftBrace) >>
+         ls_members: many0!(struct_member_declaration) >>
+         op!(Operator::RightBrace) >>
+         (
+             BasicType::Struct(Struct {
+                 name: n,
+                 members: ls_members.into_iter().flat_map(|vm| vm.into_iter() ).collect()
+             })
+         )
+    ))
+);
+
 named!(  
     type_specifier<CS, TypeSpecifier>,     
     ows!(do_parse!(
         p: opt!(precision_qualifier) >>
-        t: alt!(basic_type | map!(identifier, BasicType::TypeName)) >>
+        t: alt!(basic_type | struct_specifier | map!(identifier, BasicType::TypeName)) >>
         (TypeSpecifier {
             precision : p,
             actual_type : t
@@ -349,6 +395,13 @@ mod tests {
             i.unwrap().1),
             "DeclarationList([SingleDeclaration { type_spec: Normal(FullyTypeSpecifier { qualifer: Some(Const), type_spec: TypeSpecifier { precision: Some(High), actual_type: TypeName(\"vec3\") } }), name: Some(\"a\"), array_spec: None, equal_to: None }, SingleDeclaration { type_spec: Normal(FullyTypeSpecifier { qualifer: Some(Const), type_spec: TypeSpecifier { precision: Some(High), actual_type: TypeName(\"vec3\") } }), name: Some(\"b\"), array_spec: None, equal_to: None }])"
             );
+    }
+
+    #[test]
+    fn parse_struct_declaration() {
+        let i = declaration(CompleteStr("struct A { vec3 x,y,z; float f; };"));
+
+        assert_eq!(format!("{:?}", i.unwrap().1), "DeclarationList([SingleDeclaration { type_spec: Normal(FullyTypeSpecifier { qualifer: None, type_spec: TypeSpecifier { precision: None, actual_type: Struct(Struct { name: Some(\"A\"), members: [StructMember { ts: TypeSpecifier { precision: None, actual_type: TypeName(\"vec3\") }, name: \"x\", array_spec: None }, StructMember { ts: TypeSpecifier { precision: None, actual_type: TypeName(\"vec3\") }, name: \"y\", array_spec: None }, StructMember { ts: TypeSpecifier { precision: None, actual_type: TypeName(\"vec3\") }, name: \"z\", array_spec: None }, StructMember { ts: TypeSpecifier { precision: None, actual_type: Float }, name: \"f\", array_spec: None }] }) } }), name: None, array_spec: None, equal_to: None }])");
     }
 
 }

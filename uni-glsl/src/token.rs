@@ -1,6 +1,5 @@
 use nom::types::CompleteStr;
 use nom::{digit, hex_digit, oct_digit, recognize_float, space};
-use std::convert::From;
 use std::str;
 use super::operator::{operator, Operator};
 use declaration::Struct;

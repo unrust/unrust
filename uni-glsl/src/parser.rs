@@ -1,3 +1,6 @@
+// Thre is a bug in value!, so disable unused import at this moment.
+#![allow(unused_imports)]
+
 use nom::types::CompleteStr;
 use super::tokens::*;
 use operators::{operator, Operator};
@@ -44,6 +47,21 @@ enum BinaryOp {
 }
 
 #[derive(Clone, PartialEq, Debug)]
+enum AssignOp {
+    Equal,
+    MulAssign,
+    DivAssign,
+    ModAssign,
+    AddAssign,
+    SubAssign,
+    LeftAssign,
+    RightAssign,
+    AndAssign,
+    XorAssign,
+    OrAssign,
+}
+
+#[derive(Clone, PartialEq, Debug)]
 enum Expression {
     Identifier(Identifier),
     Constant(Constant),
@@ -63,6 +81,10 @@ enum Expression {
     Tilde(Box<Expression>),
 
     Binary(BinaryOp, Box<Expression>, Box<Expression>),
+    Ternary(Box<Expression>, Box<Expression>, Box<Expression>),
+    Assign(AssignOp, Box<Expression>, Box<Expression>),
+
+    Comma(Vec<Expression>),
 }
 
 named!(
@@ -230,12 +252,78 @@ binary_op_expr!(
     Operator::OrOp => BinaryOp::Or
 );
 
-named!(expression<CS, Expression>, 
-    call!(postfix_expression)
+named!(
+    ternary_expression<CS, Expression>,
+    ows!(
+        alt!(            
+            do_parse!(
+                e0: logical_or_expression >>
+                op!(Operator::Question) >>
+                e1: expression >>
+                op!(Operator::Colon) >>
+                e2: assignment_expression >>
+                (Expression::Ternary(Box::new(e0), Box::new(e1), Box::new(e2)))
+            ) |
+            logical_or_expression
+        )
+    )
 );
 
-named!(assignment_expression<CS, Expression>, 
-    call!(postfix_expression)
+named!(
+    assignment_operator < CS,
+    AssignOp
+        >, ows!(alt!(
+            value!(AssignOp::Equal, op!(Operator::Equal))
+                | value!(AssignOp::MulAssign, op!(Operator::MulAssign))
+                | value!(AssignOp::DivAssign, op!(Operator::DivAssign))
+                | value!(AssignOp::ModAssign, op!(Operator::ModAssign))
+                | value!(AssignOp::AddAssign, op!(Operator::AddAssign))
+                | value!(AssignOp::SubAssign, op!(Operator::SubAssign))
+                | value!(AssignOp::LeftAssign, op!(Operator::LeftAssign))
+                | value!(AssignOp::RightAssign, op!(Operator::RightAssign))
+                | value!(AssignOp::AndAssign, op!(Operator::AndAssign))
+                | value!(AssignOp::XorAssign, op!(Operator::XorAssign))
+                | value!(AssignOp::OrAssign, op!(Operator::OrAssign))
+        ))
+);
+
+named!(
+    assignment_expression<CS, Expression>,
+    ows!(
+        alt!(            
+            do_parse!(
+                e1: unary_expression >>
+                op: assignment_operator >>
+                e2: assignment_expression >>
+                (Expression::Assign(op, Box::new(e1), Box::new(e2)))
+            ) |
+            ternary_expression
+        )
+    )
+);
+
+named!(expression<CS, Expression>, 
+    ows!(
+        do_parse!(
+            head: assignment_expression >>
+            tail: many0!(
+                do_parse!(
+                    op!(Operator::Comma) >>
+                    e: assignment_expression >>
+                    (e)
+                )
+            ) >>
+            ({
+                if tail.len() == 0 {
+                    head
+                } else {
+                    let mut tail = tail.clone();
+                    tail.push(head);
+                    Expression::Comma(tail)
+                }
+            })
+        )
+    )
 );
 
 #[cfg(test)]
@@ -398,6 +486,46 @@ mod tests {
         assert_eq!(
             format!("{:?}", i.unwrap().1),
             "Binary(Or, Constant(Constant::Integer { 2 }), Constant(Constant::Integer { 3 }))"
+        );
+    }
+
+    #[test]
+    fn parse_ternary_expression() {
+        let i = ternary_expression(CompleteStr("1 > 2 ? 10 : 3"));
+        assert_eq!(
+            format!("{:?}", i.unwrap().1),
+            "Ternary(Binary(GT, Constant(Constant::Integer { 1 }), Constant(Constant::Integer { 2 })), Constant(Constant::Integer { 10 }), Constant(Constant::Integer { 3 }))"
+        );
+    }
+
+    #[test]
+    fn parse_assignment_expression() {
+        let i = assignment_expression(CompleteStr("b = 1 > 2"));
+        assert_eq!(
+            format!("{:?}", i.unwrap().1),
+            "Assign(Equal, Identifier(\"b\"), Binary(GT, Constant(Constant::Integer { 1 }), Constant(Constant::Integer { 2 })))"
+        );
+
+        let i = assignment_expression(CompleteStr("b = x *= y"));
+        assert_eq!(
+            format!("{:?}", i.unwrap().1),
+            "Assign(Equal, Identifier(\"b\"), Assign(MulAssign, Identifier(\"x\"), Identifier(\"y\")))"
+        );
+
+        // Test tenary expression again for testing recursive from assignment expr.
+        let i = ternary_expression(CompleteStr("a > b ? c : a ? b : c"));
+        assert_eq!(
+            format!("{:?}", i.unwrap().1),
+            "Ternary(Binary(GT, Identifier(\"a\"), Identifier(\"b\")), Identifier(\"c\"), Ternary(Identifier(\"a\"), Identifier(\"b\"), Identifier(\"c\")))"
+        );
+    }
+
+    #[test]
+    fn parse_comma_expression() {
+        let i = expression(CompleteStr("b = 1, a = 3"));
+        assert_eq!(
+            format!("{:?}", i.unwrap().1),
+            "Comma([Assign(Equal, Identifier(\"a\"), Constant(Constant::Integer { 3 })), Assign(Equal, Identifier(\"b\"), Constant(Constant::Integer { 1 }))])"
         );
     }
 }

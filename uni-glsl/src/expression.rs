@@ -1,5 +1,5 @@
 use nom::types::CompleteStr;
-use super::token::*;
+use super::token::{basic_type, constant, valid_name, BasicType, Constant, Identifier};
 use operator::Operator;
 
 type CS<'a> = CompleteStr<'a>;
@@ -72,9 +72,9 @@ pub enum Expression {
 named!(
     #[allow(unused_imports)],   // fix value! warning
     function_call<CS, Expression>,
-    do_parse!(
+    ows!(do_parse!(
         callee : alt!( 
-            basic_type |  map!(identifier, BasicType::TypeName)
+            basic_type |  map!(valid_name, BasicType::TypeName)
         ) >>
         op!(Operator::LeftParen) >>
         es: alt!(
@@ -83,7 +83,7 @@ named!(
         ) >>
         op!(Operator::RightParen) >>
         (Expression::FunctionCall(callee, es))
-    )
+    ))
 );
 
 #[cfg_attr(rustfmt, rustfmt_skip)] 
@@ -93,7 +93,7 @@ named!(pub array_expression_specifier<CS, Expression> ,
 
 #[cfg_attr(rustfmt, rustfmt_skip)] 
 named!(dot_field_specifier<CS, Identifier>,
-    ows!( preceded!(op!(Operator::Dot), identifier) )
+    ows!( preceded!(op!(Operator::Dot), valid_name) )
 );
 
 macro_rules! fold_left_alt {
@@ -123,7 +123,7 @@ named!(
         init_expr: alt!(
             function_call |
             delimited!(op!(Operator::LeftParen), expression, op!(Operator::RightParen)) |
-            map!(identifier, |i| Expression::Identifier(i)) | 
+            map!(valid_name, |i| Expression::Identifier(i)) | 
             map!(constant,|i| Expression::Constant(i) ) 
             ) >> 
         part: fold_left_alt!(e; init_expr;
@@ -315,7 +315,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parse_expression() {
+    fn parse_postfix_expression() {
         let i = postfix_expression(CompleteStr("(i ++) -- "));
         assert_eq!(
             format!("{:?}", i.unwrap().1),
@@ -332,6 +332,15 @@ mod tests {
         assert_eq!(
             format!("{:?}", i.unwrap().1),            
             "FunctionCall(TypeName(\"a\"), [Identifier(\"b\"), Identifier(\"c\"), Identifier(\"d\"), PostInc(Identifier(\"i\"))])"
+        );
+    }
+
+    #[test]
+    fn parse_func_call_expression() {
+        let i = postfix_expression(CompleteStr("vec4(result,1.0)"));
+        assert_eq!(
+            format!("{:?}", i.unwrap().1),
+            "FunctionCall(Vec4, [Identifier(\"result\"), Constant(Float(1.0))])"
         );
     }
 
@@ -501,6 +510,15 @@ mod tests {
         assert_eq!(
             format!("{:?}", i.unwrap().1),
             "Ternary(Binary(GT, Identifier(\"a\"), Identifier(\"b\")), Identifier(\"c\"), Ternary(Identifier(\"a\"), Identifier(\"b\"), Identifier(\"c\")))"
+        );
+    }
+
+    #[test]
+    fn parse_assignment_expression_complex() {
+        let i = assignment_expression(CompleteStr("gl_FragColor = vec4(result,1.0)"));
+        assert_eq!(
+            format!("{:?}", i.unwrap().1),
+            "Assign(Equal, Identifier(\"gl_FragColor\"), FunctionCall(Vec4, [Identifier(\"result\"), Constant(Float(1.0))]))"
         );
     }
 

@@ -356,7 +356,7 @@ mod tests {
         let expect_result = include_str!("../data/test/preprocessor_test_result.glsl");
         let r = preprocess(test_text).unwrap();
 
-        // Write result to temp directory.
+        //Write result to temp directory.
         // use std::fs::File;
         // use std::io::prelude::*;
         // let mut file = File::create("D:\\Temp\\preprocessor_test_result.glsl").unwrap();

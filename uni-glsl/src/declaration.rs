@@ -109,7 +109,7 @@ named!(
 
 named!(
     struct_member_declaration<CS, Vec<StructMember>>,
-    do_parse!(
+    ows!(do_parse!(
         ts: type_specifier >>
         members: separated_nonempty_list!(
             op!(Operator::Comma),
@@ -125,7 +125,7 @@ named!(
         ) >>
         op!(Operator::SemiColon) >>
         (members)
-    )        
+    ))        
 );
 
 named!(
@@ -181,7 +181,7 @@ named!(
     ))
 );
 
-named!(function_prototype<CS, FunctionPrototype>, 
+named!(pub function_prototype<CS, FunctionPrototype>, 
     ows!(do_parse!(
         ts : fully_type_specifier >>
         ident: valid_name >>
@@ -394,6 +394,12 @@ mod tests {
         assert_eq!(format!("{:?}",
             i.unwrap().1),
             "DeclarationList([SingleDeclaration { type_spec: Normal(FullyTypeSpecifier { qualifer: Some(Const), type_spec: TypeSpecifier { precision: Some(High), actual_type: Vec3 } }), name: Some(\"a\"), array_spec: None, equal_to: None }, SingleDeclaration { type_spec: Normal(FullyTypeSpecifier { qualifer: Some(Const), type_spec: TypeSpecifier { precision: Some(High), actual_type: Vec3 } }), name: Some(\"b\"), array_spec: None, equal_to: None }])"
+            );
+
+        let i = declaration(CompleteStr("const highp vec3 name ;"));
+        assert_eq!(format!("{:?}",
+            i.unwrap().1),
+            "DeclarationList([SingleDeclaration { type_spec: Normal(FullyTypeSpecifier { qualifer: Some(Const), type_spec: TypeSpecifier { precision: Some(High), actual_type: Vec3 } }), name: Some(\"name\"), array_spec: None, equal_to: None }])"
             );
     }
 

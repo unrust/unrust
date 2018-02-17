@@ -196,10 +196,14 @@ named!(
     alt_complete!(hexadecimal_constant|decimal_constant|octal_constant)
 );
 
+fn is_not_int(s: CompleteStr) -> bool {
+    s.0.contains(".")
+}
+
 /// float constant parser
 named!(
     pub float_constant<CS, f32>,
-    map_res!(recognize_float, |cs:CS| str::FromStr::from_str(cs.0) )
+    map_res!(verify!(recognize_float, is_not_int), |cs:CS| str::FromStr::from_str(cs.0) )
 );
 
 /// bool constant parser
@@ -213,8 +217,8 @@ named!(
 named!(
     pub constant<CS, Constant>,
     alt_complete!(
-        map!(integer_constant, Constant::Integer) |
-        map!(float_constant, Constant::Float) |        
+        map!(float_constant, Constant::Float) |    // Float must be first, because     
+        map!(integer_constant, Constant::Integer) |        
         map!(bool_constant, Constant::Bool)
     )
 );
@@ -307,6 +311,12 @@ mod tests {
         // hex integer
         let i = integer_constant(CompleteStr("0x1f4Fa"));
         assert_eq!(i, Ok((CompleteStr(""), 0x1f4Fa)));
+    }
+
+    #[test]
+    fn parse_float() {
+        let i = constant(CompleteStr("1.0"));
+        assert_eq!(i, Ok((CompleteStr(""), Constant::Float(1.0))));
     }
 
     #[test]

@@ -9,15 +9,17 @@ extern crate nom;
 #[macro_use]
 mod macros;
 
-pub mod preprocessor;
-mod token;
-
 #[macro_use]
 mod operator;
+
+mod token;
 mod expression;
 mod declaration;
 mod statement;
-mod parser;
+
+pub mod preprocessor;
+pub mod parser;
 
 pub use self::expression::{expression, Expression};
 pub use self::declaration::{declaration, Declaration};
+pub use self::statement::{statement, Statement};

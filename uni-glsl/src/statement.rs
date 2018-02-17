@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use nom::types::CompleteStr;
 use declaration::{declaration, fully_type_specifier, initializer, Declaration, FullyTypeSpecifier};
 use expression::{expression, Expression};
@@ -8,13 +7,13 @@ use token::{valid_name, Identifier};
 type CS<'a> = CompleteStr<'a>;
 
 #[derive(Debug, Clone, PartialEq)]
-enum IterationCondition {
+pub enum IterationCondition {
     Expression(Expression),
     InitialVariable(FullyTypeSpecifier, Identifier, Expression),
 }
 
 #[derive(Debug, Clone, PartialEq)]
-enum JumpType {
+pub enum JumpType {
     Continue,
     Break,
     Return,
@@ -23,7 +22,7 @@ enum JumpType {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-enum Statement {
+pub enum Statement {
     Declaration(Declaration),
     Expression(Expression),
     Selection(Expression, Box<Statement>, Option<Box<Statement>>),
@@ -79,6 +78,10 @@ named!(statement_with_scope<CS, Box<Statement>>,
             op!(Operator::RightBrace)
         ))
     ))
+);
+
+named!(pub statement<CS, Box<Statement>>,
+    call!(statement_with_scope)
 );
 
 #[cfg_attr(rustfmt, rustfmt_skip)] 
@@ -209,6 +212,16 @@ mod tests {
     }
 
     #[test]
+    fn parse_assignment_statemant() {
+        let i = expression_statement(CompleteStr("gl_FragColor=vec4(result,1.0);"));
+
+        assert_eq!(
+            format!("{:?}", i.unwrap().1),
+            "Expression(Assign(Equal, Identifier(\"gl_FragColor\"), FunctionCall(Vec4, [Identifier(\"result\"), Constant(Float(1.0))])))"
+        );
+    }
+
+    #[test]
     fn parse_selection_statement() {
         let i = selection_statement(CompleteStr(
             r#"
@@ -269,7 +282,7 @@ mod tests {
 
         assert_eq!(
             format!("{:?}", i.unwrap().1),
-            "DoWhile(Identifier(\"true\"), Scoped([Expression(PostInc(Identifier(\"i\")))]))"
+            "DoWhile(Constant(Bool(true)), Scoped([Expression(PostInc(Identifier(\"i\")))]))"
         );
     }
 

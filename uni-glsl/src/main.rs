@@ -1,12 +1,6 @@
-#![feature(trace_macros)]
+extern crate uni_glsl;
 
-#[macro_use]
-extern crate nom;
-
-mod preprocessor;
-mod tokens;
-mod operators;
-mod parser;
+use uni_glsl::preprocessor;
 
 fn main() {
     use std::fs::File;

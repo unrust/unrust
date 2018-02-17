@@ -4,6 +4,12 @@ use std::fmt;
 
 type CS<'a> = CompleteStr<'a>;
 
+macro_rules! op {
+  ($i:expr, $target:expr) => {{
+    verify!($i, $crate::operator::operator, move |c| c == $target)
+  }}
+}
+
 macro_rules! operator_enum_define {
     ( $($arg:ident >> $e:expr ),* ) => {
         #[derive(Clone, PartialEq, Copy)]

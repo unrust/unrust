@@ -1,16 +1,13 @@
-#![allow(unused_imports)]
-
 use nom::types::CompleteStr;
 use nom::{space, Err, IResult};
 use nom::line_ending;
 use std::fmt::Debug;
 use std::fmt;
 use std::convert::From;
-use std::str::FromStr;
 use std::collections::HashMap;
 use std::error;
 
-use tokens::*;
+use token::*;
 
 type CS<'a> = CompleteStr<'a>;
 
@@ -163,7 +160,9 @@ named!(ignored_macro<CS, MacroSession>,
     )
 );
 
-named!(ifdef_macro_condition<CS, bool>, 
+named!(
+    #[allow(unused_imports)], // fix value! warning
+    ifdef_macro_condition<CS, bool>, 
     alt!( 
         value!(true, tag_no_case!("ifdef")) |
         value!(false, tag_no_case!("ifndef"))
@@ -205,7 +204,9 @@ named!(ifdef_macro<CS, MacroSession>,
     )
 );
 
-named!(parse_macro<CS, MacroSession>,
+named!(
+    #[allow(unused_imports)],  // fix value! warning
+    parse_macro<CS, MacroSession>,
     alt!(
         ifdef_macro |
         ignored_macro |
@@ -228,7 +229,9 @@ fn append_vec<T>(mut ls: Vec<T>, last: Option<T>) -> Vec<T> {
 }
 
 #[rustfmt_skip] 
-named!(preprocess_parser <CS,Vec<MacroSession>>,
+named!(
+    #[allow(unused_imports)],  // fix value! warning
+    preprocess_parser <CS,Vec<MacroSession>>,
     do_parse!(
         tts: many0!(alt!(
             value!(MacroSession::EmptyLine, line_ending) |

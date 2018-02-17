@@ -3,8 +3,12 @@ name = "uni-glsl"
 version = "0.1.0"
 authors = ["Edwin Cheng <edwin0cheng@gmail.com>"]
 
+[lib]
+name = "uni_glsl"
+path = "src/lib.rs"
+
 [[bin]]
-name = "uni-glsl-demo"
+name = "uni_glsl_demo"
 path="src/main.rs"
 
 [dependencies.nom]

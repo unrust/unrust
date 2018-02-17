@@ -1,16 +1,10 @@
-#![allow(unused_imports)]
-
 use nom::types::CompleteStr;
-use nom::{digit, hex_digit, oct_digit, recognize_float, sp, space, Err, IResult};
-use nom::line_ending;
+use nom::{digit, hex_digit, oct_digit, recognize_float, space};
 use std::fmt::Debug;
 use std::fmt;
 use std::convert::From;
-use std::str::FromStr;
-use std::collections::HashMap;
-use std::error;
-
-use super::operators::{operator, Operator};
+use std::str;
+use super::operator::{operator, Operator};
 
 type CS<'a> = CompleteStr<'a>;
 
@@ -125,7 +119,7 @@ named!(
         non_zero_digit >>
         opt!(digit) >>
         ()
-    )), |cs:CS| FromStr::from_str(cs.0) )    
+    )), |cs:CS| str::FromStr::from_str(cs.0) )    
 );
 
 named!(
@@ -134,7 +128,7 @@ named!(
         tag!("0") >>
         opt!(oct_digit) >>
         ()
-    )), |cs:CS| FromStr::from_str(cs.0) )
+    )), |cs:CS| str::FromStr::from_str(cs.0) )
 );
 
 named!(
@@ -154,11 +148,12 @@ named!(
 /// float constant parser
 named!(
     pub float_constant<CS, f32>,
-    map_res!(recognize_float, |cs:CS| FromStr::from_str(cs.0) )
+    map_res!(recognize_float, |cs:CS| str::FromStr::from_str(cs.0) )
 );
 
 /// bool constant parser
 named!(
+    #[allow(unused_imports)], // fix value! warning
     pub bool_constant<CS, bool>,
     alt!(value!(true, tag!("true")) | value!(false, tag!("false")))
 );
@@ -196,7 +191,9 @@ pub enum BasicType {
     TypeName(Identifier),
 }
 
-named!(pub basic_type<CS,BasicType>,
+named!(
+    #[allow(unused_imports)], // fix value! warning
+    pub basic_type<CS,BasicType>,
     alt!(
         value!(BasicType::Void, tag!("void")) |
         value!(BasicType::Bool, tag!("boid")) |

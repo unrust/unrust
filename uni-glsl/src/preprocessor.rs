@@ -4,6 +4,7 @@ use nom::line_ending;
 use std::convert::From;
 use std::collections::HashMap;
 use std::error;
+use std::fmt;
 
 use token::*;
 
@@ -343,7 +344,6 @@ pub fn preprocess(s: &str) -> Result<String, PreprocessError> {
 
     let sessions = sessions?.1;
     let mut state = PreprocessState::default();
-    state.defines.insert("GL_ES".into(), Vec::new());
 
     for session in sessions.into_iter() {
         preprocess_session(session, &mut state);
@@ -353,4 +353,24 @@ pub fn preprocess(s: &str) -> Result<String, PreprocessError> {
         .normal_tokens
         .into_iter()
         .fold("".into(), |s, t| s + " " + &t))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn preprocess_test_file() {
+        let test_text = include_str!("../data/test/preprocessor_test.glsl");
+        let expect_result = include_str!("../data/test/preprocessor_test_result.glsl");
+        let r = preprocess(test_text).unwrap();
+
+        // Write result to temp directory.
+        // use std::fs::File;
+        // use std::io::prelude::*;
+        // let mut file = File::create("D:\\Temp\\preprocessor_test_result.glsl").unwrap();
+        // file.write_all(&r.as_bytes()).unwrap();
+
+        assert_eq!(r, expect_result);
+    }
 }

@@ -1,5 +1,5 @@
 use nom::types::CompleteStr;
-use token::*;
+use token::{basic_type, valid_name, BasicType, Identifier};
 use operator::Operator;
 use expression::{array_expression_specifier, assignment_expression, Expression};
 use nom::IResult;
@@ -85,7 +85,7 @@ named!(param_declaration<CS, ParamDeclaration>,
         tq: opt!(type_qualifier) >>
         pq: opt!(param_qualifier) >>
         ts: type_specifier >>
-        n:  opt!(identifier) >>
+        n:  opt!(valid_name) >>
         a:  opt!(array_expression_specifier) >>
         (ParamDeclaration{
             type_qualifer : tq,
@@ -114,7 +114,7 @@ named!(
         members: separated_nonempty_list!(
             op!(Operator::Comma),
             do_parse!(
-                name: identifier >>
+                name: valid_name >>
                 ar: opt!(array_expression_specifier) >>
                 (StructMember{
                     ts: ts.clone(),
@@ -132,7 +132,7 @@ named!(
     struct_specifier<CS, BasicType>,
     ows!(do_parse!(
          tag!("struct") >>
-         n: opt!(identifier) >>
+         n: opt!(valid_name) >>
          op!(Operator::LeftBrace) >>
          ls_members: many0!(struct_member_declaration) >>
          op!(Operator::RightBrace) >>
@@ -149,7 +149,7 @@ named!(
     type_specifier<CS, TypeSpecifier>,     
     ows!(do_parse!(
         p: opt!(precision_qualifier) >>
-        t: alt!(basic_type | struct_specifier | map!(identifier, BasicType::TypeName)) >>
+        t: alt!(basic_type | struct_specifier | map!(valid_name, BasicType::TypeName)) >>
         (TypeSpecifier {
             precision : p,
             actual_type : t
@@ -170,7 +170,7 @@ named!(
 );
 
 named!(
-    full_type_specifier<CS, FullyTypeSpecifier>,     
+    pub fully_type_specifier<CS, FullyTypeSpecifier>,     
     ows!(do_parse!(
         q: opt!(type_qualifier) >>
         ts: type_specifier >>
@@ -183,8 +183,8 @@ named!(
 
 named!(function_prototype<CS, FunctionPrototype>, 
     ows!(do_parse!(
-        ts : full_type_specifier >>
-        ident: identifier >>
+        ts : fully_type_specifier >>
+        ident: valid_name >>
         op!(Operator::LeftParen) >>
         params: ows!(separated_list!(op!(Operator::Comma), param_declaration)) >>
         op!(Operator::RightParen) >>        
@@ -211,7 +211,7 @@ pub struct SingleDeclaration {
     equal_to: Option<Expression>,
 }
 
-named!(initializer<CS, Expression>,
+named!(pub initializer<CS, Expression>,
     call!(assignment_expression)
 );
 
@@ -221,7 +221,7 @@ named!(
     ows!(alt!(
         do_parse!(
             ts: value!(VariantTypeSpecifier::Invariant, tag!("invariant")) >>
-            n: identifier >> 
+            n: valid_name >> 
             (SingleDeclaration{
                 type_spec: ts,
                 name: Some(n),
@@ -230,8 +230,8 @@ named!(
             })
         ) | 
         do_parse!(
-            ts : map!(full_type_specifier, VariantTypeSpecifier::Normal) >> 
-            n : identifier >>
+            ts : map!(fully_type_specifier, VariantTypeSpecifier::Normal) >> 
+            n : valid_name >>
             eq : preceded!(op!(Operator::Equal), initializer) >>
             (SingleDeclaration{
                 type_spec: ts,
@@ -241,8 +241,8 @@ named!(
             })            
         ) |
         do_parse!(
-            ts : map!(full_type_specifier, VariantTypeSpecifier::Normal) >> 
-            n : opt!(identifier) >>
+            ts : map!(fully_type_specifier, VariantTypeSpecifier::Normal) >> 
+            n : opt!(valid_name) >>
             a : opt!(array_expression_specifier) >> 
             (SingleDeclaration{
                 type_spec: ts,
@@ -267,7 +267,7 @@ fn declaration_list_part<'a>(input: CompleteStr<'a>, sd: &SingleDeclaration) -> 
         op!(Operator::Comma),
         alt!(
             do_parse!(
-                n: identifier >> 
+                n: valid_name >> 
                 a: array_expression_specifier >> 
                 (SingleDeclaration {
                     type_spec: sd.type_spec.clone(),
@@ -277,7 +277,7 @@ fn declaration_list_part<'a>(input: CompleteStr<'a>, sd: &SingleDeclaration) -> 
                 })
             ) 
             | do_parse!(
-                n: identifier >> 
+                n: valid_name >> 
                 eq: preceded!(op!(Operator::Equal), initializer) >> 
                 (SingleDeclaration {
                     type_spec: sd.type_spec.clone(),
@@ -287,7 +287,7 @@ fn declaration_list_part<'a>(input: CompleteStr<'a>, sd: &SingleDeclaration) -> 
                 })
             )
             | do_parse!(
-                n: identifier >>                
+                n: valid_name >>                
                 (SingleDeclaration {
                     type_spec: sd.type_spec.clone(),
                     name: Some(n),
@@ -335,7 +335,7 @@ mod tests {
 
         assert_eq!(format!("{:?}", 
             i.unwrap().1), 
-            "FunctionPrototype { ret_type: FullyTypeSpecifier { qualifer: Some(Const), type_spec: TypeSpecifier { precision: Some(High), actual_type: TypeName(\"vec3\") } }, name: \"f\", params: [] }"
+            "FunctionPrototype { ret_type: FullyTypeSpecifier { qualifer: Some(Const), type_spec: TypeSpecifier { precision: Some(High), actual_type: Vec3 } }, name: \"f\", params: [] }"
             );
     }
 
@@ -345,7 +345,7 @@ mod tests {
 
         assert_eq!(format!("{:?}", 
             i.unwrap().1), 
-            "ParamDeclaration { type_qualifer: None, param_qualifier: None, type_spec: TypeSpecifier { precision: None, actual_type: TypeName(\"vec3\") }, name: Some(\"a\"), array_spec: None }"
+            "ParamDeclaration { type_qualifer: None, param_qualifier: None, type_spec: TypeSpecifier { precision: None, actual_type: Vec3 }, name: Some(\"a\"), array_spec: None }"
             );
     }
 
@@ -357,7 +357,7 @@ mod tests {
 
         assert_eq!(format!("{:?}",
             i.unwrap().1),
-            "FunctionPrototype { ret_type: FullyTypeSpecifier { qualifer: Some(Const), type_spec: TypeSpecifier { precision: Some(High), actual_type: TypeName(\"vec3\") } }, name: \"f\", params: [ParamDeclaration { type_qualifer: Some(Const), param_qualifier: None, type_spec: TypeSpecifier { precision: None, actual_type: TypeName(\"vec3\") }, name: Some(\"a\"), array_spec: None }, ParamDeclaration { type_qualifer: None, param_qualifier: Some(In), type_spec: TypeSpecifier { precision: None, actual_type: TypeName(\"Obj\") }, name: Some(\"b\"), array_spec: None }, ParamDeclaration { type_qualifer: None, param_qualifier: None, type_spec: TypeSpecifier { precision: None, actual_type: Float }, name: Some(\"a\"), array_spec: Some(Constant(Integer(2))) }] }"
+            "FunctionPrototype { ret_type: FullyTypeSpecifier { qualifer: Some(Const), type_spec: TypeSpecifier { precision: Some(High), actual_type: Vec3 } }, name: \"f\", params: [ParamDeclaration { type_qualifer: Some(Const), param_qualifier: None, type_spec: TypeSpecifier { precision: None, actual_type: Vec3 }, name: Some(\"a\"), array_spec: None }, ParamDeclaration { type_qualifer: None, param_qualifier: Some(In), type_spec: TypeSpecifier { precision: None, actual_type: TypeName(\"Obj\") }, name: Some(\"b\"), array_spec: None }, ParamDeclaration { type_qualifer: None, param_qualifier: None, type_spec: TypeSpecifier { precision: None, actual_type: Float }, name: Some(\"a\"), array_spec: Some(Constant(Integer(2))) }] }"
             );
     }
 
@@ -366,13 +366,13 @@ mod tests {
         let i = single_declaration(CompleteStr("const highp vec3 name"));
         assert_eq!(format!("{:?}",
             i.unwrap().1),
-            "SingleDeclaration { type_spec: Normal(FullyTypeSpecifier { qualifer: Some(Const), type_spec: TypeSpecifier { precision: Some(High), actual_type: TypeName(\"vec3\") } }), name: Some(\"name\"), array_spec: None, equal_to: None }"
+            "SingleDeclaration { type_spec: Normal(FullyTypeSpecifier { qualifer: Some(Const), type_spec: TypeSpecifier { precision: Some(High), actual_type: Vec3 } }), name: Some(\"name\"), array_spec: None, equal_to: None }"
             );
 
         let i = single_declaration(CompleteStr("vec3 name[12]"));
         assert_eq!(format!("{:?}",
             i.unwrap().1),
-            "SingleDeclaration { type_spec: Normal(FullyTypeSpecifier { qualifer: None, type_spec: TypeSpecifier { precision: None, actual_type: TypeName(\"vec3\") } }), name: Some(\"name\"), array_spec: Some(Constant(Integer(12))), equal_to: None }"
+            "SingleDeclaration { type_spec: Normal(FullyTypeSpecifier { qualifer: None, type_spec: TypeSpecifier { precision: None, actual_type: Vec3 } }), name: Some(\"name\"), array_spec: Some(Constant(Integer(12))), equal_to: None }"
             );
 
         let i = single_declaration(CompleteStr("float name = 10"));
@@ -387,13 +387,13 @@ mod tests {
         let i = declaration(CompleteStr("const highp vec3 name;"));
         assert_eq!(format!("{:?}",
             i.unwrap().1),
-            "DeclarationList([SingleDeclaration { type_spec: Normal(FullyTypeSpecifier { qualifer: Some(Const), type_spec: TypeSpecifier { precision: Some(High), actual_type: TypeName(\"vec3\") } }), name: Some(\"name\"), array_spec: None, equal_to: None }])"
+            "DeclarationList([SingleDeclaration { type_spec: Normal(FullyTypeSpecifier { qualifer: Some(Const), type_spec: TypeSpecifier { precision: Some(High), actual_type: Vec3 } }), name: Some(\"name\"), array_spec: None, equal_to: None }])"
             );
 
         let i = declaration(CompleteStr("const highp vec3 a, b;"));
         assert_eq!(format!("{:?}",
             i.unwrap().1),
-            "DeclarationList([SingleDeclaration { type_spec: Normal(FullyTypeSpecifier { qualifer: Some(Const), type_spec: TypeSpecifier { precision: Some(High), actual_type: TypeName(\"vec3\") } }), name: Some(\"a\"), array_spec: None, equal_to: None }, SingleDeclaration { type_spec: Normal(FullyTypeSpecifier { qualifer: Some(Const), type_spec: TypeSpecifier { precision: Some(High), actual_type: TypeName(\"vec3\") } }), name: Some(\"b\"), array_spec: None, equal_to: None }])"
+            "DeclarationList([SingleDeclaration { type_spec: Normal(FullyTypeSpecifier { qualifer: Some(Const), type_spec: TypeSpecifier { precision: Some(High), actual_type: Vec3 } }), name: Some(\"a\"), array_spec: None, equal_to: None }, SingleDeclaration { type_spec: Normal(FullyTypeSpecifier { qualifer: Some(Const), type_spec: TypeSpecifier { precision: Some(High), actual_type: Vec3 } }), name: Some(\"b\"), array_spec: None, equal_to: None }])"
             );
     }
 
@@ -401,7 +401,7 @@ mod tests {
     fn parse_struct_declaration() {
         let i = declaration(CompleteStr("struct A { vec3 x,y,z; float f; };"));
 
-        assert_eq!(format!("{:?}", i.unwrap().1), "DeclarationList([SingleDeclaration { type_spec: Normal(FullyTypeSpecifier { qualifer: None, type_spec: TypeSpecifier { precision: None, actual_type: Struct(Struct { name: Some(\"A\"), members: [StructMember { ts: TypeSpecifier { precision: None, actual_type: TypeName(\"vec3\") }, name: \"x\", array_spec: None }, StructMember { ts: TypeSpecifier { precision: None, actual_type: TypeName(\"vec3\") }, name: \"y\", array_spec: None }, StructMember { ts: TypeSpecifier { precision: None, actual_type: TypeName(\"vec3\") }, name: \"z\", array_spec: None }, StructMember { ts: TypeSpecifier { precision: None, actual_type: Float }, name: \"f\", array_spec: None }] }) } }), name: None, array_spec: None, equal_to: None }])");
+        assert_eq!(format!("{:?}", i.unwrap().1), "DeclarationList([SingleDeclaration { type_spec: Normal(FullyTypeSpecifier { qualifer: None, type_spec: TypeSpecifier { precision: None, actual_type: Struct(Struct { name: Some(\"A\"), members: [StructMember { ts: TypeSpecifier { precision: None, actual_type: Vec3 }, name: \"x\", array_spec: None }, StructMember { ts: TypeSpecifier { precision: None, actual_type: Vec3 }, name: \"y\", array_spec: None }, StructMember { ts: TypeSpecifier { precision: None, actual_type: Vec3 }, name: \"z\", array_spec: None }, StructMember { ts: TypeSpecifier { precision: None, actual_type: Float }, name: \"f\", array_spec: None }] }) } }), name: None, array_spec: None, equal_to: None }])");
     }
 
 }

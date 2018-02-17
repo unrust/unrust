@@ -3,6 +3,7 @@ use nom::{digit, hex_digit, oct_digit, recognize_float, space};
 use std::str;
 use super::operator::{operator, Operator};
 use declaration::Struct;
+use std::collections::HashSet;
 
 type CS<'a> = CompleteStr<'a>;
 
@@ -37,6 +38,120 @@ named!(
         name: verify!(take_while1!(|ch:char|ch.is_alphanumeric() || ch == '_'), verify_identifier) >> (name)
     ), |cs| cs.0.into() )
 );
+
+/// non keyword identifier macro
+named!(
+    pub valid_name<CS, Identifier>,
+    map!(do_parse!(
+        name: verify!(take_while1!(|ch:char|ch.is_alphanumeric() || ch == '_'), verify_valid_name) >> (name)
+    ), |cs| cs.0.into() )
+);
+
+lazy_static! {
+    static ref KEYWORDS: HashSet<&'static str> = {
+        let mut m = HashSet::new();
+        m.insert("attribute");
+        m.insert("const");
+        m.insert("uniform");
+        m.insert("varying");
+        m.insert("break");
+        m.insert("continue");
+        m.insert("do");
+        m.insert("for");
+        m.insert("while");
+        m.insert("if");
+        m.insert("else");
+        m.insert("in");
+        m.insert("out");
+        m.insert("inout");
+        m.insert("float");
+        m.insert("int");
+        m.insert("void");
+        m.insert("bool");
+        m.insert("true");
+        m.insert("false");
+        m.insert("lowp");
+        m.insert("mediump");
+        m.insert("highp");
+        m.insert("precision");
+        m.insert("invariant");
+        m.insert("discard");
+        m.insert("return");
+        m.insert("mat2");
+        m.insert("mat3");
+        m.insert("mat4");
+        m.insert("vec2");
+        m.insert("vec3");
+        m.insert("vec4");
+        m.insert("ivec2");
+        m.insert("ivec3");
+        m.insert("ivec4");
+        m.insert("bvec2");
+        m.insert("bvec3");
+        m.insert("bvec4");
+        m.insert("sampler2D");
+        m.insert("samplerCube");
+        m.insert("struct");
+        m.insert("asm");
+        m.insert("class");
+        m.insert("union");
+        m.insert("enum");
+        m.insert("typedef");
+        m.insert("template");
+        m.insert("this");
+        m.insert("packed");
+
+        m.insert("goto");
+        m.insert("switch");
+        m.insert("default");
+        m.insert("inline");
+        m.insert("noinline");
+        m.insert("volatile"   );
+        m.insert("public");
+        m.insert("static");
+        m.insert("extern");
+        m.insert("external");
+        m.insert("interface");
+        m.insert("flat");
+        m.insert("long");
+        m.insert("short");
+        m.insert("double");
+        m.insert("half");
+        m.insert("fixed");
+        m.insert("unsigned");
+        m.insert("superp");
+        m.insert("input");
+        m.insert("output");
+        m.insert("hvec2");
+        m.insert("hvec3");
+        m.insert("hvec4");
+        m.insert("dvec2");
+        m.insert("dvec3");
+        m.insert("dvec4");
+        m.insert("fvec2");
+        m.insert("fvec3");
+        m.insert("fvec4");
+        m.insert("sampler1D");
+        m.insert("sampler3D");
+        m.insert("sampler1DShadow");
+        m.insert("sampler2DShadow");
+        m.insert("sampler2DRect");
+        m.insert("sampler3DRect");
+        m.insert("sampler2DRectShadow");
+        m.insert("sizeof");
+        m.insert("cast");
+        m.insert("namespace");
+        m.insert("using");
+        m
+    };
+}
+
+fn verify_valid_name(s: CompleteStr) -> bool {
+    if !verify_identifier(s) {
+        return false;
+    }
+    !KEYWORDS.contains(s.0)
+}
 
 #[inline]
 fn verify_identifier(s: CompleteStr) -> bool {
@@ -136,18 +251,18 @@ named!(
         value!(BasicType::Bool, tag!("boid")) |
         value!(BasicType::Int, tag!("int")) |
         value!(BasicType::Float, tag!("float")) |
-        value!(BasicType::Vec2, tag!("Vec2")) |
-        value!(BasicType::Vec3, tag!("Vec3")) |
-        value!(BasicType::Vec4, tag!("Vec4")) |
-        value!(BasicType::Bvec2, tag!("Bvec2")) |
-        value!(BasicType::Bvec3, tag!("Bvec3")) |
-        value!(BasicType::Bvec4, tag!("Bvec4")) |
-        value!(BasicType::Ivec2, tag!("Ivec2")) |
-        value!(BasicType::Ivec3, tag!("Ivec3")) |
-        value!(BasicType::Ivec4, tag!("Ivec4")) |
-        value!(BasicType::Mat2, tag!("Mat3")) |
-        value!(BasicType::Mat3, tag!("Mat3")) |
-        value!(BasicType::Mat4, tag!("Mat4")) |
+        value!(BasicType::Vec2, tag!("vec2")) |
+        value!(BasicType::Vec3, tag!("vec3")) |
+        value!(BasicType::Vec4, tag!("vec4")) |
+        value!(BasicType::Bvec2, tag!("bvec2")) |
+        value!(BasicType::Bvec3, tag!("bvec3")) |
+        value!(BasicType::Bvec4, tag!("bvec4")) |
+        value!(BasicType::Ivec2, tag!("ivec2")) |
+        value!(BasicType::Ivec3, tag!("ivec3")) |
+        value!(BasicType::Ivec4, tag!("ivec4")) |
+        value!(BasicType::Mat2, tag!("mat3")) |
+        value!(BasicType::Mat3, tag!("mat3")) |
+        value!(BasicType::Mat4, tag!("mat4")) |
         value!(BasicType::Sampler2D, tag!("sampler2D")) |
         value!(BasicType::SamplerCube, tag!("sampler3D"))
     )
@@ -192,5 +307,11 @@ mod tests {
         // hex integer
         let i = integer_constant(CompleteStr("0x1f4Fa"));
         assert_eq!(i, Ok((CompleteStr(""), 0x1f4Fa)));
+    }
+
+    #[test]
+    fn parse_valid_name() {
+        let i = valid_name(CompleteStr("a"));
+        assert_eq!(i, Ok((CompleteStr(""), "a".into())))
     }
 }

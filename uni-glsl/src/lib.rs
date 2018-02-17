@@ -1,6 +1,9 @@
 #![feature(trace_macros)]
 
 #[macro_use]
+extern crate lazy_static;
+
+#[macro_use]
 extern crate nom;
 
 #[macro_use]
@@ -13,6 +16,7 @@ mod token;
 mod operator;
 mod expression;
 mod declaration;
+mod statement;
 mod parser;
 
 pub use self::expression::{expression, Expression};

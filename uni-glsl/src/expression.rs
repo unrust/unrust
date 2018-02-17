@@ -44,6 +44,7 @@ pub enum AssignOp {
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum Expression {
+    Empty,
     Identifier(Identifier),
     Constant(Constant),
     Bracket(Box<Expression>, Box<Expression>),

@@ -5,14 +5,9 @@ use std::convert::From;
 use std::collections::HashMap;
 use std::error;
 use std::fmt;
-
 use token::*;
 
 type CS<'a> = CompleteStr<'a>;
-
-fn not_line_ending(c: char) -> bool {
-    c != '\r' && c != '\n'
-}
 
 named!(pub lines<CS, String>, map!( many0!(
     map!(line, |s|{ CompleteStr(s.0.trim_right()) })
@@ -59,7 +54,7 @@ named!(pub comment<CS, CS>,
 );
 
 named!(line<CS, CS>, do_parse!(
-        content: take_while!(not_line_ending) >>        
+        content: take_while!(|c| c != '\r' && c != '\n' ) >>        
         line_ending >>
         (content)
     )
@@ -112,17 +107,13 @@ named!(define_macro<CS, MacroSession>,
 );
 
 named!(undef_macro<CS, MacroSession>, 
-    do_parse!(
-        a: call!(macro_line, "undef") >>
-        (MacroSession::Undefine(a))
-    )
+    map!( call!(macro_line, "undef"), MacroSession::Undefine)
 );
 
-named!(empty_macro<CS, MacroSession>, 
-    do_parse!(
-        spe!(char!('#')) >>         
-        (MacroSession::Empty)
-    )
+named!(
+    #[allow(unused_imports)], // fix value! warning
+    empty_macro<CS, MacroSession>, 
+    value!(MacroSession::Empty, spe!(char!('#')))
 );
 
 named!(ignored_macro<CS, MacroSession>, 

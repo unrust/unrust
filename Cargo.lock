@@ -355,6 +355,9 @@ dependencies = [
 name = "memchr"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "libc 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "memmap"
@@ -742,6 +745,7 @@ dependencies = [
 name = "uni-glsl"
 version = "0.1.0"
 dependencies = [
+ "lazy_static 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "nom 4.0.0-alpha2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 

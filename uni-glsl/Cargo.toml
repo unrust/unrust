@@ -18,4 +18,4 @@ features = ["nightly"]
 [dependencies.nom]
 version = "4.0.0-alpha2"
 default-features = false
-features = []
+features = ["std", "verbose-errors"]

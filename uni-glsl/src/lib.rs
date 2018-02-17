@@ -12,6 +12,8 @@ mod token;
 #[macro_use]
 mod operator;
 mod expression;
+mod declaration;
 mod parser;
 
 pub use self::expression::{expression, Expression};
+pub use self::declaration::{declaration, Declaration};

@@ -86,7 +86,7 @@ named!(
 );
 
 #[cfg_attr(rustfmt, rustfmt_skip)] 
-named!(array_specifier<CS, Expression> ,
+named!(pub array_expression_specifier<CS, Expression> ,
     ows!( delimited!(op!(Operator::LeftBracket), expression, op!(Operator::RightBracket)) )
 );
 
@@ -126,7 +126,7 @@ named!(
             map!(constant,|i| Expression::Constant(i) ) 
             ) >> 
         part: fold_left_alt!(e; init_expr;
-            map!(array_specifier, |r| { Expression::Bracket(Box::new(e.clone()), Box::new(r)) })  |
+            map!(array_expression_specifier, |r| { Expression::Bracket(Box::new(e.clone()), Box::new(r)) })  |
             map!(dot_field_specifier, |r| { Expression::DotField(Box::new(e.clone()), r) })  |
             value!(Expression::PostInc(Box::new(e.clone())), op!(Operator::IncOp)) |
             value!(Expression::PostDec(Box::new(e.clone())), op!(Operator::DecOp))

@@ -10,8 +10,11 @@ BVEC2 BVEC3 BVEC4 IVEC2 IVEC3 IVEC4 VEC2 VEC3 VEC4
 MAT2 MAT3 MAT4 IN OUT INOUT UNIFORM VARYING
  SAMPLER2D SAMPLERCUBE 
 STRUCT VOID WHILE
+
+
 IDENTIFIER TYPE_NAME FLOATCONSTANT INTCONSTANT BOOLCONSTANT
 FIELD_SELECTION
+
 LEFT_OP RIGHT_OP
 INC_OP DEC_OP LE_OP GE_OP EQ_OP NE_OP
 AND_OP OR_OP XOR_OP MUL_ASSIGN DIV_ASSIGN ADD_ASSIGN
@@ -210,9 +213,9 @@ parameter_declarator:
 
 parameter_declaration:
         type_qualifier parameter_qualifier parameter_declarator 
-        parameter_qualifier parameter_declarator 
+                       parameter_qualifier parameter_declarator 
         type_qualifier parameter_qualifier parameter_type_specifier 
-        parameter_qualifier parameter_type_specifier 
+                       parameter_qualifier parameter_type_specifier 
 
 parameter_qualifier:
         /* empty */
@@ -227,8 +230,7 @@ parameter_type_specifier:
 init_declarator_list:
         single_declaration 
         init_declarator_list COMMA IDENTIFIER 
-
-init_declarator_list COMMA IDENTIFIER LEFT_BRACKET constant_expression RIGHT_BRACKET
+        init_declarator_list COMMA IDENTIFIER LEFT_BRACKET constant_expression RIGHT_BRACKET
         init_declarator_list COMMA IDENTIFIER EQUAL initializer 
 
 single_declaration:

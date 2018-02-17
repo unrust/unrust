@@ -1,14 +1,12 @@
 use nom::types::CompleteStr;
 use nom::{digit, hex_digit, oct_digit, recognize_float, space};
-use std::fmt::Debug;
-use std::fmt;
 use std::convert::From;
 use std::str;
 use super::operator::{operator, Operator};
 
 type CS<'a> = CompleteStr<'a>;
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum Constant {
     Bool(bool),
     Integer(i64),
@@ -38,16 +36,6 @@ impl Constant {
     }
 }
 
-impl Debug for Constant {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            &Constant::Integer(ref s) => write!(f, "Constant::Integer {{ {:?} }}", s),
-            &Constant::Float(ref s) => write!(f, "Constant::Float {{ {:?} }}", s),
-            &Constant::Bool(ref b) => write!(f, "Constant::Bool {{ {:?} }}", b),
-        }
-    }
-}
-
 macro_rules! spe {
   ($i:expr, $($args:tt)*) => {{
     delimited!($i, opt!(space), $($args)*, opt!(space))
@@ -57,23 +45,12 @@ macro_rules! spe {
 pub type Identifier = String;
 
 /* Parser */
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum Token {
     Operator(Operator, String),
     Constant(Constant, String),
     BasicType(BasicType, String),
     Identifier(Identifier, String),
-}
-
-impl Debug for Token {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            &Token::Operator(ref s, _) => write!(f, "Token::Operator {{ {:?} }}", s),
-            &Token::Identifier(ref s, _) => write!(f, "Token::Identifier {{ {:?} }}", s),
-            &Token::Constant(ref n, _) => write!(f, "Token::Constant {{ {:?} }}", n),
-            &Token::BasicType(_, ref s) => write!(f, "Token::BasicType {{ {:?} }}", s),
-        }
-    }
 }
 
 impl Token {

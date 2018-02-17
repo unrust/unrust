@@ -372,7 +372,7 @@ mod tests {
         let i = shift_expression(CompleteStr("a*b >> 2"));
         assert_eq!(
             format!("{:?}", i.unwrap().1),
-            "Binary(RShift, Binary(Mult, Identifier(\"a\"), Identifier(\"b\")), Constant(Constant::Integer { 2 }))"
+            "Binary(RShift, Binary(Mult, Identifier(\"a\"), Identifier(\"b\")), Constant(Integer(2)))"
         );
     }
 
@@ -381,19 +381,19 @@ mod tests {
         let i = relational_expression(CompleteStr("2<<1 >= 1 << a"));
         assert_eq!(
             format!("{:?}", i.unwrap().1),
-            "Binary(GTE, Binary(LShift, Constant(Constant::Integer { 2 }), Constant(Constant::Integer { 1 })), Binary(LShift, Constant(Constant::Integer { 1 }), Identifier(\"a\")))"
+            "Binary(GTE, Binary(LShift, Constant(Integer(2)), Constant(Integer(1))), Binary(LShift, Constant(Integer(1)), Identifier(\"a\")))"
         );
 
         let i = relational_expression(CompleteStr("a <= 1 << a"));
         assert_eq!(
             format!("{:?}", i.unwrap().1),
-            "Binary(LTE, Identifier(\"a\"), Binary(LShift, Constant(Constant::Integer { 1 }), Identifier(\"a\")))"
+            "Binary(LTE, Identifier(\"a\"), Binary(LShift, Constant(Integer(1)), Identifier(\"a\")))"
         );
 
         let i = relational_expression(CompleteStr("2<<1 > b"));
         assert_eq!(
             format!("{:?}", i.unwrap().1),
-            "Binary(GT, Binary(LShift, Constant(Constant::Integer { 2 }), Constant(Constant::Integer { 1 })), Identifier(\"b\"))"
+            "Binary(GT, Binary(LShift, Constant(Integer(2)), Constant(Integer(1))), Identifier(\"b\"))"
         );
 
         let i = relational_expression(CompleteStr("x < y"));
@@ -408,7 +408,7 @@ mod tests {
         let i = equality_expression(CompleteStr("2 == 3"));
         assert_eq!(
             format!("{:?}", i.unwrap().1),
-            "Binary(Equal, Constant(Constant::Integer { 2 }), Constant(Constant::Integer { 3 }))"
+            "Binary(Equal, Constant(Integer(2)), Constant(Integer(3)))"
         );
 
         let i = equality_expression(CompleteStr("a != a"));
@@ -423,7 +423,7 @@ mod tests {
         let i = bit_and_expression(CompleteStr("2 == 3 & 4 == 5"));
         assert_eq!(
             format!("{:?}", i.unwrap().1),
-            "Binary(BitAnd, Binary(Equal, Constant(Constant::Integer { 2 }), Constant(Constant::Integer { 3 })), Binary(Equal, Constant(Constant::Integer { 4 }), Constant(Constant::Integer { 5 })))"
+            "Binary(BitAnd, Binary(Equal, Constant(Integer(2)), Constant(Integer(3))), Binary(Equal, Constant(Integer(4)), Constant(Integer(5))))"
         );
     }
 
@@ -432,7 +432,7 @@ mod tests {
         let i = bit_xor_expression(CompleteStr("2 & 3 ^ 4"));
         assert_eq!(
             format!("{:?}", i.unwrap().1),
-            "Binary(BitXor, Binary(BitAnd, Constant(Constant::Integer { 2 }), Constant(Constant::Integer { 3 })), Constant(Constant::Integer { 4 }))"
+            "Binary(BitXor, Binary(BitAnd, Constant(Integer(2)), Constant(Integer(3))), Constant(Integer(4)))"
         );
     }
 
@@ -441,7 +441,7 @@ mod tests {
         let i = bit_or_expression(CompleteStr("2 & 3 | 4"));
         assert_eq!(
             format!("{:?}", i.unwrap().1),
-            "Binary(BitOr, Binary(BitAnd, Constant(Constant::Integer { 2 }), Constant(Constant::Integer { 3 })), Constant(Constant::Integer { 4 }))"
+            "Binary(BitOr, Binary(BitAnd, Constant(Integer(2)), Constant(Integer(3))), Constant(Integer(4)))"
         );
     }
 
@@ -450,7 +450,7 @@ mod tests {
         let i = logical_and_expression(CompleteStr("2 && 3"));
         assert_eq!(
             format!("{:?}", i.unwrap().1),
-            "Binary(And, Constant(Constant::Integer { 2 }), Constant(Constant::Integer { 3 }))"
+            "Binary(And, Constant(Integer(2)), Constant(Integer(3)))"
         );
     }
 
@@ -459,7 +459,7 @@ mod tests {
         let i = logical_xor_expression(CompleteStr("2 ^^ 3"));
         assert_eq!(
             format!("{:?}", i.unwrap().1),
-            "Binary(Xor, Constant(Constant::Integer { 2 }), Constant(Constant::Integer { 3 }))"
+            "Binary(Xor, Constant(Integer(2)), Constant(Integer(3)))"
         );
     }
 
@@ -468,7 +468,7 @@ mod tests {
         let i = logical_or_expression(CompleteStr("2 || 3"));
         assert_eq!(
             format!("{:?}", i.unwrap().1),
-            "Binary(Or, Constant(Constant::Integer { 2 }), Constant(Constant::Integer { 3 }))"
+            "Binary(Or, Constant(Integer(2)), Constant(Integer(3)))"
         );
     }
 
@@ -477,7 +477,7 @@ mod tests {
         let i = ternary_expression(CompleteStr("1 > 2 ? 10 : 3"));
         assert_eq!(
             format!("{:?}", i.unwrap().1),
-            "Ternary(Binary(GT, Constant(Constant::Integer { 1 }), Constant(Constant::Integer { 2 })), Constant(Constant::Integer { 10 }), Constant(Constant::Integer { 3 }))"
+            "Ternary(Binary(GT, Constant(Integer(1)), Constant(Integer(2))), Constant(Integer(10)), Constant(Integer(3)))"
         );
     }
 
@@ -486,7 +486,7 @@ mod tests {
         let i = assignment_expression(CompleteStr("b = 1 > 2"));
         assert_eq!(
             format!("{:?}", i.unwrap().1),
-            "Assign(Equal, Identifier(\"b\"), Binary(GT, Constant(Constant::Integer { 1 }), Constant(Constant::Integer { 2 })))"
+            "Assign(Equal, Identifier(\"b\"), Binary(GT, Constant(Integer(1)), Constant(Integer(2))))"
         );
 
         let i = assignment_expression(CompleteStr("b = x *= y"));
@@ -508,7 +508,7 @@ mod tests {
         let i = expression(CompleteStr("b = 1, a = 3"));
         assert_eq!(
             format!("{:?}", i.unwrap().1),
-            "Comma([Assign(Equal, Identifier(\"a\"), Constant(Constant::Integer { 3 })), Assign(Equal, Identifier(\"b\"), Constant(Constant::Integer { 1 }))])"
+            "Comma([Assign(Equal, Identifier(\"a\"), Constant(Integer(3))), Assign(Equal, Identifier(\"b\"), Constant(Integer(1)))])"
         );
     }
 }

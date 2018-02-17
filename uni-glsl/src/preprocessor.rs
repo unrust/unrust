@@ -1,8 +1,6 @@
 use nom::types::CompleteStr;
 use nom::{space, Err, IResult};
 use nom::line_ending;
-use std::fmt::Debug;
-use std::fmt;
 use std::convert::From;
 use std::collections::HashMap;
 use std::error;
@@ -82,6 +80,7 @@ fn join_string(input: Vec<CS>) -> String {
 
 named!(remove_comment<CS, String>, map!( many0!(comment_eater!(not_whitespace)), join_string));
 
+#[derive(Debug)]
 enum MacroSession {
     Define(Identifier, Vec<Token>),
     Undefine(Identifier),
@@ -90,26 +89,6 @@ enum MacroSession {
     Empty,
     Normal(Vec<Token>),
     EmptyLine,
-}
-
-impl Debug for MacroSession {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            &MacroSession::Define(ref t, ref tt) => {
-                write!(f, "MacroSession::Define {{ {:?} {:?} }}", t, tt)
-            }
-            &MacroSession::Undefine(ref t) => write!(f, "MacroSession::Undefine {{ {:?} }}", t),
-            &MacroSession::Empty => write!(f, "MacroSession::Empty"),
-            &MacroSession::IfDefine(ref key, ref b, ref ta, ref tb) => write!(
-                f,
-                "MacroSession::IfDefine {{ {:?} {:?} {:?} {:?} }}",
-                key, b, ta, tb
-            ),
-            &MacroSession::Ignored => write!(f, "MacroSession::Ignored "),
-            &MacroSession::Normal(ref t) => write!(f, "MacroSession::Normal {{ {:?} }}", t),
-            &MacroSession::EmptyLine => write!(f, "MacroSession::EmptyLine"),
-        }
-    }
 }
 
 #[cfg_attr(rustfmt, rustfmt_skip)] 

@@ -1,6 +1,4 @@
 use nom::types::CompleteStr;
-use std::fmt::Debug;
-use std::fmt;
 
 type CS<'a> = CompleteStr<'a>;
 
@@ -12,19 +10,9 @@ macro_rules! op {
 
 macro_rules! operator_enum_define {
     ( $($arg:ident >> $e:expr ),* ) => {
-        #[derive(Clone, PartialEq, Copy)]
+        #[derive(Debug, Clone, PartialEq, Copy)]
         pub enum Operator {
             $($arg),*
-        }
-
-        impl Debug for Operator {
-            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                match self {
-                    $(
-                        &Operator::$arg => write!(f, "Operator::{} {{ {} }}", stringify!($ident), $e),
-                    )*
-                }
-            }
         }
 
         impl Operator {

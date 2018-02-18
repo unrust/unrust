@@ -16,6 +16,7 @@ mod token;
 mod expression;
 mod declaration;
 mod statement;
+mod eval;
 
 pub mod preprocessor;
 pub mod parser;

@@ -1,6 +1,5 @@
 use nom::types::CompleteStr;
 use super::token::{basic_type, constant, valid_name, BasicType, Constant, Identifier};
-use operator::Operator;
 
 type CS<'a> = CompleteStr<'a>;
 
@@ -146,13 +145,14 @@ named!(
             map!( preceded!(op!(Operator::DecOp), unary_expression), |e| Expression::PreDec(Box::new(e))) |
             map!( preceded!(op!(Operator::Plus), unary_expression), |e| Expression::Plus(Box::new(e))) |
             map!( preceded!(op!(Operator::Dash), unary_expression), |e| Expression::Minus(Box::new(e))) |
+            map!( preceded!(op!(Operator::Bang), unary_expression), |e| Expression::Not(Box::new(e))) |            
             map!( preceded!(op!(Operator::Tilde), unary_expression), |e| Expression::Tilde(Box::new(e))) 
         )
     )
 );
 
 macro_rules! binary_op_expr {
-    ($name:ident; $start_expr:ident; $($op:expr => $binop:expr),* ) => {
+    ($name:ident; $start_expr:ident; $($op:tt::$op2:tt => $binop:expr),* ) => {
         named!(
             $name<CS, Expression>,
             ows!(
@@ -160,7 +160,7 @@ macro_rules! binary_op_expr {
                     init_expr: $start_expr >>
                     part: fold_left_alt!(init_expr; e =>
                         $(
-                        map!( preceded!(op!($op), $start_expr),
+                        map!( preceded!(op!($op::$op2), $start_expr),
                             |e1| Expression::Binary($binop, Box::new(e.clone()), Box::new(e1)))
                         )|*
                     ) >> (part)

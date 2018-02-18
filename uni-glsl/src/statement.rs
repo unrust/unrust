@@ -1,7 +1,6 @@
 use nom::types::CompleteStr;
 use declaration::{declaration, fully_type_specifier, initializer, Declaration, FullyTypeSpecifier};
 use expression::{expression, Expression};
-use operator::Operator;
 use token::{valid_name, Identifier};
 
 type CS<'a> = CompleteStr<'a>;

@@ -3,9 +3,10 @@ use nom::types::CompleteStr;
 type CS<'a> = CompleteStr<'a>;
 
 macro_rules! op {
-  ($i:expr, $target:expr) => {{
-    verify!($i, $crate::operator::operator, move |c| c == $target)
-  }}
+  ($i:expr, $target:tt :: $t2:tt ) => {{
+    tag!($i, $crate::operator::internal::$t2())
+  }};
+
 }
 
 macro_rules! operator_enum_define {
@@ -13,6 +14,15 @@ macro_rules! operator_enum_define {
         #[derive(Debug, Clone, PartialEq, Copy, Hash, Eq)]
         pub enum Operator {
             $($arg),*
+        }
+
+        pub mod internal {
+            $(
+                #[allow(non_snake_case)]
+                pub fn $arg() -> &'static str {
+                    $e
+                }
+            )*
         }
 
         impl Operator {

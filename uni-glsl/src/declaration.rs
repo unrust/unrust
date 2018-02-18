@@ -1,6 +1,5 @@
 use nom::types::CompleteStr;
 use token::{basic_type, valid_name, BasicType, Identifier};
-use operator::Operator;
 use expression::{array_expression_specifier, assignment_expression, Expression};
 use nom::IResult;
 

@@ -19,6 +19,7 @@ macro_rules! operator_enum_define {
         pub mod internal {
             $(
                 #[allow(non_snake_case)]
+                #[inline]
                 pub fn $arg() -> &'static str {
                     $e
                 }

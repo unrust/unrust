@@ -21,5 +21,7 @@ pub mod preprocessor;
 pub mod parser;
 
 pub use self::expression::{expression, Expression};
-pub use self::declaration::{declaration, Declaration};
+pub use self::declaration::{declaration, Declaration, FullyTypeSpecifier, FunctionPrototype,
+                            ParamDeclaration, ParamQualifier, PrecisionQualifier, Struct,
+                            StructMember, TypeQualifier, TypeSpecifier};
 pub use self::statement::{statement, Statement};

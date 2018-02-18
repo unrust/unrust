@@ -10,7 +10,7 @@ macro_rules! op {
 
 macro_rules! operator_enum_define {
     ( $($arg:ident >> $e:expr ),* ) => {
-        #[derive(Debug, Clone, PartialEq, Copy)]
+        #[derive(Debug, Clone, PartialEq, Copy, Hash, Eq)]
         pub enum Operator {
             $($arg),*
         }
@@ -26,6 +26,7 @@ macro_rules! operator_enum_define {
             }
         }
 
+        //TODO: Dont use this loop all method.
         /// operator macro
         named!(pub operator<CS,Operator>,
             map!(alt!(

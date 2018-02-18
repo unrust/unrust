@@ -4,7 +4,7 @@ use operator::Operator;
 
 type CS<'a> = CompleteStr<'a>;
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub enum BinaryOp {
     Or,
     Xor,
@@ -27,7 +27,7 @@ pub enum BinaryOp {
     Mod,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub enum AssignOp {
     Equal,
     MulAssign,
@@ -42,7 +42,7 @@ pub enum AssignOp {
     OrAssign,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub enum Expression {
     Empty,
     Identifier(Identifier),

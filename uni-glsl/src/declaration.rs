@@ -6,14 +6,14 @@ use nom::IResult;
 
 type CS<'a> = CompleteStr<'a>;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub struct FunctionPrototype {
-    ret_type: FullyTypeSpecifier,
-    name: Identifier,
-    params: Vec<ParamDeclaration>,
+    pub ret_type: FullyTypeSpecifier,
+    pub name: Identifier,
+    pub params: Vec<ParamDeclaration>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub enum TypeQualifier {
     Const,
     Attribute,
@@ -22,46 +22,46 @@ pub enum TypeQualifier {
     Uniform,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub enum PrecisionQualifier {
     High,
     Medium,
     Low,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Hash, Eq)]
 pub struct StructMember {
     pub ts: TypeSpecifier,
     pub name: Identifier,
     pub array_spec: Option<Expression>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Hash, Eq)]
 pub struct Struct {
     pub name: Option<Identifier>,
     pub members: Vec<StructMember>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub struct TypeSpecifier {
     pub precision: Option<PrecisionQualifier>,
     pub actual_type: BasicType,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub struct FullyTypeSpecifier {
     pub qualifer: Option<TypeQualifier>,
     pub type_spec: TypeSpecifier,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub enum ParamQualifier {
     In,
     Out,
     InOut,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub struct ParamDeclaration {
     pub type_qualifer: Option<TypeQualifier>,
     pub param_qualifier: Option<ParamQualifier>,
@@ -197,13 +197,13 @@ named!(pub function_prototype<CS, FunctionPrototype>,
     ))
 );
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub enum VariantTypeSpecifier {
     Normal(FullyTypeSpecifier),
     Invariant,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub struct SingleDeclaration {
     type_spec: VariantTypeSpecifier,
     name: Option<Identifier>,
@@ -254,7 +254,7 @@ named!(
     ))    
 );
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub enum Declaration {
     FunctionPrototype(FunctionPrototype),
     DeclarationList(Vec<SingleDeclaration>),

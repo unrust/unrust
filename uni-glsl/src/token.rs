@@ -4,6 +4,7 @@ use std::str;
 use super::operator::{operator, Operator};
 use declaration::Struct;
 use std::collections::HashSet;
+use std::hash::{Hash, Hasher};
 
 type CS<'a> = CompleteStr<'a>;
 
@@ -14,6 +15,18 @@ pub enum Constant {
     Float(f32),
 }
 
+impl Hash for Constant {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            &Constant::Bool(b) => b.hash(state),
+            &Constant::Integer(i) => i.hash(state),
+            &Constant::Float(f) => f.to_string().hash(state),
+        }
+    }
+}
+
+impl Eq for Constant {}
+
 macro_rules! spe {
   ($i:expr, $($args:tt)*) => {{
     delimited!($i, opt!(space), $($args)*, opt!(space))
@@ -23,7 +36,7 @@ macro_rules! spe {
 pub type Identifier = String;
 
 /* Parser */
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub enum Token {
     Operator(Operator, String),
     Constant(Constant, String),
@@ -223,7 +236,7 @@ named!(
     )
 );
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Hash, Eq)]
 pub enum BasicType {
     Void,
     Bool,
@@ -242,9 +255,41 @@ pub enum BasicType {
     Mat3,
     Mat4,
     Sampler2D,
+    Sampler3D,
     SamplerCube,
     Struct(Struct),
     TypeName(Identifier),
+}
+
+impl BasicType {
+    pub fn to_string(&self) -> String {
+        match self {
+            &BasicType::Void => "void".into(),
+            &BasicType::Bool => "bool".into(),
+            &BasicType::Int => "int".into(),
+            &BasicType::Float => "float".into(),
+            &BasicType::Vec2 => "vec2".into(),
+            &BasicType::Vec3 => "vec3".into(),
+            &BasicType::Vec4 => "vec4".into(),
+            &BasicType::Bvec2 => "bvec2".into(),
+            &BasicType::Bvec3 => "bvec3".into(),
+            &BasicType::Bvec4 => "bvec4".into(),
+            &BasicType::Ivec2 => "ivec2".into(),
+            &BasicType::Ivec3 => "ivec3".into(),
+            &BasicType::Ivec4 => "ivec4".into(),
+            &BasicType::Mat2 => "mat2".into(),
+            &BasicType::Mat3 => "mat3".into(),
+            &BasicType::Mat4 => "mat4".into(),
+            &BasicType::Sampler2D => "sampler2D".into(),
+            &BasicType::Sampler3D => "sampler3D".into(),
+            &BasicType::SamplerCube => "samplerCube".into(),
+            &BasicType::Struct(ref s) => format!(
+                "struct {}",
+                s.name.as_ref().unwrap_or(&String::from("")).clone()
+            ),
+            &BasicType::TypeName(ref i) => i.clone(),
+        }
+    }
 }
 
 named!(
@@ -252,7 +297,7 @@ named!(
     pub basic_type<CS,BasicType>,
     alt!(
         value!(BasicType::Void, tag!("void")) |
-        value!(BasicType::Bool, tag!("boid")) |
+        value!(BasicType::Bool, tag!("bool")) |
         value!(BasicType::Int, tag!("int")) |
         value!(BasicType::Float, tag!("float")) |
         value!(BasicType::Vec2, tag!("vec2")) |
@@ -268,7 +313,8 @@ named!(
         value!(BasicType::Mat3, tag!("mat3")) |
         value!(BasicType::Mat4, tag!("mat4")) |
         value!(BasicType::Sampler2D, tag!("sampler2D")) |
-        value!(BasicType::SamplerCube, tag!("sampler3D"))
+        value!(BasicType::Sampler3D, tag!("sampler3D")) |
+        value!(BasicType::SamplerCube, tag!("samplerCube"))
     )
 );
 

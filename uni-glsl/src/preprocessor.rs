@@ -5,7 +5,10 @@ use std::convert::From;
 use std::collections::HashMap;
 use std::error;
 use std::fmt;
-use token::*;
+use token::{identifier, token, Identifier, Token};
+use operator::Operator;
+
+use expression::{expression, Expression};
 
 type CS<'a> = CompleteStr<'a>;
 
@@ -76,9 +79,15 @@ fn join_string(input: Vec<CS>) -> String {
 
 named!(remove_comment<CS, String>, map!( many0!(comment_eater!(not_whitespace)), join_string));
 
+#[derive(Clone, Debug, PartialEq, Hash, Eq)]
+enum Define {
+    Replace(Vec<Token>),
+    Func(Vec<Token>, Vec<Token>),
+}
+
 #[derive(Debug)]
 enum MacroSession {
-    Define(Identifier, Vec<Token>),
+    Define(Identifier, Define),
     Undefine(Identifier),
     IfDefine(Identifier, bool, Vec<MacroSession>, Vec<MacroSession>),
     Ignored,
@@ -98,11 +107,47 @@ fn macro_line<'a>(input: CompleteStr<'a>, t: &str) -> IResult<CompleteStr<'a>, I
     )
 }
 
+fn define_parser<'a>(input: CompleteStr<'a>) -> IResult<CompleteStr<'a>, MacroSession> {
+    if let Ok((i, e)) = expression(input.clone()) {
+        // We only handle function call type
+        if let Expression::FunctionCall(tt, eargs) = e {
+            let mut def_args = Vec::new();
+
+            let nargs = eargs.len();
+            // and we only handle identifiers
+            for earg in eargs.into_iter() {
+                if let Expression::Identifier(arg) = earg {
+                    def_args.push(Token::Identifier(arg.clone(), arg));
+                }
+            }
+
+            // if all are identifiers
+            if nargs == def_args.len() {
+                let tokens_r = many0!(i, token);
+
+                if let Ok((remain, tokens)) = tokens_r {
+                    let tts = tt.to_string();
+                    let r = Define::Func(def_args, tokens);
+
+                    return Ok((remain, MacroSession::Define(tts, r)));
+                }
+            }
+        }
+    }
+
+    do_parse!(
+        input,
+        key: spe!(identifier) >> tokens: many0!(token)
+            >> (MacroSession::Define(key, Define::Replace(tokens)))
+    )
+}
+
 named!(define_macro<CS, MacroSession>, 
     do_parse!(
-        a: call!(macro_line, "define") >>
-        tts: many0!(token) >>
-        (MacroSession::Define(a, tts))
+        spe!(char!('#')) >>         
+        tag_no_case!("define") >> 
+        ms: spe!(call!(define_parser)) >>
+        (ms)
     )
 );
 
@@ -215,22 +260,139 @@ named!(
 
 #[derive(Default)]
 struct PreprocessState {
-    defines: HashMap<String, Vec<Token>>,
+    defines: HashMap<String, Define>,
     normal_tokens: Vec<String>,
+}
+
+impl PreprocessState {
+    pub fn get_defined(&self, s: &String) -> Option<Define> {
+        match self.defines.get(s) {
+            Some(def) => Some(def.clone()),
+            None => None,
+        }
+    }
+}
+
+fn apply_define_func<T>(
+    name: &String,
+    mut iter: T,
+    args: &Vec<Token>,
+    target: &Vec<Token>,
+    result: &mut Vec<Token>,
+) -> Result<T, PreprocessError>
+where
+    T: IntoIterator<Item = Token>,
+    T: Iterator<Item = Token>,
+{
+    let mut stack = 0;
+    let mut curret_params = Vec::new();
+    let mut params: Vec<Vec<Token>> = Vec::new();
+
+    while let Some(t) = iter.next() {
+        if let Token::Operator(oper, _) = t {
+            match oper {
+                Operator::LeftParen => {
+                    if stack > 0 {
+                        curret_params.push(t)
+                    }
+                    stack += 1;
+                }
+                Operator::RightParen => {
+                    stack -= 1;
+                    match stack {
+                        0 => {
+                            params.push(curret_params);
+                            break;
+                        }
+                        _ => {
+                            curret_params.push(t);
+                        }
+                    }
+                }
+                Operator::Comma if stack == 1 => {
+                    params.push(curret_params);
+                    curret_params = Vec::new();
+                }
+
+                _ => {
+                    curret_params.push(t);
+                }
+            }
+        } else {
+            curret_params.push(t);
+        }
+    }
+
+    if params.len() != args.len() {
+        return Err(PreprocessError(format!(
+            "Fail to apply define macro for {}",
+            name
+        )));
+    }
+
+    let mut positions = vec![0; target.len()];
+
+    for (tidx, t) in target.iter().enumerate() {
+        for (i, a) in args.iter().enumerate() {
+            if a == t {
+                positions[tidx] = i + 1;
+            }
+        }
+    }
+
+    assert_eq!(positions.len(), target.len());
+
+    for (i, target) in target.iter().enumerate() {
+        let arg_idx = positions[i];
+
+        if arg_idx == 0 {
+            result.push(target.clone());
+        } else {
+            result.append(&mut params[arg_idx - 1].clone());
+        }
+    }
+
+    return Ok(iter);
+}
+
+fn preprocess_source_line(
+    tt: Vec<Token>,
+    state: &PreprocessState,
+) -> Result<(bool, Vec<Token>), PreprocessError> {
+    let mut result = Vec::new();
+    let mut processed = false;
+    let mut iter = tt.into_iter();
+
+    while let Some(t) = iter.next() {
+        use self::Define::*;
+
+        match t {
+            Token::Identifier(ref s, ..) => {
+                if let Some(def) = state.get_defined(s) {
+                    processed = true;
+                    match def {
+                        Replace(mut childs) => {
+                            result.append(&mut childs);
+                        }
+                        Func(args, targets) => {
+                            iter = apply_define_func(s, iter, &args, &targets, &mut result)?;
+                        }
+                    }
+                } else {
+                    result.push(t.clone())
+                }
+            }
+            _ => result.push(t),
+        }
+    }
+
+    Ok((processed, result))
 }
 
 fn preprocess_token(tt: Token, state: &mut PreprocessState) {
     match tt {
         Token::Identifier(s, ..) => {
-            let found = { state.defines.get(&s).map(|tts| tts.clone()) };
-            match found {
-                Some(childs) => for child in childs.into_iter() {
-                    preprocess_token(child, state);
-                },
-                None => {
-                    state.normal_tokens.push(s);
-                }
-            }
+            state.normal_tokens.push(s);
         }
         Token::Operator(_, s) => {
             state.normal_tokens.push(s);
@@ -244,12 +406,12 @@ fn preprocess_token(tt: Token, state: &mut PreprocessState) {
     }
 }
 
-fn preprocess_session(s: MacroSession, state: &mut PreprocessState) {
+fn preprocess_session(s: MacroSession, state: &mut PreprocessState) -> Result<(), PreprocessError> {
     match s {
         MacroSession::EmptyLine => (),
         MacroSession::Empty => (),
-        MacroSession::Define(ident, values) => {
-            state.defines.insert(ident, values);
+        MacroSession::Define(s, a) => {
+            state.defines.insert(s, a);
         }
         MacroSession::Undefine(ident) => {
             state.defines.remove(&ident);
@@ -261,22 +423,31 @@ fn preprocess_session(s: MacroSession, state: &mut PreprocessState) {
 
             if doit {
                 for child in first.into_iter() {
-                    preprocess_session(child, state);
+                    preprocess_session(child, state)?;
                 }
             } else {
                 for child in second.into_iter() {
-                    preprocess_session(child, state);
+                    preprocess_session(child, state)?;
                 }
             }
         }
         MacroSession::Normal(n) => {
-            for tt in n.into_iter() {
-                preprocess_token(tt, state)
+            let (mut processed, mut tokens) = preprocess_source_line(n, state)?;
+            while processed {
+                let (p, tts) = preprocess_source_line(tokens, state)?;
+                processed = p;
+                tokens = tts;
+            }
+
+            for tokens in tokens.into_iter() {
+                preprocess_token(tokens, state)
             }
 
             state.normal_tokens.push("\n".into());
         }
     }
+
+    Ok(())
 }
 
 #[derive(Debug)]
@@ -328,7 +499,7 @@ impl<'a> From<Err<CompleteStr<'a>>> for PreprocessError {
 /// #elif
 /// defined
 
-pub fn preprocess(s: &str) -> Result<String, PreprocessError> {
+pub fn preprocess(s: &str, predefs: &HashMap<String, String>) -> Result<String, PreprocessError> {
     let stage0 = lines(CompleteStr(s))?.1;
     let stage1 = remove_comment(CompleteStr(&stage0))?.1;
     let sessions = preprocess_parser(CompleteStr(&stage1));
@@ -336,8 +507,21 @@ pub fn preprocess(s: &str) -> Result<String, PreprocessError> {
     let sessions = sessions?.1;
     let mut state = PreprocessState::default();
 
+    // append predefs
+    for (k, v) in predefs.iter() {
+        let whole_line = format!("#define {} {}", k, v);
+        let m = parse_macro(CompleteStr(&whole_line))?;
+
+        match m.1 {
+            MacroSession::Define(s, a) => {
+                state.defines.insert(s, a);
+            }
+            _ => (),
+        };
+    }
+
     for session in sessions.into_iter() {
-        preprocess_session(session, &mut state);
+        preprocess_session(session, &mut state)?;
     }
 
     Ok(state
@@ -354,7 +538,7 @@ mod tests {
     fn preprocess_test_file() {
         let test_text = include_str!("../data/test/preprocessor_test.glsl");
         let expect_result = include_str!("../data/test/preprocessor_test_result.glsl");
-        let r = preprocess(test_text).unwrap();
+        let r = preprocess(test_text, &HashMap::new()).unwrap();
 
         //Write result to temp directory.
         // use std::fs::File;
@@ -363,5 +547,16 @@ mod tests {
         // file.write_all(&r.as_bytes()).unwrap();
 
         assert_eq!(r, expect_result);
+    }
+
+    #[test]
+    fn preprocess_func_macro() {
+        let test_text = r#" #define F(A,B)   A+B+B+A
+            F((1+3),2)
+        "#;
+
+        let r = preprocess(test_text, &HashMap::new()).unwrap();
+
+        assert_eq!(r.trim(), "( 1 + 3 ) + 2 + 2 + ( 1 + 3 )");
     }
 }

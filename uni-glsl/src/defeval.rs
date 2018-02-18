@@ -1,9 +1,16 @@
 use expression::{BinaryOp, Expression};
 use token::{Constant, Identifier};
 use std::collections::HashMap;
+use std::fmt::Debug;
 
 #[derive(Debug)]
-struct EvalError(String);
+pub struct EvalError(String);
+
+impl EvalError {
+    pub fn into_string(self) -> String {
+        self.0
+    }
+}
 
 impl From<&'static str> for EvalError {
     fn from(s: &'static str) -> EvalError {
@@ -11,17 +18,31 @@ impl From<&'static str> for EvalError {
     }
 }
 
+pub trait EvalContext: Debug + Clone {
+    fn get(&self, i: &Identifier) -> Option<Constant>;
+
+    fn defined(&self, i: &Identifier) -> bool;
+
+    fn value(&self, i: &Identifier) -> Constant {
+        match self.get(i) {
+            Some(c) => bool_constant_to_integer(c),
+            None => Constant::Integer(0),
+        }
+    }
+}
+
 #[derive(Debug, Default, Clone)]
-struct EvalContext {
+struct EvalContextSimple {
     variables: HashMap<Identifier, Constant>,
 }
 
-impl EvalContext {
-    fn value(&self, i: &Identifier) -> Constant {
-        match self.variables.get(i) {
-            Some(c) => bool_constant_to_integer(c.clone()),
-            None => Constant::Integer(0),
-        }
+impl EvalContext for EvalContextSimple {
+    fn get(&self, i: &Identifier) -> Option<Constant> {
+        self.variables.get(i).map(|c| c.clone())
+    }
+
+    fn defined(&self, i: &Identifier) -> bool {
+        self.variables.contains_key(i)
     }
 }
 
@@ -64,8 +85,10 @@ fn to_int(c: &Constant) -> i64 {
 
 const BOOL_ARITH_ERROR: &str = "bool arithmetic syntax is not supported in constant expression";
 
-trait Eval {
-    fn eval_constant(&self, ctx: &EvalContext) -> Result<Constant, EvalError>;
+pub trait Eval {
+    fn eval_constant<T>(&self, ctx: &T) -> Result<Constant, EvalError>
+    where
+        T: EvalContext;
 }
 
 macro_rules! eval_const_op {
@@ -145,7 +168,10 @@ macro_rules! eval_const_op_cond {
 }
 
 impl Eval for Expression {
-    fn eval_constant(&self, ctx: &EvalContext) -> Result<Constant, EvalError> {
+    fn eval_constant<T>(&self, ctx: &T) -> Result<Constant, EvalError>
+    where
+        T: EvalContext,
+    {
         match self {
             &Expression::Empty => Ok(Constant::Integer(0)),
             &Expression::Identifier(ref i) => Ok(ctx.value(i)),
@@ -153,7 +179,19 @@ impl Eval for Expression {
             &Expression::Bracket(_, ..) => {
                 Err("bracket syntax is not supported in constant expression".into())
             }
-            &Expression::FunctionCall(_, ..) => {
+            &Expression::FunctionCall(ref tn, ref args) => {
+                if tn.to_string().to_lowercase() == "defined" {
+                    if args.len() == 1 {
+                        if let Expression::Identifier(ref ident) = args[0] {
+                            return if ctx.defined(ident) {
+                                Ok(Constant::Integer(1))
+                            } else {
+                                Ok(Constant::Integer(0))
+                            };
+                        }
+                    }
+                }
+
                 Err("function call syntax is not supported in constant expression".into())
             }
             &Expression::DotField(_, ..) => {
@@ -276,22 +314,22 @@ mod tests {
     #[test]
     fn parse_eval_const_simple() {
         let e = expression(CompleteStr("1+1")).unwrap().1;
-        let r = e.eval_constant(&EvalContext::default());
+        let r = e.eval_constant(&EvalContextSimple::default());
 
         assert_eq!(r.unwrap(), Constant::Integer(2));
 
         let e = expression(CompleteStr("1 == 1")).unwrap().1;
-        let r = e.eval_constant(&EvalContext::default());
+        let r = e.eval_constant(&EvalContextSimple::default());
 
         assert_eq!(r.unwrap(), Constant::Integer(1));
 
         let e = expression(CompleteStr("1 != 0")).unwrap().1;
-        let r = e.eval_constant(&EvalContext::default());
+        let r = e.eval_constant(&EvalContextSimple::default());
 
         assert_eq!(r.unwrap(), Constant::Integer(1));
 
         let e = expression(CompleteStr("1 > 0")).unwrap().1;
-        let r = e.eval_constant(&EvalContext::default());
+        let r = e.eval_constant(&EvalContextSimple::default());
 
         assert_eq!(r.unwrap(), Constant::Integer(1));
     }

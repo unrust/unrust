@@ -5,8 +5,9 @@ use std::convert::From;
 use std::collections::HashMap;
 use std::error;
 use std::fmt;
-use token::{identifier, token, Identifier, Token};
+use token::{identifier, token, BasicType, Constant, Identifier, Token};
 use operator::Operator;
+use defeval::{Eval, EvalContext, EvalError};
 
 use expression::{expression, Expression};
 
@@ -81,15 +82,22 @@ named!(remove_comment<CS, String>, map!( many0!(comment_eater!(not_whitespace)),
 
 #[derive(Clone, Debug, PartialEq, Hash, Eq)]
 enum Define {
-    Replace(Vec<Token>),
+    Replace(Vec<Token>, String),
     Func(DefineFunc),
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Hash, Eq)]
+struct IfCondSession {
+    cond: Option<Box<Expression>>,
+    session: Vec<MacroSession>,
+}
+
+#[derive(Clone, Debug, PartialEq, Hash, Eq)]
 enum MacroSession {
     Define(Identifier, Define),
     Undefine(Identifier),
     IfDefine(Identifier, bool, Vec<MacroSession>, Vec<MacroSession>),
+    IfCond(Vec<IfCondSession>),
     Ignored,
     Empty,
     Normal(Vec<Token>),
@@ -234,8 +242,12 @@ fn define_parser<'a>(input: CompleteStr<'a>) -> IResult<CompleteStr<'a>, MacroSe
 
     do_parse!(
         input,
-        key: spe!(identifier) >> tokens: many0!(token)
-            >> (MacroSession::Define(key, Define::Replace(tokens)))
+        key: spe!(identifier) >> tokens_str: recognize!(many0!(token)) >> ({
+            let s: String = tokens_str.0.clone().into();
+            let tokens = many0!(tokens_str, token).unwrap().1;
+
+            MacroSession::Define(key, Define::Replace(tokens, s))
+        })
     )
 }
 
@@ -289,6 +301,104 @@ named!(normal_macro<CS,MacroSession>,
     )
 );
 
+fn define_condition<'a>(input: CompleteStr<'a>) -> IResult<CS, Expression> {
+    let r = recognize!(input, many0!(token))?;
+    let e = expression(r.1);
+
+    match e {
+        Ok((_i, v)) => Ok((r.0, v)),
+        Err(e) => Err(e),
+    }
+}
+
+named!( 
+    define_defined<CS, Expression>,
+        do_parse!(
+            spe!(tag_no_case!("defined")) >>
+            spe!(opt!(tag!("("))) >>
+            name: identifier >>
+            spe!(opt!(tag!(")"))) >>
+            (
+                Expression::FunctionCall(
+                    BasicType::TypeName("defined".to_string()), 
+                    vec![Expression::Identifier(name)]
+                )
+            )
+        )
+);
+
+named!( 
+    define_expression<CS, Expression>,
+    alt!(
+        define_condition |
+        define_defined 
+    )
+);
+
+#[cfg_attr(rustfmt, rustfmt_skip)] 
+named!(
+    ifcond_macro<CS, MacroSession>, 
+    do_parse!(            
+        // if part
+        first: do_parse!(
+            spe!(char!('#')) >>
+            tag_no_case!("if") >>
+            e: spe!(define_expression) >>        
+            line_ending >>                        
+            session: many0!(terminated!(parse_macro, line_ending)) >>
+            (
+                IfCondSession{
+                    cond: Some(Box::new(e)),
+                    session: session
+                }
+            )
+        ) >>
+        // elif                
+        elifsessions: many0!(do_parse!(
+            spe!(char!('#')) >>
+            tag_no_case!("elif") >>
+            e: spe!(define_expression) >>        
+            line_ending >>                        
+            session: many0!(terminated!(parse_macro, line_ending)) >>
+            (
+                IfCondSession{
+                    cond: Some(Box::new(e)),
+                    session: session
+                }
+            )
+        )) >>        
+        // else part (optional)
+        last: opt!(
+            do_parse!(
+                spe!(char!('#')) >>
+                spe!(tag_no_case!("else")) >>        
+                line_ending >>                  
+                session: many0!(terminated!(parse_macro, line_ending)) >>
+                (
+                    IfCondSession {
+                        cond: None,
+                        session: session
+                    }
+                )                
+            )
+        ) >>
+        
+        spe!(return_error!(ErrorKind::Custom(1), char!('#'))) >>
+        spe!(return_error!(ErrorKind::Custom(1), tag_no_case!("endif"))) >>            
+        
+        ({
+            let mut sessions = Vec::new();
+            sessions.push(first);
+            sessions.extend(elifsessions);
+            if let Some(l) = last {
+                sessions.push(l);
+            }
+
+            MacroSession::IfCond(sessions)
+        })
+    )
+);
+
 named!(ifdef_macro<CS, MacroSession>, 
     do_parse!(
         spe!(char!('#')) >>
@@ -322,6 +432,7 @@ named!(
     parse_macro<CS, MacroSession>,
     alt!(
         ifdef_macro |
+        ifcond_macro |
         ignored_macro |
         define_macro |
         undef_macro |
@@ -345,17 +456,17 @@ fn append_vec<T>(mut ls: Vec<T>, last: Option<T>) -> Vec<T> {
 named!(
     #[allow(unused_imports)],  // fix value! warning
     preprocess_parser <CS,Vec<MacroSession>>,
-    do_parse!(
+    exact!(do_parse!(
         tts: many0!(alt!(
             value!(MacroSession::EmptyLine, line_ending) |
             terminated!(parse_macro, line_ending)
         )) >> 
         last: opt!(parse_macro) >> 
         (append_vec(tts,last))
-    )
+    ))
 );
 
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 struct PreprocessState {
     defines: HashMap<String, Define>,
     normal_tokens: Vec<String>,
@@ -367,6 +478,31 @@ impl PreprocessState {
             Some(def) => Some(def.clone()),
             None => None,
         }
+    }
+}
+
+impl EvalContext for PreprocessState {
+    fn get(&self, i: &Identifier) -> Option<Constant> {
+        let r = self.defines.get(i);
+        if r.is_none() {
+            return None;
+        }
+
+        match r.unwrap() {
+            &Define::Replace(_, ref s) => {
+                let e = expression(CompleteStr(s));
+                if let Ok((_, v)) = e {
+                    return v.eval_constant(self).ok();
+                }
+            }
+            _ => (),
+        }
+
+        None
+    }
+
+    fn defined(&self, i: &Identifier) -> bool {
+        self.defines.contains_key(i)
     }
 }
 
@@ -386,7 +522,7 @@ fn preprocess_source_line(
                 if let Some(def) = state.get_defined(s) {
                     processed = true;
                     match def {
-                        Replace(mut childs) => {
+                        Replace(mut childs, _) => {
                             result.append(&mut childs);
                         }
                         Func(def_func) => {
@@ -421,6 +557,20 @@ fn preprocess_token(tt: Token, state: &mut PreprocessState) {
     }
 }
 
+fn is_condition_true(c: Constant) -> bool {
+    match c {
+        Constant::Integer(i) => i != 0,
+        Constant::Bool(b) => b,
+        Constant::Float(f) => f != 0.0,
+    }
+}
+
+impl From<EvalError> for PreprocessError {
+    fn from(e: EvalError) -> PreprocessError {
+        PreprocessError(e.into_string())
+    }
+}
+
 fn preprocess_session(s: MacroSession, state: &mut PreprocessState) -> Result<(), PreprocessError> {
     match s {
         MacroSession::EmptyLine => (),
@@ -446,6 +596,21 @@ fn preprocess_session(s: MacroSession, state: &mut PreprocessState) -> Result<()
                 }
             }
         }
+        MacroSession::IfCond(sessions) => for s in sessions {
+            let do_session = if let Some(cond) = s.cond {
+                let c = cond.eval_constant(state)?;
+                is_condition_true(c)
+            } else {
+                true
+            };
+
+            if do_session {
+                for child in s.session.into_iter() {
+                    preprocess_session(child, state)?;
+                }
+                break;
+            }
+        },
         MacroSession::Normal(n) => {
             let (mut processed, mut tokens) = preprocess_source_line(n, state)?;
             while processed {
@@ -500,6 +665,9 @@ impl<'a> From<Err<CompleteStr<'a>>> for PreprocessError {
 /// #ifndef
 /// #else
 /// #endif
+/// #if
+/// #elif
+/// defined
 ///
 /// Ignored :
 ///
@@ -508,11 +676,7 @@ impl<'a> From<Err<CompleteStr<'a>>> for PreprocessError {
 /// #extension
 /// #pragma
 ///
-/// Not implemted yet:
 ///
-/// #if
-/// #elif
-/// defined
 
 pub fn preprocess(s: &str, predefs: &HashMap<String, String>) -> Result<String, PreprocessError> {
     let stage0 = lines(CompleteStr(s))?.1;
@@ -574,4 +738,72 @@ mod tests {
 
         assert_eq!(r.trim(), "( 1 + 3 ) + 2 + 2 + ( 1 + 3 )");
     }
+
+    #[test]
+    fn preprocess_def_cond() {
+        let test_text = r#" #if 0
+            A
+        #else
+            B
+        #endif
+        "#;
+
+        let r = preprocess(test_text, &HashMap::new()).unwrap();
+
+        assert_eq!(r.trim(), "B");
+    }
+
+    #[test]
+    fn preprocess_def_cond_ifelif() {
+        let test_text = r#" #if C1 > 3
+            A
+        #elif C2 <= 5
+            B
+        #else
+            C
+        #endif
+        "#;
+
+        let mut hm: HashMap<String, String> = HashMap::new();
+        hm.insert("C1".into(), "1".to_string());
+        hm.insert("C2".into(), "4".to_string());
+        let r = preprocess(test_text, &hm).unwrap();
+
+        assert_eq!(r.trim(), "B");
+    }
+
+    #[test]
+    fn preprocess_def_defined() {
+        let test_text = r#" #if defined(K)
+            A
+        #elif C2 <= 5
+            B
+        #else
+            C
+        #endif
+        "#;
+
+        let mut hm: HashMap<String, String> = HashMap::new();
+        hm.insert("K".into(), "".to_string());
+        let r = preprocess(test_text, &hm).unwrap();
+        assert_eq!(r.trim(), "A");
+    }
+
+    #[test]
+    fn parse_ifcond() {
+        let test_text = r#" #if 0
+            A
+        #else 
+            B
+        #endif
+        "#;
+
+        let i = ifcond_macro(CompleteStr(test_text));
+
+        assert_eq!(
+            format!("{:?}", i.unwrap().1),
+            "IfCond([IfCondSession { cond: Some(Constant(Integer(0))), session: [Normal([Identifier(\"A\", \"A\")])] }, IfCondSession { cond: None, session: [Normal([Identifier(\"B\", \"B\")])] }])"
+        );
+    }
+
 }

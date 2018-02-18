@@ -30,14 +30,14 @@ pub struct TranslationUnit {
 #[cfg_attr(rustfmt, rustfmt_skip)] 
 named!(
     translation_unit<CS,TranslationUnit>, 
-    fold_many0!(external_declaration,TranslationUnit::default(), |mut unit: TranslationUnit, item| {
+    exact!(fold_many0!(external_declaration,TranslationUnit::default(), |mut unit: TranslationUnit, item| {
             match item {
                 ExternalDeclaration::FuntionDefinition(f, s) => unit.func_defs.push((f, s)),
                 ExternalDeclaration::Declaration(d) => unit.decls.push(d),
             }
             unit
         }
-    )
+    ))
 );
 
 #[derive(Debug)]

@@ -97,7 +97,7 @@ named!(dot_field_specifier<CS, Identifier>,
 );
 
 macro_rules! fold_left_alt {
-    ($i:expr, $e:ident; $init_expr:expr; $($args:tt)*) => {{
+    ($i:expr, $init_expr:expr; $e:ident => $($args:tt)*) => {{
         let mut found = true;
         let mut $e = $init_expr;
         let mut input = $i;
@@ -126,7 +126,7 @@ named!(
             map!(valid_name, |i| Expression::Identifier(i)) | 
             map!(constant,|i| Expression::Constant(i) ) 
             ) >> 
-        part: fold_left_alt!(e; init_expr;
+        part: fold_left_alt!(init_expr; e => 
             map!(array_expression_specifier, |r| { Expression::Bracket(Box::new(e.clone()), Box::new(r)) })  |
             map!(dot_field_specifier, |r| { Expression::DotField(Box::new(e.clone()), r) })  |
             value!(Expression::PostInc(Box::new(e.clone())), op!(Operator::IncOp)) |
@@ -152,13 +152,13 @@ named!(
 );
 
 macro_rules! binary_op_expr {
-    ($name:ident, $start_expr:ident, $($op:expr => $binop:expr),* ) => {
+    ($name:ident; $start_expr:ident; $($op:expr => $binop:expr),* ) => {
         named!(
             $name<CS, Expression>,
             ows!(
                 do_parse!(
                     init_expr: $start_expr >>
-                    part: fold_left_alt!(e; init_expr;
+                    part: fold_left_alt!(init_expr; e =>
                         $(
                         map!( preceded!(op!($op), $start_expr),
                             |e1| Expression::Binary($binop, Box::new(e.clone()), Box::new(e1)))
@@ -171,26 +171,26 @@ macro_rules! binary_op_expr {
 }
 
 binary_op_expr!(
-    mult_expression, unary_expression, 
+    mult_expression; unary_expression; 
     Operator::Star => BinaryOp::Mult,
     Operator::Slash => BinaryOp::Div,
     Operator::Percent => BinaryOp::Mod
 );
 
 binary_op_expr!(
-    add_expression, mult_expression, 
+    add_expression; mult_expression;
     Operator::Plus => BinaryOp::Add,
     Operator::Dash => BinaryOp::Sub
 );
 
 binary_op_expr!(
-    shift_expression, add_expression, 
+    shift_expression; add_expression;
     Operator::LeftOp => BinaryOp::LShift,
     Operator::RightOp => BinaryOp::RShift
 );
 
 binary_op_expr!(
-    relational_expression, shift_expression, 
+    relational_expression; shift_expression;
     Operator::LeftAngle => BinaryOp::LT,
     Operator::RightAngle => BinaryOp::GT,
     Operator::LeOp => BinaryOp::LTE,
@@ -198,40 +198,38 @@ binary_op_expr!(
 );
 
 binary_op_expr!(
-    equality_expression, relational_expression, 
+    equality_expression; relational_expression;
     Operator::EqOp => BinaryOp::Equal,
     Operator::NeOp => BinaryOp::NonEqual
 );
 
 binary_op_expr!(
-    bit_and_expression, equality_expression, 
+    bit_and_expression; equality_expression;
     Operator::Ampersand => BinaryOp::BitAnd
 );
 
 binary_op_expr!(
-    bit_xor_expression, bit_and_expression, 
+    bit_xor_expression; bit_and_expression; 
     Operator::Caret => BinaryOp::BitXor
 );
 
 binary_op_expr!(
-    bit_or_expression, bit_xor_expression, 
+    bit_or_expression; bit_xor_expression; 
     Operator::VerticalBar => BinaryOp::BitOr
 );
 
 binary_op_expr!(
-    logical_and_expression, bit_or_expression, 
+    logical_and_expression; bit_or_expression;
     Operator::AndOp => BinaryOp::And
 );
 
 binary_op_expr!(
-    logical_xor_expression,
-    logical_and_expression,
+    logical_xor_expression; logical_and_expression;
     Operator::XorOp => BinaryOp::Xor
 );
 
 binary_op_expr!(
-    logical_or_expression,
-    logical_xor_expression,
+    logical_or_expression; logical_xor_expression;
     Operator::OrOp => BinaryOp::Or
 );
 
@@ -291,19 +289,17 @@ named!(pub expression<CS, Expression>,
         do_parse!(
             head: assignment_expression >>
             tail: many0!(
-                do_parse!(
-                    op!(Operator::Comma) >>
-                    e: assignment_expression >>
-                    (e)
-                )
+                preceded!(op!(Operator::Comma), assignment_expression)
             ) >>
             ({
                 if tail.len() == 0 {
                     head
                 } else {
-                    let mut tail = tail.clone();
-                    tail.push(head);
-                    Expression::Comma(tail)
+                    let mut head = vec![head];
+                    let mut tail = tail;
+                    head.append(&mut tail);
+                
+                    Expression::Comma(head)
                 }
             })
         )
@@ -527,7 +523,7 @@ mod tests {
         let i = expression(CompleteStr("b = 1, a = 3"));
         assert_eq!(
             format!("{:?}", i.unwrap().1),
-            "Comma([Assign(Equal, Identifier(\"a\"), Constant(Integer(3))), Assign(Equal, Identifier(\"b\"), Constant(Integer(1)))])"
+            "Comma([Assign(Equal, Identifier(\"b\"), Constant(Integer(1))), Assign(Equal, Identifier(\"a\"), Constant(Integer(3)))])"
         );
     }
 }

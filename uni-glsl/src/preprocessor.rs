@@ -82,7 +82,7 @@ named!(remove_comment<CS, String>, map!( many0!(comment_eater!(not_whitespace)),
 #[derive(Clone, Debug, PartialEq, Hash, Eq)]
 enum Define {
     Replace(Vec<Token>),
-    Func(Vec<Token>, Vec<Token>),
+    Func(DefineFunc),
 }
 
 #[derive(Debug)]
@@ -107,6 +107,103 @@ fn macro_line<'a>(input: CompleteStr<'a>, t: &str) -> IResult<CompleteStr<'a>, I
     )
 }
 
+#[derive(Clone, Debug, PartialEq, Hash, Eq)]
+struct DefineFunc {
+    positions: Vec<Option<usize>>,
+    nargs: usize,
+    tokens: Vec<Token>,
+}
+
+impl DefineFunc {
+    fn new(args: Vec<Token>, tokens: Vec<Token>) -> DefineFunc {
+        let mut positions = vec![None; tokens.len()];
+
+        for (tidx, t) in tokens.iter().enumerate() {
+            for (i, a) in args.iter().enumerate() {
+                if a == t {
+                    positions[tidx] = Some(i);
+                }
+            }
+        }
+
+        assert_eq!(positions.len(), tokens.len());
+
+        DefineFunc {
+            positions: positions,
+            nargs: args.len(),
+            tokens: tokens,
+        }
+    }
+
+    fn apply<T>(
+        &self,
+        name: &String,
+        mut iter: T,
+        result: &mut Vec<Token>,
+    ) -> Result<T, PreprocessError>
+    where
+        T: IntoIterator<Item = Token>,
+        T: Iterator<Item = Token>,
+    {
+        let mut stack = 0;
+        let mut curret_params = Vec::new();
+        let mut params: Vec<Vec<Token>> = Vec::new();
+
+        while let Some(t) = iter.next() {
+            if let Token::Operator(oper, _) = t {
+                match oper {
+                    Operator::LeftParen => {
+                        if stack > 0 {
+                            curret_params.push(t)
+                        }
+                        stack += 1;
+                    }
+                    Operator::RightParen => {
+                        stack -= 1;
+                        if stack == 0 {
+                            params.push(curret_params);
+                            break;
+                        }
+                        curret_params.push(t);
+                    }
+                    Operator::Comma if stack == 1 => {
+                        params.push(curret_params);
+                        curret_params = Vec::new();
+                    }
+
+                    _ => {
+                        curret_params.push(t);
+                    }
+                }
+            } else {
+                curret_params.push(t);
+            }
+        }
+
+        if params.len() != self.nargs {
+            return Err(PreprocessError(format!(
+                "Fail to apply define macro for {}, expects {} args, given {} args",
+                name,
+                self.nargs,
+                params.len()
+            )));
+        }
+
+        for (i, target) in self.tokens.iter().enumerate() {
+            match self.positions[i] {
+                Some(argidx) => {
+                    result.extend(params[argidx].clone());
+                }
+                None => {
+                    result.push(target.clone());
+                }
+            }
+        }
+
+        return Ok(iter);
+    }
+}
+
 fn define_parser<'a>(input: CompleteStr<'a>) -> IResult<CompleteStr<'a>, MacroSession> {
     if let Ok((i, e)) = expression(input.clone()) {
         // We only handle function call type
@@ -127,7 +224,7 @@ fn define_parser<'a>(input: CompleteStr<'a>) -> IResult<CompleteStr<'a>, MacroSe
 
                 if let Ok((remain, tokens)) = tokens_r {
                     let tts = tt.to_string();
-                    let r = Define::Func(def_args, tokens);
+                    let r = Define::Func(DefineFunc::new(def_args, tokens));
 
                     return Ok((remain, MacroSession::Define(tts, r)));
                 }
@@ -273,88 +370,6 @@ impl PreprocessState {
     }
 }
 
-fn apply_define_func<T>(
-    name: &String,
-    mut iter: T,
-    args: &Vec<Token>,
-    target: &Vec<Token>,
-    result: &mut Vec<Token>,
-) -> Result<T, PreprocessError>
-where
-    T: IntoIterator<Item = Token>,
-    T: Iterator<Item = Token>,
-{
-    let mut stack = 0;
-    let mut curret_params = Vec::new();
-    let mut params: Vec<Vec<Token>> = Vec::new();
-
-    while let Some(t) = iter.next() {
-        if let Token::Operator(oper, _) = t {
-            match oper {
-                Operator::LeftParen => {
-                    if stack > 0 {
-                        curret_params.push(t)
-                    }
-                    stack += 1;
-                }
-                Operator::RightParen => {
-                    stack -= 1;
-                    match stack {
-                        0 => {
-                            params.push(curret_params);
-                            break;
-                        }
-                        _ => {
-                            curret_params.push(t);
-                        }
-                    }
-                }
-                Operator::Comma if stack == 1 => {
-                    params.push(curret_params);
-                    curret_params = Vec::new();
-                }
-
-                _ => {
-                    curret_params.push(t);
-                }
-            }
-        } else {
-            curret_params.push(t);
-        }
-    }
-
-    if params.len() != args.len() {
-        return Err(PreprocessError(format!(
-            "Fail to apply define macro for {}",
-            name
-        )));
-    }
-
-    let mut positions = vec![0; target.len()];
-
-    for (tidx, t) in target.iter().enumerate() {
-        for (i, a) in args.iter().enumerate() {
-            if a == t {
-                positions[tidx] = i + 1;
-            }
-        }
-    }
-
-    assert_eq!(positions.len(), target.len());
-
-    for (i, target) in target.iter().enumerate() {
-        let arg_idx = positions[i];
-
-        if arg_idx == 0 {
-            result.push(target.clone());
-        } else {
-            result.append(&mut params[arg_idx - 1].clone());
-        }
-    }
-
-    return Ok(iter);
-}
-
 fn preprocess_source_line(
     tt: Vec<Token>,
     state: &PreprocessState,
@@ -374,8 +389,8 @@ fn preprocess_source_line(
                         Replace(mut childs) => {
                             result.append(&mut childs);
                         }
-                        Func(args, targets) => {
-                            iter = apply_define_func(s, iter, &args, &targets, &mut result)?;
+                        Func(def_func) => {
+                            iter = def_func.apply(s, iter, &mut result)?;
                         }
                     }
                 } else {

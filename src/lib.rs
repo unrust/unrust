@@ -6,6 +6,7 @@
 extern crate image;
 extern crate nalgebra as na;
 extern crate uni_app;
+extern crate uni_glsl;
 extern crate webgl;
 
 #[macro_use]

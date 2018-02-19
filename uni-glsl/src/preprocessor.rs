@@ -13,23 +13,43 @@ use expression::{expression, Expression};
 
 type CS<'a> = CompleteStr<'a>;
 
-named!(pub lines<CS, String>, map!( many0!(
-    map!(line, |s|{ CompleteStr(s.0.trim_right()) })
-), line_concat));
+fn append_vec<T>(mut ls: Vec<T>, last: Option<T>) -> Vec<T> {
+    match last {
+        Some(l) => {
+            ls.push(l);
+            ls
+        }
+        None => ls,
+    }
+}
+
+named!(single_line<CS, CS>,
+    take_while!(|c| c != '\r' && c != '\n' )
+);
+
+named!(pub lines<CS, String>, map!( 
+    do_parse!(
+        ls: many0!( terminated!(single_line, line_ending) ) >>
+        last: opt!(single_line) >>
+        (append_vec(ls, last))    
+    )
+, line_concat));
 
 fn line_concat(input: Vec<CompleteStr>) -> String {
     input
         .into_iter()
         .fold((String::from(""), true), |(mut c, first), s| {
+            let ts = s.0.trim_right().into();
+
             if first {
-                return (s.0.into(), false);
+                return (ts, false);
             }
 
             if !c.ends_with("\\") {
-                (c + "\n".into() + s.0.into(), false)
+                (c + "\n".into() + &ts, false)
             } else {
                 c.pop();
-                (c + s.0.into(), false)
+                (c + &ts, false)
             }
         })
         .0
@@ -54,13 +74,6 @@ named!(pub comment<CS, CS>,
     complete!(preceded!(tag!("//"), take_until!("\n"))) |
     complete!(delimited!(tag!("/*"), take_until!("*/"), tag!("*/"))) |
     eat_separator!(&b" \t"[..])
-    )
-);
-
-named!(line<CS, CS>, do_parse!(
-        content: take_while!(|c| c != '\r' && c != '\n' ) >>        
-        line_ending >>
-        (content)
     )
 );
 
@@ -442,16 +455,6 @@ named!(
     )
 );
 
-fn append_vec<T>(mut ls: Vec<T>, last: Option<T>) -> Vec<T> {
-    match last {
-        Some(l) => {
-            ls.push(l);
-            ls
-        }
-        None => ls,
-    }
-}
-
 #[rustfmt_skip] 
 named!(
     #[allow(unused_imports)],  // fix value! warning
@@ -712,6 +715,29 @@ pub fn preprocess(s: &str, predefs: &HashMap<String, String>) -> Result<String, 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn preprocess_test_stage0and1() {
+        let test_text = r#"void main(void) {
+    vFragPos = vec3(uMMatrix * vec4(aVertexPosition, 1.0));            
+    vNormal = mat3(uNMatrix) * aVertexNormal;
+    vTexCoords = aTextureCoord;
+
+    gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+}"#;
+        let stage0 = lines(CompleteStr(test_text)).unwrap().1;
+        assert_eq!(
+            format!("{:?}", stage0),
+            "\"void main(void) {\\n    vFragPos = vec3(uMMatrix * vec4(aVertexPosition, 1.0));\\n    vNormal = mat3(uNMatrix) * aVertexNormal;\\n    vTexCoords = aTextureCoord;\\n\\n    gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);\\n}\""
+        );
+
+        let i = remove_comment(CompleteStr(&stage0));
+
+        assert_eq!(
+            format!("{:?}", i.unwrap().1),
+            "\" void main(void) { \\n vFragPos = vec3(uMMatrix * vec4(aVertexPosition, 1.0)); \\n vNormal = mat3(uNMatrix) * aVertexNormal; \\n vTexCoords = aTextureCoord; \\n \\n gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0); \\n }\""
+        );
+    }
 
     #[test]
     fn preprocess_test_file() {

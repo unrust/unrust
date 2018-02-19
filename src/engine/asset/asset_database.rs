@@ -135,7 +135,7 @@ impl AssetDatabase {
         match name {
             "default" => name.into(),
             "default_font_bitmap" => name.into(),
-            "default_screen" => name.into(),
+            "default_ui" => name.into(),
             _ => format!("{}{}", self.path, name),
         }
     }

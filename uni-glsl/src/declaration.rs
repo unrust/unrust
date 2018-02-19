@@ -204,10 +204,10 @@ pub enum VariantTypeSpecifier {
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub struct SingleDeclaration {
-    type_spec: VariantTypeSpecifier,
-    name: Option<Identifier>,
-    array_spec: Option<Expression>,
-    equal_to: Option<Expression>,
+    pub type_spec: VariantTypeSpecifier,
+    pub name: Option<Identifier>,
+    pub array_spec: Option<Expression>,
+    pub equal_to: Option<Expression>,
 }
 
 named!(pub initializer<CS, Expression>,

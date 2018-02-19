@@ -37,8 +37,8 @@ impl GLContext {
         GLContext { reference: 0 }
     }
 
-    pub fn print(&self, s: &str) {
-        println!("{}", s);
+    pub fn print(s: &str) {
+        print!("{}", s);
     }
 
     pub fn create_buffer(&self) -> WebGLBuffer {

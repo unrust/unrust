@@ -1,11 +1,14 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use webgl::*;
+use webgl::{ShaderKind as WebGLShaderKind, WebGLProgram, WebGLRenderingContext,
+            WebGLUniformLocation, IS_GL_ES};
 
 use na::{Matrix4, Vector3};
 use engine::Asset;
 use std::fmt::Debug;
+
+use engine::render::shader::{Shader, ShaderKind as Kind};
 
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
@@ -38,8 +41,8 @@ pub struct ShaderProgram {
     coord_map: RefCell<HashMap<String, Option<u32>>>,
     uniform_map: RefCell<HashMap<String, Option<Rc<WebGLUniformLocation>>>>,
 
-    vs_shader: String,
-    fs_shader: String,
+    vs_shader: Shader,
+    fs_shader: Shader,
 
     pending_uniforms: RefCell<HashMap<String, Box<IntoUniformSetter>>>,
     committed_unforms: RefCell<HashMap<String, u64>>,
@@ -103,52 +106,31 @@ impl IntoUniformSetter for Vector3<f32> {
 
 impl ShaderProgram {
     pub fn new_default() -> ShaderProgram {
-        Self::new(DEFAULT_VS, DEFAULT_FS)
+        Self::new(("phong_vs.glsl", DEFAULT_VS), ("phong_vs.glsl", DEFAULT_FS))
     }
 
-    pub fn new_default_screen() -> ShaderProgram {
-        Self::new(
-            // Vertex shader source code
-            "       
-            attribute vec3 aVertexPosition;
-            attribute vec2 aTextureCoord;
-            varying vec2 vTextureCoord;
-            uniform mat4 uMMatrix;
-            
-            void main(void) {
-                gl_Position = uMMatrix * vec4(aVertexPosition, 1.0);        
-                vTextureCoord = aTextureCoord;
-            }    
-            ",
-            //fragment shader source code
-            "precision mediump float;
-
-            varying vec3 vColor;
-            varying vec2 vTextureCoord;
-            uniform sampler2D uSampler;
-
-            void main(void) {
-                gl_FragColor = texture2D(uSampler, vec2(vTextureCoord.s, vTextureCoord.t));
-            }
-            ",
-        )
+    pub fn new_default_ui() -> ShaderProgram {
+        Self::new(("ui_fs.glsl", DEFAULT_UI_VS), ("ui_vs.fs", DEFAULT_UI_FS))
     }
 
-    pub fn new(vs: &str, fs: &str) -> ShaderProgram {
+    pub fn new((vs_filename, vs): (&str, &str), (fs_filename, fs): (&str, &str)) -> ShaderProgram {
         let mut program: ShaderProgram = Default::default();
 
-        // Vertex shader source code
-        program.vs_shader = vs.into();
-
-        //fragment shader source code
-        program.fs_shader = fs.into();
+        let mut avs = vs.to_string();
+        let mut afs = fs.to_string();
 
         if !IS_GL_ES {
-            program.vs_shader = String::from("#version 130\n") + &program.vs_shader;
-            program.fs_shader = String::from("#version 130\n") + &program.fs_shader;
+            avs = "#version 130\n".to_string() + &avs;
+            afs = "#version 130\n".to_string() + &afs;
         } else {
-            program.fs_shader = String::from("precision highp float;\n") + &program.fs_shader;
+            afs = ("precision highp float;\n").to_string() + &afs;
         }
+
+        // Vertex shader source code
+        program.vs_shader = Shader::new(Kind::Vertex, vs_filename, &avs);
+
+        //fragment shader source code
+        program.fs_shader = Shader::new(Kind::Fragment, fs_filename, &afs);
 
         program
     }
@@ -171,15 +153,15 @@ impl ShaderProgram {
             {
                 let state = Some(ShaderProgramGLState::new(
                     gl,
-                    &self.vs_shader,
-                    &self.fs_shader,
+                    &self.vs_shader.code,
+                    &self.fs_shader.code,
                 ));
                 *self.gl_state.borrow_mut() = state;
             }
         }
     }
 
-    pub fn get_coord(&self, gl: &WebGLRenderingContext, s: &str) -> Option<u32> {
+    pub fn attrib_loc(&self, gl: &WebGLRenderingContext, s: &str) -> Option<u32> {
         let mut m = self.coord_map.borrow_mut();
 
         let gl_state_opt = self.gl_state.borrow();
@@ -256,7 +238,7 @@ impl ShaderProgram {
 impl Asset for ShaderProgram {
     fn new(s: &str) -> Rc<ShaderProgram> {
         match s {
-            "default_screen" => Rc::new(ShaderProgram::new_default_screen()),
+            "default_ui" => Rc::new(ShaderProgram::new_default_ui()),
             _ => Rc::new(ShaderProgram::new_default()),
         }
     }
@@ -267,7 +249,7 @@ impl ShaderProgramGLState {
         /*================ Shaders ====================*/
 
         // Create a vertex shader object
-        let vert_shader = gl.create_shader(ShaderKind::Vertex);
+        let vert_shader = gl.create_shader(WebGLShaderKind::Vertex);
 
         // Attach vertex shader source code
         gl.shader_source(&vert_shader, vs_code);
@@ -276,7 +258,7 @@ impl ShaderProgramGLState {
         gl.compile_shader(&vert_shader);
 
         // Create fragment shader object
-        let frag_shader = gl.create_shader(ShaderKind::Fragment);
+        let frag_shader = gl.create_shader(WebGLShaderKind::Fragment);
 
         // Attach fragment shader source code
         gl.shader_source(&frag_shader, ps_code);
@@ -308,3 +290,6 @@ impl ShaderProgramGLState {
 // Default vertex shader source code
 const DEFAULT_VS: &'static str = include_str!("phong_vs.glsl");
 const DEFAULT_FS: &'static str = include_str!("phong_fs.glsl");
+
+const DEFAULT_UI_VS: &'static str = include_str!("ui_vs.glsl");
+const DEFAULT_UI_FS: &'static str = include_str!("ui_fs.glsl");

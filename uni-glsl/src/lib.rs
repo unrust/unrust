@@ -14,15 +14,17 @@ mod operator;
 
 mod token;
 mod expression;
-mod declaration;
 mod statement;
 mod defeval;
+mod declaration;
 
 pub mod preprocessor;
 pub mod parser;
 
 pub use self::expression::{expression, Expression};
 pub use self::declaration::{declaration, Declaration, FullyTypeSpecifier, FunctionPrototype,
-                            ParamDeclaration, ParamQualifier, PrecisionQualifier, Struct,
-                            StructMember, TypeQualifier, TypeSpecifier};
+                            ParamDeclaration, ParamQualifier, PrecisionQualifier,
+                            SingleDeclaration, Struct, StructMember, TypeQualifier, TypeSpecifier,
+                            VariantTypeSpecifier};
 pub use self::statement::{statement, Statement};
+pub use self::parser::TranslationUnit;

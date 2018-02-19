@@ -7,10 +7,6 @@ authors = ["Edwin Cheng <edwin0cheng@gmail.com>"]
 name = "uni_glsl"
 path = "src/lib.rs"
 
-[[bin]]
-name = "uni_glsl_demo"
-path="src/main.rs"
-
 [dependencies.lazy_static]
 version = "1.0"
 features = ["nightly"]

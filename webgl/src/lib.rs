@@ -12,18 +12,20 @@ extern crate gl;
 extern crate stdweb;
 
 #[cfg(target_arch = "wasm32")]
+#[path = "webgl.rs"]
 pub mod webgl;
 
-pub use glenum::*;
-
 #[cfg(not(target_arch = "wasm32"))]
-pub mod webgl_native;
+#[path = "webgl_native.rs"]
+pub mod webgl;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub const IS_GL_ES: bool = false;
 
 #[cfg(target_arch = "wasm32")]
 pub const IS_GL_ES: bool = true;
+
+pub use glenum::*;
 
 pub mod common {
     use std::ops::Deref;
@@ -115,6 +117,9 @@ pub mod common {
         }
     }
 
+    pub fn print(s: &str) {
+        GLContext::print(s);
+    }
 }
 
 pub use self::common::*;

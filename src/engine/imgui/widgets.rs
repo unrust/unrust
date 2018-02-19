@@ -168,7 +168,7 @@ impl Widget for Label {
 
             gomut.add_component(mesh);
             gomut.add_component(Material::new(
-                db.new_program("default_screen"),
+                db.new_program("default_ui"),
                 db.new_texture("default_font_bitmap"),
             ));
         }

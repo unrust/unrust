@@ -36,4 +36,4 @@ path = "src/main.rs"
 # wasm compilation isn't currently compatible with incremental compilation
 # see https://github.com/rust-lang/rust/issues/47643
 [profile.dev]
-incremental = true
+incremental = false

@@ -68,7 +68,7 @@ impl GLContext {
         // js!{ console.log(@{msg.into()})};
     }
 
-    pub fn print<T: Into<String>>(&self, msg: T) {
+    pub fn print<T: Into<String>>(msg: T) {
         js!{ console.log(@{msg.into()})};
     }
 

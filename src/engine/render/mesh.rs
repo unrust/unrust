@@ -129,7 +129,7 @@ impl MeshBuffer {
         gl.bind_buffer(BufferKind::Array, &state.vb);
 
         // Point an position attribute to the currently bound VBO
-        if let Some(coord) = program.get_coord(gl, "aVertexPosition") {
+        if let Some(coord) = program.attrib_loc(gl, "aVertexPosition") {
             gl.enable_vertex_attrib_array(coord);
             gl.vertex_attrib_pointer(coord, AttributeSize::Three, DataType::Float, false, 0, 0);
         }
@@ -138,7 +138,7 @@ impl MeshBuffer {
             gl.bind_buffer(BufferKind::Array, nb);
             // Point an normal attribute to the currently bound VBO
 
-            if let Some(coord) = program.get_coord(gl, "aVertexNormal") {
+            if let Some(coord) = program.attrib_loc(gl, "aVertexNormal") {
                 gl.enable_vertex_attrib_array(coord);
                 gl.vertex_attrib_pointer(coord, AttributeSize::Three, DataType::Float, false, 0, 0);
             }
@@ -148,7 +148,7 @@ impl MeshBuffer {
             gl.bind_buffer(BufferKind::Array, uvb);
             // Point an uv attribute to the currently bound VBO
 
-            if let Some(coord) = program.get_coord(gl, "aTextureCoord") {
+            if let Some(coord) = program.attrib_loc(gl, "aTextureCoord") {
                 gl.enable_vertex_attrib_array(coord);
                 gl.vertex_attrib_pointer(coord, AttributeSize::Two, DataType::Float, false, 0, 0);
             }

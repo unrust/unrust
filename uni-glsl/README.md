@@ -1,6 +1,6 @@
 # uni-glsl
 
-A just works but completed (GL-ES 2.0 aka WebGL) glsl preprocessor and parser in Rust.
+A just works but completed (GLSL_ES 2.0 aka WebGL) glsl preprocessor and parser in Rust.
 
 ## Features
 

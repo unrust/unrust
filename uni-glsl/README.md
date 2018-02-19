@@ -7,24 +7,11 @@ A just works but completed (GLSL_ES 2.0 aka WebGL) glsl preprocessor and parser 
 ### Preprocessor
 Supported syntax : 
 ```
-#
-#define
-#undef
-
-#ifdef
-#ifndef
-#else
-#endif
-#if
-#elif
-defined
+# #define #undef #ifdef #ifndef #else #endif #if #elif defined
 ```
 Ignored :
 ```
-#line
-#version
-#extension
-#pragma
+#line #version #extension #pragma
 ```
 Todo :
 ```

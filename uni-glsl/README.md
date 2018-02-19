@@ -1,4 +1,4 @@
-# UNI-GLSL 
+# uni-glsl
 
 A just works but completed (GL-ES 2.0 aka WebGL) preprocessor and parser.
 

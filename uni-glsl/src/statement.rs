@@ -296,7 +296,7 @@ mod tests {
 
         assert_eq!(
             format!("{:?}", i.unwrap().1),
-            "For(Declaration(DeclarationList([SingleDeclaration { type_spec: Normal(FullyTypeSpecifier { qualifer: None, type_spec: TypeSpecifier { precision: None, actual_type: Int } }), name: Some(\"i\"), array_spec: None, equal_to: Some(Constant(Integer(0))) }])), Some(Expression(Binary(LT, Identifier(\"i\"), Constant(Integer(10))))), Some(PostInc(Identifier(\"i\"))), Scoped([Expression(PostDec(Identifier(\"j\")))]))"
+            "For(Declaration(DeclarationList([SingleDeclaration { variant_type_spec: Normal(FullyTypeSpecifier { qualifer: None, type_spec: TypeSpecifier { precision: None, actual_type: Int } }), name: Some(\"i\"), array_spec: None, equal_to: Some(Constant(Integer(0))) }])), Some(Expression(Binary(LT, Identifier(\"i\"), Constant(Integer(10))))), Some(PostInc(Identifier(\"i\"))), Scoped([Expression(PostDec(Identifier(\"j\")))]))"
         );
     }
 

@@ -3,8 +3,8 @@ use engine::core::ComponentBased;
 use super::ShaderProgram;
 
 pub enum Light {
-    Directional(DirectionalLight),
-    Point(PointLight),
+    Directional(Directional),
+    Point(Point),
 }
 
 macro_rules! add_light_cast {
@@ -28,8 +28,8 @@ macro_rules! add_light_cast {
 }
 
 impl Light {
-    add_light_cast!(directional, directional_mut, Directional, DirectionalLight);
-    add_light_cast!(point, point_mut, Point, PointLight);
+    add_light_cast!(directional, directional_mut, Directional, Directional);
+    add_light_cast!(point, point_mut, Point, Point);
 
     pub fn new<T>(a: T) -> Light
     where
@@ -48,20 +48,20 @@ impl Light {
 
 impl ComponentBased for Light {}
 
-pub struct DirectionalLight {
+pub struct Directional {
     pub direction: Vector3<f32>,
     pub ambient: Vector3<f32>,
     pub diffuse: Vector3<f32>,
     pub specular: Vector3<f32>,
 }
 
-impl From<DirectionalLight> for Light {
-    fn from(w: DirectionalLight) -> Light {
+impl From<Directional> for Light {
+    fn from(w: Directional) -> Light {
         Light::Directional(w)
     }
 }
 
-impl DirectionalLight {
+impl Directional {
     fn bind(&self, lightname: &str, prog: &ShaderProgram) {
         // We must have at least one direction light.
         prog.set(&format!("{}.direction", lightname), self.direction);
@@ -71,7 +71,7 @@ impl DirectionalLight {
     }
 }
 
-pub struct PointLight {
+pub struct Point {
     pub position: Vector3<f32>,
 
     pub ambient: Vector3<f32>,
@@ -83,13 +83,13 @@ pub struct PointLight {
     pub quadratic: f32,
 }
 
-impl From<PointLight> for Light {
-    fn from(w: PointLight) -> Light {
+impl From<Point> for Light {
+    fn from(w: Point) -> Light {
         Light::Point(w)
     }
 }
 
-impl PointLight {
+impl Point {
     fn bind(&self, lightname: &str, prog: &ShaderProgram) {
         // We must have at least one direction light.
         prog.set(&format!("{}.position", lightname), self.position);

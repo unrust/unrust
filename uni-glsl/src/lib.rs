@@ -20,6 +20,7 @@ mod declaration;
 
 pub mod preprocessor;
 pub mod parser;
+pub mod query;
 
 pub use self::expression::{expression, Expression};
 pub use self::declaration::{declaration, Declaration, FullyTypeSpecifier, FunctionPrototype,
@@ -28,3 +29,4 @@ pub use self::declaration::{declaration, Declaration, FullyTypeSpecifier, Functi
                             VariantTypeSpecifier};
 pub use self::statement::{statement, Statement};
 pub use self::parser::TranslationUnit;
+pub use self::token::BasicType;

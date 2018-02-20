@@ -1,6 +1,8 @@
 use uni_glsl::preprocessor;
 use uni_glsl::parser;
-use uni_glsl::{Declaration, SingleDeclaration, TypeQualifier, VariantTypeSpecifier};
+use uni_glsl::TypeQualifier;
+use uni_glsl::query::*;
+
 use webgl;
 use std::collections::HashMap;
 use std::default::Default;
@@ -42,35 +44,10 @@ impl Shader {
         }
     }
 
-    pub fn has_input(&self, s: &str) -> bool {
-        if let Some(ref sdec) = self.get_decl(s) {
-            if let VariantTypeSpecifier::Normal(ref full_ts) = sdec.type_spec {
-                if let Some(ref tq) = full_ts.qualifer {
-                    return match tq {
-                        &TypeQualifier::Attribute => true,
-                        &TypeQualifier::Varying => self.kind == ShaderKind::Fragment,
-                        _ => false,
-                    };
-                }
-            }
-        }
-
-        false
-    }
-
-    pub fn get_decl(&self, s: &str) -> Option<&SingleDeclaration> {
-        for decl in self.unit.decls.iter() {
-            if let &Declaration::DeclarationList(ref list) = decl {
-                for sdecl in list.iter() {
-                    if let Some(ref name) = sdecl.name {
-                        if name == s {
-                            return Some(sdecl);
-                        }
-                    }
-                }
-            }
-        }
-
-        None
+    pub fn has_attr(&self, s: &str) -> bool {
+        self.unit
+            .query_decl(s)
+            .is(TypeQualifier::Attribute)
+            .is_some()
     }
 }

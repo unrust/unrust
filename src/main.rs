@@ -122,7 +122,7 @@ pub fn main() {
             game.push(go.clone());
 
             let mut go_mut = go.borrow_mut();
-            let com = go_mut.add_component(Light::new(DirectionalLight {
+            let com = go_mut.add_component(Light::new(Directional {
                 direction: Vector3::new(0.5, -1.0, 1.0).normalize(),
                 ambient: Vector3::new(0.2, 0.2, 0.2),
                 diffuse: Vector3::new(0.5, 0.5, 0.5),
@@ -148,7 +148,7 @@ pub fn main() {
 
             let mut go_mut = go.borrow_mut();
 
-            point_light_coms.push(go_mut.add_component(Light::new(PointLight {
+            point_light_coms.push(go_mut.add_component(Light::new(Point {
                 position: p,
                 ambient: Vector3::new(0.05, 0.05, 0.05),
                 diffuse: Vector3::new(0.8, 0.8, 0.8),

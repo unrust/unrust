@@ -7,10 +7,11 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use super::core::{Component, ComponentBased};
-use super::{Camera, DirectionalLight, GameObject, Light, Material, Mesh, MeshBuffer,
-            ShaderProgram, Texture};
-use super::asset::{AssetDatabase, AssetSystem};
+use engine::core::{Component, ComponentBased, GameObject};
+use engine::render::Camera;
+use engine::render::{Directional, Light};
+use engine::render::{Material, Mesh, MeshBuffer, ShaderProgram, Texture};
+use engine::asset::{AssetDatabase, AssetSystem};
 
 use super::imgui;
 
@@ -242,7 +243,7 @@ where
 
             // prepare main light.
             ctx.main_light = Some(self.find_component::<Light>().unwrap_or({
-                Component::new(Light::Directional(DirectionalLight {
+                Component::new(Light::Directional(Directional {
                     direction: Vector3::new(0.5, -1.0, 1.0).normalize(),
                     ambient: Vector3::new(0.2, 0.2, 0.2),
                     diffuse: Vector3::new(0.5, 0.5, 0.5),

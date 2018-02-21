@@ -1,6 +1,4 @@
 use webgl::*;
-use uni_app::App;
-
 use na::*;
 use std::rc::{Rc, Weak};
 use std::cell::RefCell;
@@ -11,7 +9,7 @@ use engine::core::{Component, ComponentBased, GameObject};
 use engine::render::Camera;
 use engine::render::{Directional, Light};
 use engine::render::{Material, MaterialParam, Mesh, MeshBuffer, ShaderProgram, Texture};
-use engine::asset::{AssetDatabase, AssetSystem};
+use engine::asset::AssetSystem;
 
 use super::imgui;
 
@@ -23,7 +21,7 @@ pub trait IEngine {
     fn gui_context(&mut self) -> Rc<RefCell<imgui::Context>>;
 }
 
-pub struct Engine<A = AssetDatabase>
+pub struct Engine<A>
 where
     A: AssetSystem,
 {
@@ -94,13 +92,9 @@ impl EngineContext {
         None
     }
 
-    pub fn prepare_cache_tex<F>(
-        &mut self,
-        new_tex: &Rc<Texture>,
-        bind: F,
-    ) -> Result<u32, &'static str>
+    pub fn prepare_cache_tex<F>(&mut self, new_tex: &Rc<Texture>, bind: F) -> Result<u32, String>
     where
-        F: FnOnce(&mut EngineContext, u32) -> Result<(), &'static str>,
+        F: FnOnce(&mut EngineContext, u32) -> Result<(), String>,
     {
         let found = self.need_cache_tex(new_tex);
 
@@ -152,7 +146,7 @@ where
         self.gl.clear_color(0.2, 0.2, 0.2, 1.0);
     }
 
-    fn setup_material(&self, ctx: &mut EngineContext, material: &Material) -> Result<(), &str> {
+    fn setup_material(&self, ctx: &mut EngineContext, material: &Material) -> Result<(), String> {
         ctx.prepare_cache(&material.program, |ctx| {
             material.program.bind(&self.gl);
             ctx.switch_prog += 1;
@@ -166,9 +160,8 @@ where
                 &MaterialParam::Texture(ref tex) => {
                     let new_unit = ctx.prepare_cache_tex(&tex, |ctx, unit| {
                         // Binding texture
-                        if !tex.bind(&self.gl, unit) {
-                            return Err("Texture is not ready.");
-                        }
+                        tex.bind(&self.gl, unit)?;
+
                         ctx.switch_tex += 1;
                         Ok(())
                     })?;
@@ -337,8 +330,8 @@ where
         self.objects.retain(|obj| obj.upgrade().is_some());
     }
 
-    pub fn new(app: &App, size: (u32, u32)) -> Engine<A> {
-        let gl = WebGLRenderingContext::new(app.canvas());
+    pub fn new(webgl_ctx: WebGLContext, size: (u32, u32)) -> Engine<A> {
+        let gl = WebGLRenderingContext::new(webgl_ctx);
 
         /*=========Drawing the triangle===========*/
 

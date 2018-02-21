@@ -26,6 +26,7 @@ pub const IS_GL_ES: bool = false;
 pub const IS_GL_ES: bool = true;
 
 pub use glenum::*;
+pub use webgl::WebGLContext;
 
 pub mod common {
     use std::ops::Deref;

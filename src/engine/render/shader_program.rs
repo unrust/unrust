@@ -5,7 +5,7 @@ use webgl::{ShaderKind as WebGLShaderKind, WebGLProgram, WebGLRenderingContext,
             WebGLUniformLocation, IS_GL_ES};
 
 use na::{Matrix4, Vector3};
-use engine::Asset;
+use engine::asset::{Asset, File};
 use std::fmt::Debug;
 
 use engine::render::shader::{Shader, ShaderKind as Kind};
@@ -236,11 +236,11 @@ impl ShaderProgram {
 }
 
 impl Asset for ShaderProgram {
-    fn new(s: &str) -> Rc<ShaderProgram> {
-        match s {
-            "default_ui" => Rc::new(ShaderProgram::new_default_ui()),
-            _ => Rc::new(ShaderProgram::new_default()),
-        }
+    fn new_from_file<F>(_f: F) -> Rc<Self>
+    where
+        F: File,
+    {
+        unimplemented!()
     }
 }
 

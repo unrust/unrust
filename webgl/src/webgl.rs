@@ -4,8 +4,10 @@ use stdweb::unstable::TryInto;
 use glenum::*;
 use common::*;
 
+pub type WebGLContext<'a> = &'a Element;
+
 impl WebGLRenderingContext {
-    pub fn new(canvas: &Element) -> WebGLRenderingContext {
+    pub fn new(canvas: WebGLContext) -> WebGLRenderingContext {
         WebGLRenderingContext {
             common: GLContext::new(canvas, "webgl"),
         }

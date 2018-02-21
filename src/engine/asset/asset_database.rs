@@ -2,13 +2,14 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use super::{CubeMesh, PlaneMesh, Quad};
+use engine::asset::{CubeMesh, PlaneMesh, Quad};
+use engine::asset::default_font_bitmap::DEFAULT_FONT_DATA;
+use engine::asset::fs;
+
 use engine::{MeshBuffer, ShaderProgram, Texture, TextureFiltering};
 
 use image;
 use image::ImageBuffer;
-
-use super::default_font_bitmap::DEFAULT_FONT_DATA;
 
 pub trait AssetSystem {
     fn new() -> Self
@@ -23,18 +24,28 @@ pub trait AssetSystem {
 }
 
 pub trait Asset {
-    fn new(s: &str) -> Rc<Self>;
+    fn new_from_file<F>(f: F) -> Rc<Self>
+    where
+        F: fs::File + 'static;
 }
 
-#[derive(Default)]
-pub struct AssetDatabase {
+pub struct AssetDatabase<FS, F>
+where
+    FS: fs::FileSystem<File = F>,
+    F: fs::File,
+{
+    fs: FS,
     path: String,
     textures: RefCell<HashMap<String, Rc<Texture>>>,
     mesh_buffers: RefCell<HashMap<String, Rc<MeshBuffer>>>,
     programs: RefCell<HashMap<String, Rc<ShaderProgram>>>,
 }
 
-impl AssetSystem for AssetDatabase {
+impl<FS, F> AssetSystem for AssetDatabase<FS, F>
+where
+    FS: fs::FileSystem<File = F>,
+    F: fs::File + 'static,
+{
     fn new_program(&self, name: &str) -> Rc<ShaderProgram> {
         let mut a = self.programs.borrow_mut();
         self.new_asset(&mut a, name)
@@ -55,8 +66,14 @@ impl AssetSystem for AssetDatabase {
         }
     }
 
-    fn new() -> AssetDatabase {
-        let mut db = AssetDatabase::default();
+    fn new() -> AssetDatabase<FS, F> {
+        let mut db = AssetDatabase {
+            fs: FS::default(),
+            path: String::default(),
+            textures: RefCell::new(HashMap::new()),
+            mesh_buffers: RefCell::new(HashMap::new()),
+            programs: RefCell::new(HashMap::new()),
+        };
 
         {
             let mut hm = db.mesh_buffers.borrow_mut();
@@ -74,6 +91,15 @@ impl AssetSystem for AssetDatabase {
             hm.insert("default".into(), Self::new_default_texture());
         }
 
+        {
+            let mut hm = db.programs.borrow_mut();
+            hm.insert("default".into(), Rc::new(ShaderProgram::new_default()));
+            hm.insert(
+                "default_ui".into(),
+                Rc::new(ShaderProgram::new_default_ui()),
+            );
+        }
+
         if cfg!(not(target_arch = "wasm32")) {
             db.path = "static/".into();
         }
@@ -82,7 +108,17 @@ impl AssetSystem for AssetDatabase {
     }
 }
 
-impl AssetDatabase {
+impl<FS, F> AssetDatabase<FS, F>
+where
+    FS: fs::FileSystem<File = F>,
+    F: fs::File + 'static,
+{
+    fn new_file(&self, name: &str) -> FS::File {
+        self.fs
+            .open(&self.get_filename(name))
+            .expect("Fail to open file.")
+    }
+
     fn new_asset<R>(&self, hm: &mut HashMap<String, Rc<R>>, name: &str) -> Rc<R>
     where
         R: Asset,
@@ -90,7 +126,7 @@ impl AssetDatabase {
         match hm.get_mut(name) {
             Some(asset) => asset.clone(),
             None => {
-                let asset = R::new(&self.get_filename(name));
+                let asset = R::new_from_file(self.new_file(name));
                 hm.insert(name.into(), asset.clone());
                 asset
             }
@@ -132,11 +168,6 @@ impl AssetDatabase {
     }
 
     pub fn get_filename(&self, name: &str) -> String {
-        match name {
-            "default" => name.into(),
-            "default_font_bitmap" => name.into(),
-            "default_ui" => name.into(),
-            _ => format!("{}{}", self.path, name),
-        }
+        format!("{}{}", self.path, name)
     }
 }

@@ -3,7 +3,7 @@ use std::mem::size_of;
 
 use super::ShaderProgram;
 use engine::core::ComponentBased;
-use engine::Asset;
+use engine::asset::{Asset, File};
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -74,7 +74,10 @@ pub struct MeshBuffer {
 }
 
 impl Asset for MeshBuffer {
-    fn new(_s: &str) -> Rc<Self> {
+    fn new_from_file<F>(_f: F) -> Rc<Self>
+    where
+        F: File,
+    {
         unimplemented!();
     }
 }

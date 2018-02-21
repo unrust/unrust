@@ -22,9 +22,38 @@ use na::{Point3, Vector3};
 use ncollide::shape::{Cuboid3, Plane3, Shape3};
 
 use unigame::engine::*;
-use uni_app::*;
+use uni_app::{App, AppConfig, AppEvent, FPS};
 
 type Handle<T> = Rc<RefCell<T>>;
+
+// unigame engine support different file system.
+#[derive(Default)]
+struct AppFileSystem {}
+struct AppFile(String, uni_app::fs::File);
+
+impl FileSystem for AppFileSystem {
+    type File = AppFile;
+
+    fn open(&self, filename: &str) -> Result<Self::File, FileIoError> {
+        let f = uni_app::fs::FileSystem::open(filename).map_err(|_| FileIoError::NoSuchFile)?;
+
+        Ok(AppFile(filename.into(), f))
+    }
+}
+
+impl File for AppFile {
+    fn name(&self) -> String {
+        self.0.clone()
+    }
+
+    fn is_ready(&self) -> bool {
+        self.1.is_ready()
+    }
+
+    fn read_binary(&mut self) -> Result<Vec<u8>, FileIoError> {
+        self.1.read_binary().map_err(|_| FileIoError::NotReady)
+    }
+}
 
 // Physic Object Component
 struct PhysicObject(Handle<RigidBody<f32>>);
@@ -33,17 +62,18 @@ impl PhysicObject {
         *self.0.borrow().position()
     }
 }
-
 impl ComponentBased for PhysicObject {}
+
+type AppEngine = Engine<AppFileSystem, AppFile>;
 
 struct Game {
     list: Vec<Handle<GameObject>>,
     counter: u32,
-    engine: Engine,
+    engine: AppEngine,
 }
 
 impl Game {
-    fn new(engine: Engine) -> Game {
+    fn new(engine: AppEngine) -> Game {
         Game {
             list: Vec::new(),
             counter: 0,
@@ -122,7 +152,7 @@ pub fn main() {
     {
         let mut scene = Scene::new();
 
-        let mut game = Game::new(Engine::new(&app, size));
+        let mut game = Game::new(Engine::new(app.canvas(), size));
         game.engine.main_camera = Some(Camera::new());
 
         for rb in scene.world.rigid_bodies() {

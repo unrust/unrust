@@ -1,14 +1,10 @@
-use engine::Asset;
-
 use webgl::*;
 use image;
 use image::RgbaImage;
 
 use std::cell::RefCell;
 use std::rc::Rc;
-
-use uni_app::{File, FileSystem, IoError};
-use std::io::ErrorKind;
+use engine::asset::{Asset, File, FileIoError};
 
 pub enum TextureFiltering {
     Nearest,
@@ -19,16 +15,16 @@ pub struct Texture {
     pub filtering: TextureFiltering,
     gl_state: RefCell<Option<TextureGLState>>,
     img: RefCell<Option<RgbaImage>>,
-    file: Option<RefCell<File>>,
+    file: Option<RefCell<Box<File>>>,
 }
 
 impl Asset for Texture {
-    fn new(s: &str) -> Rc<Self> {
-        match s {
-            filename => {
-                Texture::new_texture(filename).expect(&format!("Cannot open file: {:?}", filename))
-            }
-        }
+    fn new_from_file<F>(f: F) -> Rc<Self>
+    where
+        F: File + 'static,
+    {
+        let fname = f.name();
+        Texture::new_texture(f).expect(&format!("Cannot open file: {}", fname))
     }
 }
 
@@ -37,28 +33,28 @@ struct TextureGLState {
 }
 
 impl Texture {
-    fn new_texture(filename: &str) -> Result<Rc<Self>, IoError> {
-        let mut f = FileSystem::open(filename)?;
+    fn new_texture<F>(mut f: F) -> Result<Rc<Self>, FileIoError>
+    where
+        F: File + 'static,
+    {
         if !f.is_ready() {
             return Ok(Rc::new(Texture {
                 filtering: TextureFiltering::Linear,
                 img: RefCell::new(None),
-                file: Some(RefCell::new(f)),
+                file: Some(RefCell::new(Box::new(f))),
                 gl_state: RefCell::new(None),
             }));
         }
 
         let buf = f.read_binary()?;
+        let img = image::load_from_memory(&buf).map_err(|_| FileIoError::InvalidFormat)?;
 
-        match image::load_from_memory(&buf) {
-            Ok(img) => Ok(Rc::new(Texture {
-                filtering: TextureFiltering::Linear,
-                img: RefCell::new(Some(img.to_rgba())),
-                gl_state: RefCell::new(None),
-                file: None,
-            })),
-            Err(err) => Err(IoError::new(ErrorKind::Other, err)),
-        }
+        Ok(Rc::new(Texture {
+            filtering: TextureFiltering::Linear,
+            img: RefCell::new(Some(img.to_rgba())),
+            gl_state: RefCell::new(None),
+            file: None,
+        }))
     }
 
     pub fn new_with_image_buffer(img: RgbaImage) -> Rc<Self> {
@@ -70,10 +66,8 @@ impl Texture {
         })
     }
 
-    pub fn bind(&self, gl: &WebGLRenderingContext, unit: u32) -> bool {
-        if !self.prepare(gl) {
-            return false;
-        }
+    pub fn bind(&self, gl: &WebGLRenderingContext, unit: u32) -> Result<(), String> {
+        self.prepare(gl)?;
 
         let state_option = self.gl_state.borrow();
         let state = state_option.as_ref().unwrap();
@@ -81,7 +75,7 @@ impl Texture {
         gl.active_texture(unit);
         gl.bind_texture(&state.tex);
 
-        true
+        Ok(())
     }
 
     fn need_file(&self) -> bool {
@@ -91,19 +85,19 @@ impl Texture {
         }
     }
 
-    pub fn prepare(&self, gl: &WebGLRenderingContext) -> bool {
+    pub fn prepare(&self, gl: &WebGLRenderingContext) -> Result<(), String> {
         if self.gl_state.borrow().is_some() {
-            return true;
+            return Ok(());
         }
 
         if self.need_file() {
             let mut file = self.file.as_ref().unwrap().borrow_mut();
             if !file.is_ready() {
-                return false;
+                return Err("read file delay.".to_string());
             }
 
             let buf = file.read_binary()
-                .expect("Cannot read binary from file delayed.");
+                .map_err(|_| String::from("read file delay."))?;
             let img = image::load_from_memory(&buf).expect("Cannot load image from file delayed.");
             *self.img.borrow_mut() = Some(img.to_rgba());
         }
@@ -118,7 +112,7 @@ impl Texture {
             )));
         }
 
-        true
+        Ok(())
     }
 }
 

@@ -18,10 +18,10 @@ pub fn check_gl_error(msg: &str) {
     }
 }
 
+pub type WebGLContext<'p> = Box<'p + for<'a> FnMut(&'a str) -> *const c_void>;
+
 impl WebGLRenderingContext {
-    pub fn new<'p>(
-        mut loadfn: Box<'p + for<'a> FnMut(&'a str) -> *const c_void>,
-    ) -> WebGLRenderingContext {
+    pub fn new<'p>(mut loadfn: WebGLContext<'p>) -> WebGLRenderingContext {
         gl::load_with(move |name| loadfn(name));
 
         WebGLRenderingContext {

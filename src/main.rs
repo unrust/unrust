@@ -10,10 +10,12 @@ extern crate unigame;
 
 mod boxes_vee;
 use boxes_vee::*;
+
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::ops::{Deref, DerefMut};
 use na::Isometry3;
+use std::collections::HashMap;
 
 use nphysics3d::object::RigidBody;
 use na::{Point3, Vector3};
@@ -65,9 +67,21 @@ impl Game {
 
             self.counter += 1;
 
+            let mut textures = HashMap::new();
+            textures.insert(
+                "uMaterial.diffuse".to_string(),
+                MaterialParam::Texture(texture),
+            );
+            textures.insert(
+                "uMaterial.shininess".to_string(),
+                MaterialParam::Float(32.0),
+            );
+
+            // temp set the material shiness here
+
             go_mut.add_component(self.get(rb.borrow().shape().as_ref()).unwrap());
-            go_mut.add_component(Material::new(db.new_program("default"), texture));
             go_mut.add_component(PhysicObject(rb));
+            go_mut.add_component(Material::new(db.new_program("default"), textures));
         }
 
         self.list.push(go.clone());

@@ -422,9 +422,14 @@ impl GLContext {
         }
     }
 
+    pub fn active_texture(&self, active: u32) {
+        unsafe {
+            gl::ActiveTexture(gl::TEXTURE0 + active);
+        }
+    }
+
     pub fn bind_texture(&self, texture: &WebGLTexture) {
         unsafe {
-            gl::ActiveTexture(gl::TEXTURE0);
             gl::BindTexture(gl::TEXTURE_2D, texture.0);
         }
     }

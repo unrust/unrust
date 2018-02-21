@@ -1,4 +1,3 @@
-use super::ShaderProgram;
 use engine::Asset;
 
 use webgl::*;
@@ -71,7 +70,7 @@ impl Texture {
         })
     }
 
-    pub fn bind(&self, gl: &WebGLRenderingContext, program: &ShaderProgram) -> bool {
+    pub fn bind(&self, gl: &WebGLRenderingContext, unit: u32) -> bool {
         if !self.prepare(gl) {
             return false;
         }
@@ -79,9 +78,8 @@ impl Texture {
         let state_option = self.gl_state.borrow();
         let state = state_option.as_ref().unwrap();
 
+        gl.active_texture(unit);
         gl.bind_texture(&state.tex);
-
-        program.set("uDiffuse", 0);
 
         true
     }
@@ -131,13 +129,8 @@ fn texture_bind_buffer(
 ) -> TextureGLState {
     let tex = gl.create_texture();
 
+    gl.active_texture(0);
     gl.bind_texture(&tex);
-
-    let data: &[u8] = &*img;
-
-    println!("{}", img.width() as u16);
-    println!("{}", img.height() as u16);
-    println!("{}", data.len());
 
     gl.tex_image2d(
         TextureBindPoint::Texture2d, // target

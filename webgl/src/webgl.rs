@@ -449,8 +449,16 @@ impl GLContext {
         js!{
             var ctx = Module.gl.get(@{&self.reference});
             var tex = Module.gl.get(@{&texture.0});
-            ctx.deleteTexture(tex)
-            Module.gl.remove(tex)
+            ctx.deleteTexture(tex);
+            Module.gl.remove(tex);
+        }
+    }
+
+    pub fn active_texture(&self, active: u32) {
+        self.log("active_texture");
+        js!{
+            var ctx = Module.gl.get(@{&self.reference});
+            ctx.activeTexture(ctx.TEXTURE0 + @{active})
         }
     }
 

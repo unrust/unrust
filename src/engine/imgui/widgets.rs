@@ -1,5 +1,5 @@
 use engine::core::GameObject;
-use engine::render::{Material, Mesh};
+use engine::render::{Material, MaterialParam, Mesh};
 use engine::engine::IEngine;
 
 use super::Metric;
@@ -10,6 +10,7 @@ use engine::render::MeshBuffer;
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::any::Any;
+use std::collections::HashMap;
 
 use na::{Translation3, Vector3};
 
@@ -167,10 +168,14 @@ impl Widget for Label {
             ));
 
             gomut.add_component(mesh);
-            gomut.add_component(Material::new(
-                db.new_program("default_ui"),
-                db.new_texture("default_font_bitmap"),
-            ));
+
+            let mut textures = HashMap::new();
+            textures.insert(
+                "uDiffuse".to_string(),
+                MaterialParam::Texture(db.new_texture("default_font_bitmap")),
+            );
+
+            gomut.add_component(Material::new(db.new_program("default_ui"), textures));
         }
 
         go

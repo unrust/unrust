@@ -4,13 +4,13 @@ use uni_app::App;
 use na::*;
 use std::rc::{Rc, Weak};
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 
 use engine::core::{Component, ComponentBased, GameObject};
 use engine::render::Camera;
 use engine::render::{Directional, Light};
-use engine::render::{Material, Mesh, MeshBuffer, ShaderProgram, Texture};
+use engine::render::{Material, MaterialParam, Mesh, MeshBuffer, ShaderProgram, Texture};
 use engine::asset::{AssetDatabase, AssetSystem};
 
 use super::imgui;
@@ -41,7 +41,7 @@ where
 struct EngineContext {
     mesh_buffer: Weak<MeshBuffer>,
     prog: Weak<ShaderProgram>,
-    tex: Weak<Texture>,
+    textures: VecDeque<(u32, Weak<Texture>)>,
 
     main_light: Option<Arc<Component>>,
     point_lights: Vec<Arc<Component>>,
@@ -67,7 +67,6 @@ trait EngineCacher {
 
 impl_cacher!(prog, ShaderProgram);
 impl_cacher!(mesh_buffer, MeshBuffer);
-impl_cacher!(tex, Texture);
 
 impl EngineContext {
     pub fn prepare_cache<T, F>(&mut self, new_p: &Rc<T>, bind: F) -> Result<(), &'static str>
@@ -81,6 +80,55 @@ impl EngineContext {
         }
 
         Ok(())
+    }
+
+    pub fn need_cache_tex(&self, new_tex: &Rc<Texture>) -> Option<u32> {
+        for &(u, ref tex) in self.textures.iter() {
+            if let Some(ref p) = tex.upgrade() {
+                if Rc::ptr_eq(new_tex, p) {
+                    return Some(u);
+                }
+            }
+        }
+
+        None
+    }
+
+    pub fn prepare_cache_tex<F>(
+        &mut self,
+        new_tex: &Rc<Texture>,
+        bind: F,
+    ) -> Result<u32, &'static str>
+    where
+        F: FnOnce(&mut EngineContext, u32) -> Result<(), &'static str>,
+    {
+        let found = self.need_cache_tex(new_tex);
+
+        if found.is_none() {
+            let mut unit = self.textures.len() as u32;
+
+            // find the empty slots.
+            if unit >= 8 {
+                let opt_pos = self.textures
+                    .iter()
+                    .position(|&(_, ref t)| t.upgrade().is_none());
+
+                unit = match opt_pos {
+                    Some(pos) => self.textures.remove(pos).unwrap().0,
+                    None => self.textures.pop_front().unwrap().0,
+                }
+            }
+
+            return match bind(self, unit) {
+                Ok(()) => {
+                    self.textures.push_back((unit, Rc::downgrade(new_tex)));
+                    Ok(unit)
+                }
+                Err(s) => Err(s),
+            };
+        }
+
+        Ok(found.unwrap())
     }
 
     fn need_cache<T>(&mut self, new_p: &Rc<T>) -> bool
@@ -111,21 +159,29 @@ where
             Ok(())
         })?;
 
-        ctx.prepare_cache(&material.texture, |ctx| {
-            let curr = ctx.prog.upgrade().unwrap();
-            // Binding texture
-            if !material.texture.bind(&self.gl, &curr) {
-                return Err("Texture is not ready.");
-            }
-            ctx.switch_tex += 1;
-            Ok(())
-        })?;
+        let prog = ctx.prog.upgrade().unwrap();
 
-        if let Some(ref prog) = ctx.prog.upgrade() {
-            // temp set the material shiness here
-            prog.set("uShininess", 32.0);
-            self.setup_light(ctx, &prog);
+        for (name, param) in material.params.iter() {
+            match param {
+                &MaterialParam::Texture(ref tex) => {
+                    let new_unit = ctx.prepare_cache_tex(&tex, |ctx, unit| {
+                        // Binding texture
+                        if !tex.bind(&self.gl, unit) {
+                            return Err("Texture is not ready.");
+                        }
+                        ctx.switch_tex += 1;
+                        Ok(())
+                    })?;
+
+                    prog.set(&name, new_unit as i32);
+                }
+                &MaterialParam::Float(f) => {
+                    prog.set(&name, f);
+                }
+            }
         }
+
+        self.setup_light(ctx, &prog);
 
         Ok(())
     }

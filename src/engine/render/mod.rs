@@ -11,5 +11,5 @@ pub use self::shader::Shader;
 pub use self::shader_program::ShaderProgram;
 pub use self::texture::{Texture, TextureFiltering};
 pub use self::mesh::{Mesh, MeshBuffer};
-pub use self::material::Material;
+pub use self::material::{Material, MaterialParam};
 pub use self::light::{Directional, Light, Point};

@@ -24,9 +24,7 @@ pub trait AssetSystem {
 }
 
 pub trait Asset {
-    fn new_from_file<F>(f: F) -> Rc<Self>
-    where
-        F: fs::File + 'static;
+    fn new_from_file(f: fs::FileFuture) -> Rc<Self>;
 }
 
 pub struct AssetDatabase<FS, F>
@@ -113,10 +111,8 @@ where
     FS: fs::FileSystem<File = F>,
     F: fs::File + 'static,
 {
-    fn new_file(&self, name: &str) -> FS::File {
-        self.fs
-            .open(&self.get_filename(name))
-            .expect("Fail to open file.")
+    fn new_file(&self, name: &str) -> fs::FileFuture {
+        self.fs.open(&self.get_filename(name))
     }
 
     fn new_asset<R>(&self, hm: &mut HashMap<String, Rc<R>>, name: &str) -> Rc<R>

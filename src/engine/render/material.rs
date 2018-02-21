@@ -1,5 +1,5 @@
 use engine::core::ComponentBased;
-use engine::asset::{Asset, File};
+use engine::asset::{Asset, FileFuture};
 use engine::render::{ShaderProgram, Texture};
 
 use std::rc::Rc;
@@ -25,10 +25,7 @@ impl Material {
 }
 
 impl Asset for Material {
-    fn new_from_file<F>(_f: F) -> Rc<Self>
-    where
-        F: File,
-    {
+    fn new_from_file(_f: FileFuture) -> Rc<Self> {
         unimplemented!();
     }
 }

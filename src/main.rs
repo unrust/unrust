@@ -2,6 +2,7 @@
 #![feature(integer_atomics)]
 
 /* common */
+extern crate futures;
 extern crate nalgebra as na;
 extern crate ncollide;
 extern crate nphysics3d;
@@ -9,7 +10,10 @@ extern crate uni_app;
 extern crate unigame;
 
 mod boxes_vee;
+mod appfs;
+
 use boxes_vee::*;
+use appfs::*;
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -26,35 +30,6 @@ use uni_app::{App, AppConfig, AppEvent, FPS};
 
 type Handle<T> = Rc<RefCell<T>>;
 
-// unigame engine support different file system.
-#[derive(Default)]
-struct AppFileSystem {}
-struct AppFile(String, uni_app::fs::File);
-
-impl FileSystem for AppFileSystem {
-    type File = AppFile;
-
-    fn open(&self, filename: &str) -> Result<Self::File, FileIoError> {
-        let f = uni_app::fs::FileSystem::open(filename).map_err(|_| FileIoError::NoSuchFile)?;
-
-        Ok(AppFile(filename.into(), f))
-    }
-}
-
-impl File for AppFile {
-    fn name(&self) -> String {
-        self.0.clone()
-    }
-
-    fn is_ready(&self) -> bool {
-        self.1.is_ready()
-    }
-
-    fn read_binary(&mut self) -> Result<Vec<u8>, FileIoError> {
-        self.1.read_binary().map_err(|_| FileIoError::NotReady)
-    }
-}
-
 // Physic Object Component
 struct PhysicObject(Handle<RigidBody<f32>>);
 impl PhysicObject {
@@ -63,8 +38,6 @@ impl PhysicObject {
     }
 }
 impl ComponentBased for PhysicObject {}
-
-type AppEngine = Engine<AppFileSystem, AppFile>;
 
 struct Game {
     list: Vec<Handle<GameObject>>,

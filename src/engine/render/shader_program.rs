@@ -106,7 +106,7 @@ impl IntoUniformSetter for Vector3<f32> {
 
 impl ShaderProgram {
     pub fn new_default() -> ShaderProgram {
-        Self::new(("phong_vs.glsl", DEFAULT_VS), ("phong_vs.glsl", DEFAULT_FS))
+        Self::new(("phong_vs.glsl", DEFAULT_VS), ("phong_fs.glsl", DEFAULT_FS))
     }
 
     pub fn new_default_ui() -> ShaderProgram {

@@ -69,19 +69,20 @@ impl Texture {
         Ok(())
     }
 
-    fn prepare_img(&self) -> Result<ImageResource, String> {
-        {
-            let img_mut: &mut _ = &mut *self.img.borrow_mut();
-            if let &mut ImageResource::Future(ref mut f) = img_mut {
-                return match f.poll() {
-                    Err(_) => Err("Fail to know".to_string()),
-                    Ok(Async::NotReady) => Err("Not ready".to_string()),
-                    Ok(Async::Ready(i)) => Ok(ImageResource::Image(i)),
-                };
-            }
+    fn prepare_img(&self) -> Result<RgbaImage, String> {
+        if let &mut ImageResource::Future(ref mut f) = &mut *self.img.borrow_mut() {
+            return match f.poll() {
+                Err(_) => Err("Fail to know".to_string()),
+                Ok(Async::NotReady) => Err("Not ready".to_string()),
+                Ok(Async::Ready(i)) => Ok(i),
+            };
         }
 
-        Ok(self.img.replace(ImageResource::Empty))
+        if let ImageResource::Image(i) = self.img.replace(ImageResource::Empty) {
+            return Ok(i);
+        }
+
+        unreachable!()
     }
 
     pub fn prepare(&self, gl: &WebGLRenderingContext) -> Result<(), String> {
@@ -89,12 +90,9 @@ impl Texture {
             return Ok(());
         }
 
-        if let ImageResource::Image(img) = self.prepare_img()? {
-            if self.gl_state.borrow().is_none() {
-                self.gl_state
-                    .replace(Some(texture_bind_buffer(&img, gl, &self.filtering)));
-            }
-        }
+        let img = self.prepare_img()?;
+        self.gl_state
+            .replace(Some(texture_bind_buffer(&img, gl, &self.filtering)));
 
         Ok(())
     }

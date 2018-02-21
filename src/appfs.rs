@@ -23,9 +23,7 @@ impl Future for AppFileReader {
             }
         }
 
-        let r = mem::replace(&mut self.0, Err(FileIoError::NoSuchFile));
-
-        if let Ok(f) = r {
+        if let Ok(f) = mem::replace(&mut self.0, Err(FileIoError::NoSuchFile)) {
             return Ok(Async::Ready(Box::new(f)));
         }
 

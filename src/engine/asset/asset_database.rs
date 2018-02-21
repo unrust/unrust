@@ -7,9 +7,67 @@ use engine::asset::default_font_bitmap::DEFAULT_FONT_DATA;
 use engine::asset::fs;
 
 use engine::{MeshBuffer, ShaderProgram, Texture, TextureFiltering};
+use futures::{Async, Future};
+use std::mem;
 
 use image;
 use image::ImageBuffer;
+
+enum ResourceKind<T> {
+    Consumed,
+    Data(T),
+    Future(Box<Future<Item = T, Error = AssetError>>),
+}
+
+impl<T> ResourceKind<T> {
+    fn try_into_data(self) -> Option<T> {
+        match self {
+            ResourceKind::Data(d) => Some(d),
+            _ => None,
+        }
+    }
+}
+
+pub struct Resource<T>(RefCell<ResourceKind<T>>);
+
+impl<T> Resource<T> {
+    pub fn new_future<FT>(f: FT) -> Self
+    where
+        FT: Future<Item = T, Error = AssetError> + 'static,
+    {
+        Resource(RefCell::new(ResourceKind::Future(Box::new(f))))
+    }
+
+    pub fn new(f: T) -> Self {
+        Resource(RefCell::new(ResourceKind::Data(f)))
+    }
+
+    pub fn prepare(&self) -> Result<T, AssetError> {
+        match &mut *self.0.borrow_mut() {
+            &mut ResourceKind::Future(ref mut f) => {
+                return match f.poll() {
+                    Err(e) => Err(e),
+                    Ok(Async::NotReady) => Err(AssetError::NotReady),
+                    Ok(Async::Ready(i)) => Ok(i),
+                };
+            }
+
+            img @ &mut ResourceKind::Data(_) => {
+                let r = mem::replace(img, ResourceKind::Consumed);
+                Ok(r.try_into_data().unwrap())
+            }
+
+            _ => unreachable!(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum AssetError {
+    NotReady,
+    InvalidFormat,
+    FileIoError(fs::FileIoError),
+}
 
 pub trait AssetSystem {
     fn new() -> Self

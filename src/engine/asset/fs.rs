@@ -19,5 +19,5 @@ pub trait File {
 pub enum FileIoError {
     NotReady,
     NoSuchFile,
-    InvalidFormat,
+    Unknown,
 }

@@ -4,7 +4,7 @@ use image::RgbaImage;
 
 use std::cell::RefCell;
 use std::rc::Rc;
-use engine::asset::{Asset, FileFuture, FileIoError};
+use engine::asset::{Asset, AssetError, FileFuture, Resource};
 use futures::prelude::*;
 
 pub enum TextureFiltering {
@@ -12,16 +12,10 @@ pub enum TextureFiltering {
     Linear,
 }
 
-enum ImageResource {
-    Empty,
-    Image(RgbaImage),
-    Future(Box<Future<Item = RgbaImage, Error = FileIoError>>),
-}
-
 pub struct Texture {
     pub filtering: TextureFiltering,
     gl_state: RefCell<Option<TextureGLState>>,
-    img: RefCell<ImageResource>,
+    img: Resource<RgbaImage>,
 }
 
 impl Asset for Texture {
@@ -36,15 +30,16 @@ struct TextureGLState {
 
 impl Texture {
     fn new_texture(f: FileFuture) -> Rc<Self> {
-        let img = f.and_then(|mut file| {
-            let buf = file.read_binary()?;
-            let img = image::load_from_memory(&buf).map_err(|_| FileIoError::InvalidFormat)?;
+        let img = f.then(|r| {
+            let mut file = r.map_err(|e| AssetError::FileIoError(e))?;
+            let buf = file.read_binary().map_err(|_| AssetError::InvalidFormat)?;
+            let img = image::load_from_memory(&buf).map_err(|_| AssetError::InvalidFormat)?;
             Ok(img.to_rgba())
         });
 
         return Rc::new(Texture {
             filtering: TextureFiltering::Linear,
-            img: RefCell::new(ImageResource::Future(Box::new(img))),
+            img: Resource::new_future(img),
             gl_state: RefCell::new(None),
         });
     }
@@ -52,12 +47,12 @@ impl Texture {
     pub fn new_with_image_buffer(img: RgbaImage) -> Rc<Self> {
         Rc::new(Texture {
             filtering: TextureFiltering::Linear,
-            img: RefCell::new(ImageResource::Image(img)),
+            img: Resource::new(img),
             gl_state: RefCell::new(None),
         })
     }
 
-    pub fn bind(&self, gl: &WebGLRenderingContext, unit: u32) -> Result<(), String> {
+    pub fn bind(&self, gl: &WebGLRenderingContext, unit: u32) -> Result<(), AssetError> {
         self.prepare(gl)?;
 
         let state_option = self.gl_state.borrow();
@@ -69,28 +64,12 @@ impl Texture {
         Ok(())
     }
 
-    fn prepare_img(&self) -> Result<RgbaImage, String> {
-        if let &mut ImageResource::Future(ref mut f) = &mut *self.img.borrow_mut() {
-            return match f.poll() {
-                Err(_) => Err("Fail to know".to_string()),
-                Ok(Async::NotReady) => Err("Not ready".to_string()),
-                Ok(Async::Ready(i)) => Ok(i),
-            };
-        }
-
-        if let ImageResource::Image(i) = self.img.replace(ImageResource::Empty) {
-            return Ok(i);
-        }
-
-        unreachable!()
-    }
-
-    pub fn prepare(&self, gl: &WebGLRenderingContext) -> Result<(), String> {
+    pub fn prepare(&self, gl: &WebGLRenderingContext) -> Result<(), AssetError> {
         if self.gl_state.borrow().is_some() {
             return Ok(());
         }
 
-        let img = self.prepare_img()?;
+        let img = self.img.prepare()?;
         self.gl_state
             .replace(Some(texture_bind_buffer(&img, gl, &self.filtering)));
 

@@ -113,7 +113,7 @@ impl ShaderProgram {
         Self::new(("ui_fs.glsl", DEFAULT_UI_VS), ("ui_vs.fs", DEFAULT_UI_FS))
     }
 
-    pub fn new((vs_filename, vs): (&str, &str), (fs_filename, fs): (&str, &str)) -> ShaderProgram {
+    fn new((vs_filename, vs): (&str, &str), (fs_filename, fs): (&str, &str)) -> ShaderProgram {
         let mut program: ShaderProgram = Default::default();
 
         let mut avs = vs.to_string();
@@ -147,18 +147,16 @@ impl ShaderProgram {
     }
 
     fn prepare(&self, gl: &WebGLRenderingContext) {
-        let is_none = self.gl_state.borrow().is_none();
-
-        if is_none {
-            {
-                let state = Some(ShaderProgramGLState::new(
-                    gl,
-                    &self.vs_shader.code,
-                    &self.fs_shader.code,
-                ));
-                *self.gl_state.borrow_mut() = state;
-            }
+        if self.gl_state.borrow().is_some() {
+            return;
         }
+
+        let state = Some(ShaderProgramGLState::new(
+            gl,
+            &self.vs_shader.code,
+            &self.fs_shader.code,
+        ));
+        *self.gl_state.borrow_mut() = state;
     }
 
     pub fn attrib_loc(&self, gl: &WebGLRenderingContext, s: &str) -> Option<u32> {

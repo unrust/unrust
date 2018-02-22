@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
 
 use engine::asset::{CubeMesh, PlaneMesh, Quad};
@@ -9,28 +9,51 @@ use engine::asset::fs;
 use engine::{MeshBuffer, ShaderProgram, Texture, TextureFiltering};
 use futures::{Async, Future};
 use std::mem;
+use std::fmt::Debug;
+use std::fmt;
 
 use image;
 use image::ImageBuffer;
 
-enum ResourceKind<T> {
+impl<T> Debug for ResourceKind<T>
+where
+    T: Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            &ResourceKind::Consumed => write!(f, "ResourceKind::Consumed"),
+            &ResourceKind::Data(ref t) => write!(f, "ResourceKind::Data({:?})", *t),
+            &ResourceKind::Future(_) => write!(f, "ResourceKind::Future"),
+        }
+    }
+}
+
+enum ResourceKind<T: Debug> {
     Consumed,
     Data(T),
     Future(Box<Future<Item = T, Error = AssetError>>),
 }
 
-impl<T> ResourceKind<T> {
+impl<T: Debug> ResourceKind<T> {
     fn try_into_data(self) -> Option<T> {
         match self {
             ResourceKind::Data(d) => Some(d),
             _ => None,
         }
     }
+
+    fn try_as_data(&self) -> Option<&T> {
+        match self {
+            &ResourceKind::Data(ref d) => Some(d),
+            _ => None,
+        }
+    }
 }
 
-pub struct Resource<T>(RefCell<ResourceKind<T>>);
+#[derive(Debug)]
+pub struct Resource<T: Debug>(RefCell<ResourceKind<T>>);
 
-impl<T> Resource<T> {
+impl<T: Debug> Resource<T> {
     pub fn new_future<FT>(f: FT) -> Self
     where
         FT: Future<Item = T, Error = AssetError> + 'static,
@@ -42,7 +65,7 @@ impl<T> Resource<T> {
         Resource(RefCell::new(ResourceKind::Data(f)))
     }
 
-    pub fn prepare(&self) -> Result<T, AssetError> {
+    pub fn try_into(&self) -> Result<T, AssetError> {
         match &mut *self.0.borrow_mut() {
             &mut ResourceKind::Future(ref mut f) => {
                 return match f.poll() {
@@ -60,6 +83,28 @@ impl<T> Resource<T> {
             _ => unreachable!(),
         }
     }
+
+    pub fn try_borrow(&self) -> Result<Ref<T>, AssetError> {
+        let mut data = None;
+
+        if let &mut ResourceKind::Future(ref mut f) = &mut *self.0.borrow_mut() {
+            match f.poll() {
+                Err(e) => return Err(e),
+                Ok(Async::NotReady) => return Err(AssetError::NotReady),
+                Ok(Async::Ready(i)) => {
+                    data = Some(i);
+                }
+            }
+        }
+
+        if let Some(i) = data {
+            let kind: &mut ResourceKind<T> = &mut self.0.borrow_mut();
+            mem::replace(kind, ResourceKind::Data(i));
+        }
+
+        let b0 = self.0.borrow();
+        return Ok(Ref::map(b0, |t| t.try_as_data().unwrap()));
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -74,6 +119,8 @@ pub trait AssetSystem {
     where
         Self: Sized;
 
+    fn new_file(&self, name: &str) -> fs::FileFuture;
+
     fn new_program(&self, name: &str) -> Rc<ShaderProgram>;
 
     fn new_texture(&self, name: &str) -> Rc<Texture>;
@@ -82,7 +129,7 @@ pub trait AssetSystem {
 }
 
 pub trait Asset {
-    fn new_from_file(f: fs::FileFuture) -> Rc<Self>;
+    fn new_from_file<T: AssetSystem>(asys: &T, fname: &str) -> Rc<Self>;
 }
 
 pub struct AssetDatabase<FS, F>
@@ -102,6 +149,10 @@ where
     FS: fs::FileSystem<File = F>,
     F: fs::File + 'static,
 {
+    fn new_file(&self, name: &str) -> fs::FileFuture {
+        self.fs.open(&self.get_filename(name))
+    }
+
     fn new_program(&self, name: &str) -> Rc<ShaderProgram> {
         let mut a = self.programs.borrow_mut();
         self.new_asset(&mut a, name)
@@ -109,17 +160,12 @@ where
 
     fn new_texture(&self, name: &str) -> Rc<Texture> {
         let mut a = self.textures.borrow_mut();
-        match name {
-            name => self.new_asset(&mut a, name),
-        }
+        self.new_asset(&mut a, name)
     }
 
     fn new_mesh_buffer(&self, name: &str) -> Rc<MeshBuffer> {
-        let mut hm = self.mesh_buffers.borrow_mut();
-        match hm.get_mut(name) {
-            Some(tex) => tex.clone(),
-            None => panic!("No asset found."),
-        }
+        let mut a = self.mesh_buffers.borrow_mut();
+        self.new_asset(&mut a, name)
     }
 
     fn new() -> AssetDatabase<FS, F> {
@@ -169,18 +215,14 @@ where
     FS: fs::FileSystem<File = F>,
     F: fs::File + 'static,
 {
-    fn new_file(&self, name: &str) -> fs::FileFuture {
-        self.fs.open(&self.get_filename(name))
-    }
-
     fn new_asset<R>(&self, hm: &mut HashMap<String, Rc<R>>, name: &str) -> Rc<R>
     where
         R: Asset,
     {
-        match hm.get_mut(name) {
+        match hm.get(name) {
             Some(asset) => asset.clone(),
             None => {
-                let asset = R::new_from_file(self.new_file(name));
+                let asset = R::new_from_file(self, name);
                 hm.insert(name.into(), asset.clone());
                 asset
             }

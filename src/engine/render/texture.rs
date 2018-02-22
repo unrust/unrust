@@ -4,7 +4,7 @@ use image::RgbaImage;
 
 use std::cell::RefCell;
 use std::rc::Rc;
-use engine::asset::{Asset, AssetError, FileFuture, Resource};
+use engine::asset::{Asset, AssetError, AssetSystem, FileFuture, Resource};
 use futures::prelude::*;
 
 pub enum TextureFiltering {
@@ -19,8 +19,8 @@ pub struct Texture {
 }
 
 impl Asset for Texture {
-    fn new_from_file(f: FileFuture) -> Rc<Self> {
-        Texture::new_texture(f)
+    fn new_from_file<T: AssetSystem>(asys: &T, fname: &str) -> Rc<Self> {
+        Texture::new_texture(asys.new_file(fname))
     }
 }
 
@@ -69,7 +69,7 @@ impl Texture {
             return Ok(());
         }
 
-        let img = self.img.prepare()?;
+        let img = self.img.try_into()?;
         self.gl_state
             .replace(Some(texture_bind_buffer(&img, gl, &self.filtering)));
 

@@ -5,6 +5,7 @@ mod texture;
 mod material;
 mod light;
 mod shader;
+mod uniforms;
 
 pub use self::camera::Camera;
 pub use self::shader::Shader;

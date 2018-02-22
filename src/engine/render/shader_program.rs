@@ -3,105 +3,79 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use webgl::{ShaderKind as WebGLShaderKind, WebGLProgram, WebGLRenderingContext,
             WebGLUniformLocation, IS_GL_ES};
-
-use na::{Matrix4, Vector3};
-use engine::asset::{Asset, FileFuture};
-use std::fmt::Debug;
-
+use std::str;
+use engine::asset::{Asset, AssetError, AssetSystem, Resource};
 use engine::render::shader::{Shader, ShaderKind as Kind};
+use engine::render::uniforms::*;
+use futures::Future;
 
-use std::collections::hash_map::DefaultHasher;
-use std::hash::Hasher;
-use std::mem::size_of;
+impl Asset for ShaderProgram {
+    fn new_from_file<T: AssetSystem>(asys: &T, fname: &str) -> Rc<Self> {
+        let vs_file = asys.new_file(&format!("{}_vs.glsl", fname));
+        let fs_file = asys.new_file(&format!("{}_fs.glsl", fname));
+
+        let vs = vs_file.then(|r| {
+            let mut file = r.map_err(|e| AssetError::FileIoError(e))?;
+            let buf = file.read_binary().map_err(|_| AssetError::InvalidFormat)?;
+            let mut avs = str::from_utf8(&buf)
+                .map_err(|_| AssetError::InvalidFormat)?
+                .to_string();
+
+            if !IS_GL_ES {
+                avs = "#version 130\n".to_string() + &avs;
+            }
+
+            Ok(Shader::new(Kind::Vertex, &file.name(), &avs))
+        });
+
+        let fs = fs_file.then(|r| {
+            let mut file = r.map_err(|e| AssetError::FileIoError(e))?;
+            let buf = file.read_binary().map_err(|_| AssetError::InvalidFormat)?;
+            let mut afs = str::from_utf8(&buf)
+                .map_err(|_| AssetError::InvalidFormat)?
+                .to_string();
+
+            if !IS_GL_ES {
+                afs = "#version 130\n".to_string() + &afs;
+            } else {
+                afs = ("precision highp float;\n").to_string() + &afs;
+            }
+
+            Ok(Shader::new(Kind::Fragment, &file.name(), &afs))
+        });
+
+        Rc::new(ShaderProgram {
+            gl_state: RefCell::new(None),
+
+            coord_map: Default::default(),
+            uniform_map: Default::default(),
+
+            pending_uniforms: Default::default(),
+            committed_unforms: Default::default(),
+
+            vs_shader: Resource::new_future(vs),
+            fs_shader: Resource::new_future(fs),
+        })
+    }
+}
 
 #[derive(Debug)]
 pub struct ShaderProgramGLState {
     prog: WebGLProgram,
 }
 
-trait IntoBytes {
-    fn into_bytes(&self) -> Vec<u8>;
-}
-
-impl<T: Clone> IntoBytes for [T] {
-    fn into_bytes(&self) -> Vec<u8> {
-        let v = self.to_vec();
-        let len = size_of::<T>() * v.len();
-        unsafe {
-            let slice = v.into_boxed_slice();
-            Vec::<u8>::from_raw_parts(Box::into_raw(slice) as _, len, len)
-        }
-    }
-}
-
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ShaderProgram {
     gl_state: RefCell<Option<ShaderProgramGLState>>,
 
     coord_map: RefCell<HashMap<String, Option<u32>>>,
     uniform_map: RefCell<HashMap<String, Option<Rc<WebGLUniformLocation>>>>,
 
-    vs_shader: Shader,
-    fs_shader: Shader,
+    vs_shader: Resource<Shader>,
+    fs_shader: Resource<Shader>,
 
-    pending_uniforms: RefCell<HashMap<String, Box<IntoUniformSetter>>>,
+    pending_uniforms: RefCell<HashMap<String, Box<UniformAdapter>>>,
     committed_unforms: RefCell<HashMap<String, u64>>,
-}
-
-pub trait IntoUniformSetter: Debug {
-    fn set(&self, gl: &WebGLRenderingContext, loc: &WebGLUniformLocation);
-
-    fn to_hash(&self) -> u64;
-}
-
-impl IntoUniformSetter for Matrix4<f32> {
-    fn set(&self, gl: &WebGLRenderingContext, loc: &WebGLUniformLocation) {
-        let m = *self;
-        gl.uniform_matrix_4fv(&loc, &m.into());
-    }
-
-    fn to_hash(&self) -> u64 {
-        let mut s = DefaultHasher::new();
-        s.write(&self.as_slice().into_bytes());
-        s.finish()
-    }
-}
-
-impl IntoUniformSetter for f32 {
-    fn set(&self, gl: &WebGLRenderingContext, loc: &WebGLUniformLocation) {
-        gl.uniform_1f(&loc, *self);
-    }
-
-    fn to_hash(&self) -> u64 {
-        let mut s = DefaultHasher::new();
-        let f: f32 = *self;
-        s.write(&[f].into_bytes());
-        s.finish()
-    }
-}
-
-impl IntoUniformSetter for i32 {
-    fn set(&self, gl: &WebGLRenderingContext, loc: &WebGLUniformLocation) {
-        gl.uniform_1i(&loc, *self);
-    }
-
-    fn to_hash(&self) -> u64 {
-        let mut s = DefaultHasher::new();
-        s.write_i32(*self);
-        s.finish()
-    }
-}
-
-impl IntoUniformSetter for Vector3<f32> {
-    fn set(&self, gl: &WebGLRenderingContext, loc: &WebGLUniformLocation) {
-        gl.uniform_3f(&loc, (self.x, self.y, self.z));
-    }
-
-    fn to_hash(&self) -> u64 {
-        let mut s = DefaultHasher::new();
-        s.write(&self.as_slice().into_bytes());
-        s.finish()
-    }
 }
 
 impl ShaderProgram {
@@ -114,8 +88,6 @@ impl ShaderProgram {
     }
 
     fn new((vs_filename, vs): (&str, &str), (fs_filename, fs): (&str, &str)) -> ShaderProgram {
-        let mut program: ShaderProgram = Default::default();
-
         let mut avs = vs.to_string();
         let mut afs = fs.to_string();
 
@@ -126,17 +98,22 @@ impl ShaderProgram {
             afs = ("precision highp float;\n").to_string() + &afs;
         }
 
-        // Vertex shader source code
-        program.vs_shader = Shader::new(Kind::Vertex, vs_filename, &avs);
+        ShaderProgram {
+            gl_state: RefCell::new(None),
 
-        //fragment shader source code
-        program.fs_shader = Shader::new(Kind::Fragment, fs_filename, &afs);
+            coord_map: Default::default(),
+            uniform_map: Default::default(),
 
-        program
+            pending_uniforms: Default::default(),
+            committed_unforms: Default::default(),
+
+            vs_shader: Resource::new(Shader::new(Kind::Vertex, vs_filename, &avs)),
+            fs_shader: Resource::new(Shader::new(Kind::Fragment, fs_filename, &afs)),
+        }
     }
 
-    pub fn bind(&self, gl: &WebGLRenderingContext) {
-        self.prepare(gl);
+    pub fn bind(&self, gl: &WebGLRenderingContext) -> Result<(), AssetError> {
+        self.prepare(gl)?;
 
         let gl_state = self.gl_state.borrow();
         gl.use_program(&gl_state.as_ref().unwrap().prog);
@@ -144,19 +121,22 @@ impl ShaderProgram {
         // after use, we should clean up the committed uniform state.
         // https://www.khronos.org/registry/OpenGL-Refpages/gl4/html/glUniform.xhtml
         self.committed_unforms.borrow_mut().clear();
+
+        Ok(())
     }
 
-    fn prepare(&self, gl: &WebGLRenderingContext) {
+    fn prepare(&self, gl: &WebGLRenderingContext) -> Result<(), AssetError> {
         if self.gl_state.borrow().is_some() {
-            return;
+            return Ok(());
         }
 
-        let state = Some(ShaderProgramGLState::new(
-            gl,
-            &self.vs_shader.code,
-            &self.fs_shader.code,
-        ));
+        let vs = self.vs_shader.try_borrow()?;
+        let fs = self.fs_shader.try_borrow()?;
+
+        let state = Some(ShaderProgramGLState::new(gl, &vs.code, &fs.code));
         *self.gl_state.borrow_mut() = state;
+
+        Ok(())
     }
 
     pub fn attrib_loc(&self, gl: &WebGLRenderingContext, s: &str) -> Option<u32> {
@@ -177,7 +157,7 @@ impl ShaderProgram {
 
     pub fn set<T>(&self, s: &str, data: T)
     where
-        T: 'static + IntoUniformSetter,
+        T: 'static + UniformAdapter,
     {
         let mut unis = self.pending_uniforms.borrow_mut();
         let mut commited = self.committed_unforms.borrow_mut();
@@ -230,12 +210,6 @@ impl ShaderProgram {
                 }
             }
         }
-    }
-}
-
-impl Asset for ShaderProgram {
-    fn new_from_file(_f: FileFuture) -> Rc<Self> {
-        unimplemented!()
     }
 }
 

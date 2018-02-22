@@ -84,7 +84,7 @@ impl Game {
 
             go_mut.add_component(self.get(rb.borrow().shape().as_ref()).unwrap());
             go_mut.add_component(PhysicObject(rb));
-            go_mut.add_component(Material::new(db.new_program("default"), textures));
+            go_mut.add_component(Material::new(db.new_program("phong"), textures));
         }
 
         self.list.push(go.clone());

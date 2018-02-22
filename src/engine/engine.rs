@@ -156,7 +156,7 @@ where
         material: &Material,
     ) -> Result<(), AssetError> {
         ctx.prepare_cache(&material.program, |ctx| {
-            material.program.bind(&self.gl);
+            material.program.bind(&self.gl)?;
             ctx.switch_prog += 1;
             Ok(())
         })?;

@@ -670,7 +670,8 @@ impl GLContext {
         js! {
             var ctx = Module.gl.get(@{self.reference});
             if (ctx.unbindVertexArray) {
-                ctx.unbindVertexArray(0);
+                var vao = Module.gl.get(@{vao.deref()});
+                ctx.unbindVertexArray(vao);
             }
         }
     }

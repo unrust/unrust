@@ -168,7 +168,7 @@ impl MeshBuffer {
         gl.draw_elements(Primitives::Triangles, data.indices.len(), DataType::U16, 0);
     }
 
-    pub fn unbind(&self) {
+    pub fn unbind(&self, gl: &WebGLRenderingContext) {
         gl.unbind_vertex_array();
     }
 }

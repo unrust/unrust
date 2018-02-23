@@ -18,6 +18,8 @@ pub trait IEngine {
 
     fn asset_system<'a>(&'a self) -> &'a AssetSystem;
 
+    fn asset_system_mut<'a>(&'a mut self) -> &'a mut AssetSystem;
+
     fn gui_context(&mut self) -> Rc<RefCell<imgui::Context>>;
 }
 
@@ -30,7 +32,7 @@ where
 
     pub objects: Vec<Weak<RefCell<GameObject>>>,
     pub program_cache: RefCell<HashMap<&'static str, Rc<ShaderProgram>>>,
-    pub asset_system: Rc<A>,
+    pub asset_system: Box<A>,
 
     pub gui_context: Rc<RefCell<imgui::Context>>,
 }
@@ -365,7 +367,7 @@ where
             main_camera: None,
             objects: vec![],
             program_cache: RefCell::new(HashMap::new()),
-            asset_system: Rc::new(A::new()),
+            asset_system: Box::new(A::new()),
             gui_context: Rc::new(RefCell::new(imgui::Context::new(size.0, size.1))),
         }
     }
@@ -389,5 +391,9 @@ impl<A: AssetSystem> IEngine for Engine<A> {
 
     fn asset_system<'a>(&'a self) -> &'a AssetSystem {
         &*self.asset_system
+    }
+
+    fn asset_system_mut<'a>(&'a mut self) -> &'a mut AssetSystem {
+        &mut *self.asset_system
     }
 }

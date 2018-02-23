@@ -126,6 +126,8 @@ pub trait AssetSystem {
     fn new_texture(&self, name: &str) -> Rc<Texture>;
 
     fn new_mesh_buffer(&self, name: &str) -> Rc<MeshBuffer>;
+
+    fn reset(&mut self);
 }
 
 pub trait Asset {
@@ -168,6 +170,14 @@ where
         self.new_asset(&mut a, name)
     }
 
+    fn reset(&mut self) {
+        self.textures.borrow_mut().clear();
+        self.mesh_buffers.borrow_mut().clear();
+        self.programs.borrow_mut().clear();
+
+        self.setup();
+    }
+
     fn new() -> AssetDatabase<FS, F> {
         let mut db = AssetDatabase {
             fs: FS::default(),
@@ -177,30 +187,7 @@ where
             programs: RefCell::new(HashMap::new()),
         };
 
-        {
-            let mut hm = db.mesh_buffers.borrow_mut();
-            hm.insert("cube".into(), Rc::new(CubeMesh::new()));
-            hm.insert("plane".into(), Rc::new(PlaneMesh::new()));
-            hm.insert("screen_quad".into(), Rc::new(Quad::new()));
-        }
-
-        {
-            let mut hm = db.textures.borrow_mut();
-            hm.insert(
-                "default_font_bitmap".into(),
-                Self::new_default_font_bitmap(),
-            );
-            hm.insert("default".into(), Self::new_default_texture());
-        }
-
-        {
-            let mut hm = db.programs.borrow_mut();
-            hm.insert("default".into(), Rc::new(ShaderProgram::new_default()));
-            hm.insert(
-                "default_ui".into(),
-                Rc::new(ShaderProgram::new_default_ui()),
-            );
-        }
+        db.setup();
 
         if cfg!(not(target_arch = "wasm32")) {
             db.path = "static/".into();
@@ -226,6 +213,33 @@ where
                 hm.insert(name.into(), asset.clone());
                 asset
             }
+        }
+    }
+
+    fn setup(&mut self) {
+        {
+            let mut hm = self.mesh_buffers.borrow_mut();
+            hm.insert("cube".into(), Rc::new(CubeMesh::new()));
+            hm.insert("plane".into(), Rc::new(PlaneMesh::new()));
+            hm.insert("screen_quad".into(), Rc::new(Quad::new()));
+        }
+
+        {
+            let mut hm = self.textures.borrow_mut();
+            hm.insert(
+                "default_font_bitmap".into(),
+                Self::new_default_font_bitmap(),
+            );
+            hm.insert("default".into(), Self::new_default_texture());
+        }
+
+        {
+            let mut hm = self.programs.borrow_mut();
+            hm.insert("default".into(), Rc::new(ShaderProgram::new_default()));
+            hm.insert(
+                "default_ui".into(),
+                Rc::new(ShaderProgram::new_default_ui()),
+            );
         }
     }
 

@@ -20,6 +20,7 @@ use std::rc::Rc;
 use std::ops::{Deref, DerefMut};
 use na::Isometry3;
 use std::collections::HashMap;
+use std::sync::{Arc, Weak};
 
 use nphysics3d::object::RigidBody;
 use na::{Point3, Vector3};
@@ -41,17 +42,24 @@ impl ComponentBased for PhysicObject {}
 
 struct Game {
     list: Vec<Handle<GameObject>>,
+    scene: Scene,
     counter: u32,
     engine: AppEngine,
+    point_light_coms: Vec<Weak<Component>>,
 }
 
 impl Game {
     fn new(engine: AppEngine) -> Game {
-        Game {
+        let mut g = Game {
             list: Vec::new(),
             counter: 0,
             engine: engine,
-        }
+            scene: Scene::new(),
+            point_light_coms: Vec::new(),
+        };
+
+        g.setup();
+        g
     }
 
     fn add_object(&mut self, rb: Handle<RigidBody<f32>>) -> Handle<GameObject> {
@@ -102,6 +110,87 @@ impl Game {
             None
         }
     }
+
+    pub fn step(&mut self) {
+        self.scene.step();
+    }
+
+    pub fn reset(&mut self) {
+        self.list.clear();
+        self.engine.asset_system_mut().reset();
+        self.scene = Scene::new();
+        self.point_light_coms.clear();
+
+        self.setup();
+    }
+
+    fn rigid_bodies(&mut self) -> Vec<Handle<RigidBody<f32>>> {
+        self.scene
+            .world
+            .rigid_bodies()
+            .map(|rb| rb.clone())
+            .collect()
+    }
+
+    pub fn setup(&mut self) {
+        {
+            let rigid_bodies = self.rigid_bodies();
+
+            for rb in rigid_bodies.into_iter() {
+                self.add_object(rb.clone());
+            }
+        }
+
+        // add direction light to scene.
+        let _dir_light_com = {
+            let go = self.engine.new_gameobject();
+            // Make sure it is store some where, else it will gc
+            self.push(go.clone());
+
+            let mut go_mut = go.borrow_mut();
+            let com = go_mut.add_component(Light::new(Directional {
+                direction: Vector3::new(0.5, -1.0, 1.0).normalize(),
+                ambient: Vector3::new(0.2, 0.2, 0.2),
+                diffuse: Vector3::new(0.5, 0.5, 0.5),
+                specular: Vector3::new(1.0, 1.0, 1.0),
+            }));
+
+            com
+        };
+
+        // Add 4 points light to scene
+        let point_light_positions = vec![
+            Vector3::new(-30.0, 30.0, -30.0),
+            Vector3::new(-15.0, 300.0, -10.0),
+            Vector3::new(30.0, 50.0, 30.0),
+            Vector3::new(30.0, 100.0, -20.0),
+        ];
+
+        for p in point_light_positions.into_iter() {
+            let go = self.engine.new_gameobject();
+            // Make sure it is store some where, else it will gc
+            self.push(go.clone());
+
+            let mut go_mut = go.borrow_mut();
+            let com = Light::new(Point {
+                position: p,
+                ambient: Vector3::new(0.05, 0.05, 0.05),
+                diffuse: Vector3::new(0.8, 0.8, 0.8),
+                specular: Vector3::new(1.0, 1.0, 1.0),
+                constant: 1.0,
+                linear: 0.022,
+                quadratic: 0.0019,
+            });
+
+            self.point_light_coms
+                .push(Arc::downgrade(&go_mut.add_component(com)));
+        }
+    }
+
+    fn add_box(&mut self) {
+        let bx = self.scene.add_box();
+        self.add_object(bx);
+    }
 }
 
 impl Deref for Game {
@@ -123,58 +212,9 @@ pub fn main() {
     let config = AppConfig::new("Test", size);
     let app = App::new(config);
     {
-        let mut scene = Scene::new();
-
         let mut game = Game::new(Engine::new(app.canvas(), size));
+        game.reset();
         game.engine.main_camera = Some(Camera::new());
-
-        for rb in scene.world.rigid_bodies() {
-            game.add_object(rb.clone());
-        }
-
-        // add direction light to scene.
-        let _dir_light_com = {
-            let go = game.engine.new_gameobject();
-            // Make sure it is store some where, else it will gc
-            game.push(go.clone());
-
-            let mut go_mut = go.borrow_mut();
-            let com = go_mut.add_component(Light::new(Directional {
-                direction: Vector3::new(0.5, -1.0, 1.0).normalize(),
-                ambient: Vector3::new(0.2, 0.2, 0.2),
-                diffuse: Vector3::new(0.5, 0.5, 0.5),
-                specular: Vector3::new(1.0, 1.0, 1.0),
-            }));
-
-            com
-        };
-
-        // Add 4 points light to scene
-        let point_light_positions = vec![
-            Vector3::new(-30.0, 30.0, -30.0),
-            Vector3::new(-15.0, 300.0, -10.0),
-            Vector3::new(30.0, 50.0, 30.0),
-            Vector3::new(30.0, 100.0, -20.0),
-        ];
-
-        let mut point_light_coms = vec![];
-        for p in point_light_positions.into_iter() {
-            let go = game.engine.new_gameobject();
-            // Make sure it is store some where, else it will gc
-            game.push(go.clone());
-
-            let mut go_mut = go.borrow_mut();
-
-            point_light_coms.push(go_mut.add_component(Light::new(Point {
-                position: p,
-                ambient: Vector3::new(0.05, 0.05, 0.05),
-                diffuse: Vector3::new(0.8, 0.8, 0.8),
-                specular: Vector3::new(1.0, 1.0, 1.0),
-                constant: 1.0,
-                linear: 0.022,
-                quadratic: 0.0019,
-            })));
-        }
 
         use imgui::Metric::*;
 
@@ -186,7 +226,7 @@ pub fn main() {
         app.run(move |app: &mut App| {
             game.engine.begin();
             fps.step();
-            scene.step();
+            game.step();
 
             imgui::pivot((0.0, 0.0));
             imgui::label(
@@ -196,8 +236,10 @@ pub fn main() {
 
             imgui::pivot((1.0, 1.0));
             imgui::label(
-                Native(1.0, 1.0) - Pixel(8.0, 8.0),
-                "Click on canvas to drop new box. Use WASD to control camera.",
+                Native(1.0, 1.0) - Pixel(8.0 * 3.0, 8.0 * 3.0),
+                "Click on canvas to drop new box.\n
+                Use WASD to control camera.\n
+                Use Esc to reload all (include assets)",
             );
 
             imgui::pivot((1.0, 0.0));
@@ -216,7 +258,7 @@ pub fn main() {
                     last_event = Some(evt.clone());
                     match evt {
                         &AppEvent::Click(_) => {
-                            game.add_object(scene.add_box());
+                            game.add_box();
                         }
 
                         &AppEvent::KeyDown(ref key) => {
@@ -225,6 +267,7 @@ pub fn main() {
                                 "KeyD" => eye = na::Rotation3::new(up * 0.02) * eye,
                                 "KeyW" => eye = eye - front * 2.0,
                                 "KeyS" => eye = eye + front * 2.0,
+                                "Escape" => game.reset(),
                                 _ => (),
                             };
                         }
@@ -245,12 +288,14 @@ pub fn main() {
             }
 
             // Update Light
-            for light_com in point_light_coms.iter_mut() {
-                if let Some(lr) = light_com.try_as::<Light>() {
-                    let mut light = lr.borrow_mut();
-                    let mut pos = light.point().unwrap().position;
+            for light_com_weak in game.point_light_coms.iter() {
+                if let Some(light_com) = light_com_weak.upgrade() {
+                    if let Some(lr) = light_com.try_as::<Light>() {
+                        let mut light = lr.borrow_mut();
+                        let mut pos = light.point().unwrap().position;
 
-                    light.point_mut().unwrap().position = na::Rotation3::new(up * 0.02) * pos;
+                        light.point_mut().unwrap().position = na::Rotation3::new(up * 0.02) * pos;
+                    }
                 }
             }
 

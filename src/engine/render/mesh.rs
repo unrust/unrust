@@ -3,7 +3,7 @@ use std::mem::size_of;
 
 use super::ShaderProgram;
 use engine::core::ComponentBased;
-use engine::asset::{Asset, AssetSystem};
+use engine::asset::{Asset, AssetError, AssetSystem, Resource};
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -45,58 +45,76 @@ impl Mesh {
         }
     }
 
-    pub fn bind(&self, gl: &WebGLRenderingContext, program: &ShaderProgram) {
-        self.mesh_buffer.bind(gl, program);
+    pub fn bind(
+        &self,
+        gl: &WebGLRenderingContext,
+        program: &ShaderProgram,
+    ) -> Result<(), AssetError> {
+        self.mesh_buffer.bind(gl, program)
     }
 
     pub fn render(&self, gl: &WebGLRenderingContext) {
-        gl.draw_elements(
-            Primitives::Triangles,
-            self.indices().len(),
-            DataType::U16,
-            0,
-        );
-    }
+        let data = self.mesh_buffer.data.try_borrow().unwrap();
 
-    pub fn indices(&self) -> &Vec<u16> {
-        &self.mesh_buffer.indices
+        gl.draw_elements(Primitives::Triangles, data.indices.len(), DataType::U16, 0);
     }
 }
 
-#[derive(Default)]
-pub struct MeshBuffer {
+#[derive(Default, Debug)]
+pub struct MeshData {
     pub vertices: Vec<f32>,
     pub uvs: Option<Vec<f32>>,
     pub normals: Option<Vec<f32>>,
     pub indices: Vec<u16>,
+}
+
+pub struct MeshBuffer {
+    data: Resource<MeshData>,
     gl_state: RefCell<Option<MeshGLState>>,
     bounds: RefCell<Option<(Vector3<f32>, Vector3<f32>)>>,
 }
 
 impl Asset for MeshBuffer {
-    fn new_from_file<T: AssetSystem>(_asys: &T, _fname: &str) -> Rc<Self> {
+    type Resource = Resource<MeshData>;
+
+    fn gather<T: AssetSystem>(_asys: &T, _fname: &str) -> Self::Resource {
         unimplemented!();
+    }
+
+    fn new_with_resource(r: Self::Resource) -> Rc<Self> {
+        Rc::new(MeshBuffer {
+            data: r,
+            gl_state: Default::default(),
+            bounds: Default::default(),
+        })
     }
 }
 
 impl MeshBuffer {
-    pub fn prepare(&self, gl: &WebGLRenderingContext) {
-        if self.gl_state.borrow().is_none() {
-            self.gl_state.replace(Some(mesh_bind_buffer(
-                &self.vertices,
-                &self.uvs,
-                &self.normals,
-                &self.indices,
-                gl,
-            )));
+    pub fn prepare(&self, gl: &WebGLRenderingContext) -> Result<(), AssetError> {
+        if self.gl_state.borrow().is_some() {
+            return Ok(());
         }
+        let data = self.data.try_borrow()?;
+
+        self.gl_state.replace(Some(mesh_bind_buffer(
+            &data.vertices,
+            &data.uvs,
+            &data.normals,
+            &data.indices,
+            gl,
+        )));
+
+        Ok(())
     }
 
     pub fn compute_bounds(&self) -> (Vector3<f32>, Vector3<f32>) {
         let mut min = Vector3::new(MAX, MAX, MAX);
         let mut max = Vector3::new(MIN, MIN, MIN);
 
-        for (i, v) in self.vertices.iter().enumerate() {
+        let data = self.data.try_borrow().unwrap();
+
+        for (i, v) in data.vertices.iter().enumerate() {
             min[i % 3] = v.min(min[i % 3]);
             max[i % 3] = v.max(max[i % 3]);
         }
@@ -117,8 +135,12 @@ impl MeshBuffer {
         }
     }
 
-    pub fn bind(&self, gl: &WebGLRenderingContext, program: &ShaderProgram) {
-        self.prepare(gl);
+    pub fn bind(
+        &self,
+        gl: &WebGLRenderingContext,
+        program: &ShaderProgram,
+    ) -> Result<(), AssetError> {
+        self.prepare(gl)?;
 
         let state_option = self.gl_state.borrow();
         let state = state_option.as_ref().unwrap();
@@ -156,6 +178,8 @@ impl MeshBuffer {
 
         // Bind index buffer object
         gl.bind_buffer(BufferKind::ElementArray, &state.ib);
+
+        Ok(())
     }
 }
 

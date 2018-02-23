@@ -2,7 +2,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use webgl::{ShaderKind as WebGLShaderKind, WebGLProgram, WebGLRenderingContext,
-            WebGLUniformLocation, IS_GL_ES};
+            WebGLUniformLocation};
 use std::str;
 use engine::asset::{Asset, AssetError, AssetSystem, Resource};
 use engine::render::shader::{Shader, ShaderKind as Kind};
@@ -10,40 +10,9 @@ use engine::render::uniforms::*;
 use futures::Future;
 
 impl Asset for ShaderProgram {
-    fn new_from_file<T: AssetSystem>(asys: &T, fname: &str) -> Rc<Self> {
-        let vs_file = asys.new_file(&format!("{}_vs.glsl", fname));
-        let fs_file = asys.new_file(&format!("{}_fs.glsl", fname));
+    type Resource = (Resource<Shader>, Resource<Shader>);
 
-        let vs = vs_file.then(|r| {
-            let mut file = r.map_err(|e| AssetError::FileIoError(e))?;
-            let buf = file.read_binary().map_err(|_| AssetError::InvalidFormat)?;
-            let mut avs = str::from_utf8(&buf)
-                .map_err(|_| AssetError::InvalidFormat)?
-                .to_string();
-
-            if !IS_GL_ES {
-                avs = "#version 130\n".to_string() + &avs;
-            }
-
-            Ok(Shader::new(Kind::Vertex, &file.name(), &avs))
-        });
-
-        let fs = fs_file.then(|r| {
-            let mut file = r.map_err(|e| AssetError::FileIoError(e))?;
-            let buf = file.read_binary().map_err(|_| AssetError::InvalidFormat)?;
-            let mut afs = str::from_utf8(&buf)
-                .map_err(|_| AssetError::InvalidFormat)?
-                .to_string();
-
-            if !IS_GL_ES {
-                afs = "#version 130\n".to_string() + &afs;
-            } else {
-                afs = ("precision highp float;\n").to_string() + &afs;
-            }
-
-            Ok(Shader::new(Kind::Fragment, &file.name(), &afs))
-        });
-
+    fn new_with_resource((vs, fs): Self::Resource) -> Rc<ShaderProgram> {
         Rc::new(ShaderProgram {
             gl_state: RefCell::new(None),
 
@@ -53,9 +22,31 @@ impl Asset for ShaderProgram {
             pending_uniforms: Default::default(),
             committed_unforms: Default::default(),
 
-            vs_shader: Resource::new_future(vs),
-            fs_shader: Resource::new_future(fs),
+            vs_shader: vs,
+            fs_shader: fs,
         })
+    }
+
+    fn gather<T: AssetSystem>(asys: &T, fname: &str) -> Self::Resource {
+        let vs_file = asys.new_file(&format!("{}_vs.glsl", fname));
+        let fs_file = asys.new_file(&format!("{}_fs.glsl", fname));
+
+        let vs = vs_file.then(|r| {
+            let mut file = r.map_err(|e| AssetError::FileIoError(e))?;
+            let buf = file.read_binary().map_err(|_| AssetError::InvalidFormat)?;
+            let vs = str::from_utf8(&buf).map_err(|_| AssetError::InvalidFormat)?;
+            Ok(Shader::new(Kind::Vertex, &file.name(), vs))
+        });
+
+        let fs = fs_file.then(|r| {
+            let mut file = r.map_err(|e| AssetError::FileIoError(e))?;
+            let buf = file.read_binary().map_err(|_| AssetError::InvalidFormat)?;
+            let fs = str::from_utf8(&buf).map_err(|_| AssetError::InvalidFormat)?;
+
+            Ok(Shader::new(Kind::Fragment, &file.name(), fs))
+        });
+
+        (Resource::new_future(vs), Resource::new_future(fs))
     }
 }
 
@@ -79,39 +70,6 @@ pub struct ShaderProgram {
 }
 
 impl ShaderProgram {
-    pub fn new_default() -> ShaderProgram {
-        Self::new(("phong_vs.glsl", DEFAULT_VS), ("phong_fs.glsl", DEFAULT_FS))
-    }
-
-    pub fn new_default_ui() -> ShaderProgram {
-        Self::new(("ui_fs.glsl", DEFAULT_UI_VS), ("ui_vs.fs", DEFAULT_UI_FS))
-    }
-
-    fn new((vs_filename, vs): (&str, &str), (fs_filename, fs): (&str, &str)) -> ShaderProgram {
-        let mut avs = vs.to_string();
-        let mut afs = fs.to_string();
-
-        if !IS_GL_ES {
-            avs = "#version 130\n".to_string() + &avs;
-            afs = "#version 130\n".to_string() + &afs;
-        } else {
-            afs = ("precision highp float;\n").to_string() + &afs;
-        }
-
-        ShaderProgram {
-            gl_state: RefCell::new(None),
-
-            coord_map: Default::default(),
-            uniform_map: Default::default(),
-
-            pending_uniforms: Default::default(),
-            committed_unforms: Default::default(),
-
-            vs_shader: Resource::new(Shader::new(Kind::Vertex, vs_filename, &avs)),
-            fs_shader: Resource::new(Shader::new(Kind::Fragment, fs_filename, &afs)),
-        }
-    }
-
     pub fn bind(&self, gl: &WebGLRenderingContext) -> Result<(), AssetError> {
         self.prepare(gl)?;
 
@@ -255,10 +213,3 @@ impl ShaderProgramGLState {
         prog
     }
 }
-
-// Default vertex shader source code
-const DEFAULT_VS: &'static str = include_str!("phong_vs.glsl");
-const DEFAULT_FS: &'static str = include_str!("phong_fs.glsl");
-
-const DEFAULT_UI_VS: &'static str = include_str!("ui_vs.glsl");
-const DEFAULT_UI_FS: &'static str = include_str!("ui_fs.glsl");

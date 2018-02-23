@@ -5,7 +5,8 @@ use engine::engine::IEngine;
 use super::Metric;
 
 use std::fmt::Debug;
-use engine::render::MeshBuffer;
+use engine::render::{MeshBuffer, MeshData};
+use engine::asset::{Asset, Resource};
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -36,7 +37,7 @@ pub struct Label {
     s: String,
 }
 
-fn make_text_mesh_buffer(s: &str, size: (u32, u32)) -> MeshBuffer {
+fn make_text_mesh_data(s: &str, size: (u32, u32)) -> MeshData {
     let mut vertices = vec![];
     let mut uvs = vec![];
     let mut indices = vec![];
@@ -106,12 +107,12 @@ fn make_text_mesh_buffer(s: &str, size: (u32, u32)) -> MeshBuffer {
         base_y -= gh * 2.0;
     }
 
-    let mut m = MeshBuffer::default();
-    m.vertices = vertices;
-    m.uvs = Some(uvs);
-    m.normals = None;
-    m.indices = indices;
-    m
+    MeshData {
+        vertices: vertices,
+        uvs: Some(uvs),
+        normals: None,
+        indices: indices,
+    }
 }
 
 impl Label {
@@ -166,7 +167,9 @@ impl Widget for Label {
 
         {
             let mut gomut = go.borrow_mut();
-            let mesh = Mesh::new(Rc::new(make_text_mesh_buffer(&self.s, ssize)));
+            let meshdata = make_text_mesh_data(&self.s, ssize);
+
+            let mesh = Mesh::new(MeshBuffer::new_with_resource(Resource::new(meshdata)));
             gomut.transform.append_translation_mut(&compute_translate(
                 &self.pos,
                 &self.pivot,

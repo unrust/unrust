@@ -228,18 +228,21 @@ where
         self.setup_camera(ctx, object, camera);
 
         // Setup Mesh
-        object.find_component::<Mesh>().map(|(mesh, _)| {
-            let prog = ctx.prog.upgrade().unwrap();
+        object
+            .find_component::<Mesh>()
+            .map(|(mesh, _)| {
+                let prog = ctx.prog.upgrade().unwrap();
 
-            ctx.prepare_cache(&mesh.mesh_buffer, |ctx| {
-                mesh.bind(&self.gl, &prog);
-                ctx.switch_mesh += 1;
-                Ok(())
-            }).unwrap();
-
-            prog.commit(gl);
-            mesh.render(gl);
-        });
+                if let Ok(_) = ctx.prepare_cache(&mesh.mesh_buffer, |ctx| {
+                    mesh.bind(&self.gl, &prog)?;
+                    ctx.switch_mesh += 1;
+                    Ok(())
+                }) {
+                    prog.commit(gl);
+                    mesh.render(gl);
+                }
+            })
+            .unwrap()
     }
 
     pub fn begin(&mut self) {

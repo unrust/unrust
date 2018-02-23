@@ -25,7 +25,13 @@ impl Material {
 }
 
 impl Asset for Material {
-    fn new_from_file<T: AssetSystem>(_asys: &T, _fname: &str) -> Rc<Self> {
+    type Resource = ();
+
+    fn gather<T: AssetSystem>(_asys: &T, _fname: &str) -> Self::Resource {
+        unimplemented!();
+    }
+
+    fn new_with_resource(_r: Self::Resource) -> Rc<Self> {
         unimplemented!();
     }
 }

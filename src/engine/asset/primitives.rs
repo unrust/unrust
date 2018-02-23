@@ -1,9 +1,9 @@
-use engine::render::MeshBuffer;
+use engine::render::MeshData;
 pub struct CubeMesh {}
 pub struct PlaneMesh {}
 
 impl CubeMesh {
-    pub fn new() -> MeshBuffer {
+    pub fn new() -> MeshData {
         let vertices: Vec<f32> = vec![
             -1.0, -1.0,  1.0,
              1.0, -1.0,  1.0,
@@ -116,17 +116,17 @@ impl CubeMesh {
             20, 21, 22,   20, 22, 23  // Left face
         ];
 
-        let mut m = MeshBuffer::default();
-        m.vertices = vertices;
-        m.uvs = Some(uvs);
-        m.normals = Some(normals);
-        m.indices = indices;
-        m
+        MeshData {
+            vertices: vertices,
+            uvs: Some(uvs),
+            normals: Some(normals),
+            indices: indices,
+        }
     }
 }
 
 impl PlaneMesh {
-    pub fn new() -> MeshBuffer {
+    pub fn new() -> MeshData {
         let vertices: Vec<f32> = vec![
             // Top face
             -10.0,  0.0, -10.0,
@@ -155,11 +155,11 @@ impl PlaneMesh {
             0, 1, 2, 0, 2, 3 // Top face
         ];
 
-        let mut m = MeshBuffer::default();
-        m.vertices = vertices;
-        m.uvs = Some(uvs);
-        m.normals = Some(normals);
-        m.indices = indices;
-        m
+        MeshData {
+            vertices: vertices,
+            uvs: Some(uvs),
+            normals: Some(normals),
+            indices: indices,
+        }
     }
 }

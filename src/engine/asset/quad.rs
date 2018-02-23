@@ -1,9 +1,9 @@
-use engine::render::MeshBuffer;
+use engine::render::MeshData;
 
 pub struct Quad {}
 
 impl Quad {
-    pub fn new() -> MeshBuffer {
+    pub fn new() -> MeshData {
         let vertices: Vec<f32> = vec![
             -1.0, 1.0, 0.0,     // 0
             -1.0, -1.0, 0.0,    // 1
@@ -23,11 +23,11 @@ impl Quad {
             0, 1, 2, 0, 2, 3 // Top face
         ];
 
-        let mut m = MeshBuffer::default();
-        m.vertices = vertices;
-        m.uvs = Some(uvs);
-        m.normals = None;
-        m.indices = indices;
-        m
+        MeshData {
+            vertices: vertices,
+            uvs: Some(uvs),
+            normals: None,
+            indices: indices,
+        }
     }
 }

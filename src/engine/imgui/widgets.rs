@@ -49,54 +49,61 @@ fn make_text_mesh_buffer(s: &str, size: (u32, u32)) -> MeshBuffer {
 
     let gw = ((8 as f32) / size.0 as f32) * 2.0;
     let gh = ((8 as f32) / size.1 as f32) * 2.0;
+    let mut base_y = 0.0;
 
-    for c in s.chars() {
-        let mut c: u8 = c as u8;
-        if c >= 128 {
-            c = 128;
+    let lines: Vec<&str> = s.split('\n').collect();
+
+    for line in lines.into_iter() {
+        for (cidx, c) in line.chars().enumerate() {
+            let mut c: u8 = c as u8;
+            if c >= 128 {
+                c = 128;
+            }
+
+            let g_row = (c / nrow) as f32;
+            let g_col = (c % nrow) as f32;
+
+            let gx = (cidx as f32) * gw;
+
+            vertices.append(&mut vec![
+                gx + 0.0, // 0
+                base_y,
+                0.0,
+                gx + 0.0, // 1
+                base_y - gh,
+                0.0,
+                gx + gw, // 2
+                base_y - gh,
+                0.0,
+                gx + gw, // 3
+                base_y,
+                0.0,
+            ]);
+
+            uvs.append(&mut vec![
+                g_col * icw + 0.0, // 0
+                g_row * ich,
+                g_col * icw + 0.0, // 1
+                g_row * ich + ich,
+                g_col * icw + icw, // 2
+                g_row * ich + ich,
+                g_col * icw + icw, // 3
+                g_row * ich,
+            ]);
+
+            indices.append(&mut vec![
+                i * 4,
+                i * 4 + 1,
+                i * 4 + 2,
+                i * 4 + 0,
+                i * 4 + 2,
+                i * 4 + 3, // Top face
+            ]);
+
+            i += 1;
         }
 
-        let g_row = (c / nrow) as f32;
-        let g_col = (c % nrow) as f32;
-
-        let gx = (i as f32) * gw;
-
-        vertices.append(&mut vec![
-            gx + 0.0, // 0
-            0.0,
-            0.0,
-            gx + 0.0, // 1
-            -gh,
-            0.0,
-            gx + gw, // 2
-            -gh,
-            0.0,
-            gx + gw, // 3
-            0.0,
-            0.0,
-        ]);
-
-        uvs.append(&mut vec![
-            g_col * icw + 0.0, // 0
-            g_row * ich,
-            g_col * icw + 0.0, // 1
-            g_row * ich + ich,
-            g_col * icw + icw, // 2
-            g_row * ich + ich,
-            g_col * icw + icw, // 3
-            g_row * ich,
-        ]);
-
-        indices.append(&mut vec![
-            i * 4,
-            i * 4 + 1,
-            i * 4 + 2,
-            i * 4 + 0,
-            i * 4 + 2,
-            i * 4 + 3, // Top face
-        ]);
-
-        i += 1;
+        base_y -= gh * 1.8;
     }
 
     let mut m = MeshBuffer::default();

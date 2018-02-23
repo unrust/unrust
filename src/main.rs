@@ -236,10 +236,8 @@ pub fn main() {
 
             imgui::pivot((1.0, 1.0));
             imgui::label(
-                Native(1.0, 1.0) - Pixel(8.0 * 3.0, 8.0 * 3.0),
-                "Click on canvas to drop new box.\n
-                Use WASD to control camera.\n
-                Use Esc to reload all (include assets)",
+                Native(1.0, 1.0) - Pixel(8.0, 8.0),
+                "Click on canvas to drop new box.\n[WASD] : control camera\n[Esc]  : reload all (include assets)",
             );
 
             imgui::pivot((1.0, 0.0));

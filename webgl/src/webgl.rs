@@ -665,7 +665,7 @@ impl GLContext {
         }
     }
 
-    pub fn unbind_vertex_array(&self) {
+    pub fn unbind_vertex_array(&self, vao: &WebGLVertexArray) {
         self.log("unbind_vertex_array");
         js! {
             var ctx = Module.gl.get(@{self.reference});

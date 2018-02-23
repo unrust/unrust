@@ -570,10 +570,11 @@ impl GLContext {
         check_gl_error("bind_vertex_array");
     }
 
-    pub fn unbind_vertex_array(&self) {
+    pub fn unbind_vertex_array(&self, vao: &WebGLVertexArray) {
         unsafe {
-            gl::BindVertexArray(0);
+            gl::BindVertexArray(vao.0);
         }
+        check_gl_error("unbind_vertex_array");
     }
 
     pub fn create_framebuffer(&self) -> WebGLFrameBuffer {

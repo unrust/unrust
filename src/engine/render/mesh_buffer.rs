@@ -169,7 +169,9 @@ impl MeshBuffer {
     }
 
     pub fn unbind(&self, gl: &WebGLRenderingContext) {
-        gl.unbind_vertex_array();
+        let state_option = self.gl_state.borrow();
+        let state = state_option.as_ref().unwrap();
+        gl.unbind_vertex_array(&state.vao);
     }
 }
 

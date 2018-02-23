@@ -1,6 +1,6 @@
 use na::*;
 use std::rc::Rc;
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
 use std::sync::Arc;
 use std::any::{Any, TypeId};
 //use std::marker::PhantomData;
@@ -59,7 +59,7 @@ impl Component {
 
     pub fn new<T>(value: T) -> Arc<Component>
     where
-        T: 'static,
+        T: ComponentBased + 'static,
     {
         let c = ComponentType {
             com: Rc::new(RefCell::new(value)),
@@ -97,7 +97,7 @@ impl IntoComponentPtr for Arc<Component> {
 }
 
 impl GameObject {
-    pub fn find_component<T>(&self) -> Option<(&RefCell<T>, Arc<Component>)>
+    pub fn find_component<T>(&self) -> Option<(Ref<T>, Arc<Component>)>
     where
         T: 'static,
     {
@@ -106,7 +106,7 @@ impl GameObject {
         match self.components.iter().find(|c| c.typeid() == typeid) {
             Some(c) => {
                 let com: &Component = c.as_ref();
-                Some((com.try_as::<T>().unwrap(), c.clone()))
+                Some((com.try_as::<T>().unwrap().borrow(), c.clone()))
             }
             _ => None,
         }

@@ -228,10 +228,8 @@ where
         self.setup_camera(ctx, object, camera);
 
         // Setup Mesh
-        object.find_component::<Mesh>().map(|(mesh_ref, _)| {
+        object.find_component::<Mesh>().map(|(mesh, _)| {
             let prog = ctx.prog.upgrade().unwrap();
-
-            let mesh = mesh_ref.borrow();
 
             ctx.prepare_cache(&mesh.mesh_buffer, |ctx| {
                 mesh.bind(&self.gl, &prog);
@@ -325,9 +323,9 @@ where
             for obj in objects.iter() {
                 obj.upgrade().map(|obj| {
                     let object = obj.borrow();
-                    if let Some((material_ref, _)) = object.find_component::<Material>() {
-                        let material = material_ref.borrow();
+                    let result = object.find_component::<Material>();
 
+                    if let Some((material, _)) = result {
                         if self.setup_material(&mut ctx, &material).is_ok() {
                             self.render_object(gl, &mut ctx, &object, camera);
                         }

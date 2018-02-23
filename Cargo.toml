@@ -11,6 +11,7 @@ webgl = {path="webgl"}
 uni-app = {path="uni-app"}
 uni-glsl = {path="uni-glsl"}
 futures = "0.1"
+tobj = "0.1.6"
 
 [dependencies.lazy_static]
 version = "1.0"

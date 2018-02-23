@@ -300,11 +300,8 @@ pub fn main() {
             // Update Transforms by physic object
             {
                 let get_pb_tran = |o: &GameObject| {
-                    if let Some((rb, _)) = o.find_component::<PhysicObject>() {
-                        Some(rb.borrow().phy_transform())
-                    } else {
-                        None
-                    }
+                    o.find_component::<PhysicObject>()
+                        .map(|(rb, _)| rb.phy_transform())
                 };
 
                 for go in game.iter() {

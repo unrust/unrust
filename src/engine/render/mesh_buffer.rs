@@ -167,6 +167,10 @@ impl MeshBuffer {
 
         gl.draw_elements(Primitives::Triangles, data.indices.len(), DataType::U16, 0);
     }
+
+    pub fn unbind(&self) {
+        gl.unbind_vertex_array();
+    }
 }
 
 fn mesh_bind_buffer(
@@ -176,6 +180,7 @@ fn mesh_bind_buffer(
     indices: &Vec<u16>,
     gl: &WebGLRenderingContext,
 ) -> MeshGLState {
+    // some opengl 3.x core profile require a VAO. See issue #11
     let vao = gl.create_vertex_array();
     gl.bind_vertex_array(&vao);
 

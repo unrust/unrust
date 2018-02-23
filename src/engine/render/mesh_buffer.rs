@@ -24,6 +24,7 @@ impl<T> IntoBytes for Vec<T> {
 }
 
 struct MeshGLState {
+    pub vao: WebGLVertexArray,
     pub vb: WebGLBuffer,
     pub uvb: Option<WebGLBuffer>,
     pub nb: Option<WebGLBuffer>,
@@ -175,6 +176,9 @@ fn mesh_bind_buffer(
     indices: &Vec<u16>,
     gl: &WebGLRenderingContext,
 ) -> MeshGLState {
+    let vao = gl.create_vertex_array();
+    gl.bind_vertex_array(&vao);
+
     // Create an empty buffer object to store vertex buffer
     let vertex_buffer = gl.create_buffer();
     {
@@ -245,6 +249,7 @@ fn mesh_bind_buffer(
     }
 
     MeshGLState {
+        vao,
         vb: vertex_buffer,
         uvb: uv_buffer,
         nb: normal_buffer,

@@ -559,6 +559,7 @@ impl GLContext {
         unsafe {
             gl::GenVertexArrays(1, &mut vao.0);
         }
+        check_gl_error("create_vertex_array");
         vao
     }
 
@@ -566,6 +567,7 @@ impl GLContext {
         unsafe {
             gl::BindVertexArray(vao.0);
         }
+        check_gl_error("bind_vertex_array");
     }
 
     pub fn unbind_vertex_array(&self) {

@@ -103,7 +103,7 @@ fn make_text_mesh_buffer(s: &str, size: (u32, u32)) -> MeshBuffer {
             i += 1;
         }
 
-        base_y -= gh * 1.8;
+        base_y -= gh * 2.0;
     }
 
     let mut m = MeshBuffer::default();

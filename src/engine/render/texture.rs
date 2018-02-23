@@ -103,8 +103,15 @@ fn texture_bind_buffer(
     };
 
     gl.tex_parameteri(TextureParameter::TextureMagFilter, filtering);
-
     gl.tex_parameteri(TextureParameter::TextureMinFilter, filtering);
+    gl.tex_parameteri(
+        TextureParameter::TextureWrapS,
+        TextureWrap::ClampToEdge as i32,
+    );
+    gl.tex_parameteri(
+        TextureParameter::TextureWrapT,
+        TextureWrap::ClampToEdge as i32,
+    );
 
     gl.unbind_texture();
 

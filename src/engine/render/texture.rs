@@ -1,11 +1,9 @@
 use webgl::*;
-use image;
 use image::RgbaImage;
 
 use std::cell::RefCell;
 use std::rc::Rc;
-use engine::asset::{Asset, AssetError, AssetSystem, Resource};
-use futures::prelude::*;
+use engine::asset::{Asset, AssetError, AssetSystem, FileFuture, LoadableAsset, Resource};
 
 pub enum TextureFiltering {
     Nearest,
@@ -21,25 +19,22 @@ pub struct Texture {
 impl Asset for Texture {
     type Resource = Resource<RgbaImage>;
 
-    fn gather<T: AssetSystem>(asys: &T, fname: &str) -> Self::Resource {
-        let f = asys.new_file(fname);
-
-        let img = f.then(|r| {
-            let mut file = r.map_err(|e| AssetError::FileIoError(e))?;
-            let buf = file.read_binary().map_err(|_| AssetError::InvalidFormat)?;
-            let img = image::load_from_memory(&buf).map_err(|_| AssetError::InvalidFormat)?;
-            Ok(img.to_rgba())
-        });
-
-        Resource::new_future(img)
-    }
-
     fn new_from_resource(res: Self::Resource) -> Rc<Self> {
         Rc::new(Texture {
             filtering: TextureFiltering::Linear,
             img: res,
             gl_state: RefCell::new(None),
         })
+    }
+}
+
+impl LoadableAsset for Texture {
+    fn load<T: AssetSystem>(_asys: &T, mut files: Vec<FileFuture>) -> Self::Resource {
+        Self::load_resource::<RgbaImage>(files.remove(0))
+    }
+
+    fn gather<T: AssetSystem>(asys: &T, fname: &str) -> Vec<FileFuture> {
+        vec![asys.new_file(fname)]
     }
 }
 

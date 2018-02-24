@@ -3,14 +3,12 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use webgl::{ShaderKind as WebGLShaderKind, WebGLProgram, WebGLRenderingContext,
             WebGLUniformLocation};
-use std::str;
-use engine::asset::{Asset, AssetError, AssetSystem, Resource};
-use engine::render::shader::{Shader, ShaderKind as Kind};
+use engine::asset::{Asset, AssetError, AssetSystem, FileFuture, LoadableAsset, Resource};
+use engine::render::shader::{ShaderFs, ShaderVs};
 use engine::render::uniforms::*;
-use futures::Future;
 
 impl Asset for ShaderProgram {
-    type Resource = (Resource<Shader>, Resource<Shader>);
+    type Resource = (Resource<ShaderVs>, Resource<ShaderFs>);
 
     fn new_from_resource((vs, fs): Self::Resource) -> Rc<ShaderProgram> {
         Rc::new(ShaderProgram {
@@ -26,27 +24,21 @@ impl Asset for ShaderProgram {
             fs_shader: fs,
         })
     }
+}
 
-    fn gather<T: AssetSystem>(asys: &T, fname: &str) -> Self::Resource {
-        let vs_file = asys.new_file(&format!("{}_vs.glsl", fname));
-        let fs_file = asys.new_file(&format!("{}_fs.glsl", fname));
+impl LoadableAsset for ShaderProgram {
+    fn load<T: AssetSystem>(_asys: &T, mut files: Vec<FileFuture>) -> Self::Resource {
+        (
+            Self::load_resource::<ShaderVs>(files.remove(0)),
+            Self::load_resource::<ShaderFs>(files.remove(0)),
+        )
+    }
 
-        let vs = vs_file.then(|r| {
-            let mut file = r.map_err(|e| AssetError::FileIoError(e))?;
-            let buf = file.read_binary().map_err(|_| AssetError::InvalidFormat)?;
-            let vs = str::from_utf8(&buf).map_err(|_| AssetError::InvalidFormat)?;
-            Ok(Shader::new(Kind::Vertex, &file.name(), vs))
-        });
-
-        let fs = fs_file.then(|r| {
-            let mut file = r.map_err(|e| AssetError::FileIoError(e))?;
-            let buf = file.read_binary().map_err(|_| AssetError::InvalidFormat)?;
-            let fs = str::from_utf8(&buf).map_err(|_| AssetError::InvalidFormat)?;
-
-            Ok(Shader::new(Kind::Fragment, &file.name(), fs))
-        });
-
-        (Resource::new_future(vs), Resource::new_future(fs))
+    fn gather<T: AssetSystem>(asys: &T, fname: &str) -> Vec<FileFuture> {
+        vec![
+            asys.new_file(&format!("{}_vs.glsl", fname)),
+            asys.new_file(&format!("{}_fs.glsl", fname)),
+        ]
     }
 }
 
@@ -62,8 +54,8 @@ pub struct ShaderProgram {
     coord_map: RefCell<HashMap<String, Option<u32>>>,
     uniform_map: RefCell<HashMap<String, Option<Rc<WebGLUniformLocation>>>>,
 
-    vs_shader: Resource<Shader>,
-    fs_shader: Resource<Shader>,
+    vs_shader: Resource<ShaderVs>,
+    fs_shader: Resource<ShaderFs>,
 
     pending_uniforms: RefCell<HashMap<String, Box<UniformAdapter>>>,
     committed_unforms: RefCell<HashMap<String, u64>>,

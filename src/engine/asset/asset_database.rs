@@ -5,9 +5,9 @@ use std::collections::HashMap;
 use engine::asset::{CubeMesh, PlaneMesh, Quad};
 use engine::asset::default_font_bitmap::DEFAULT_FONT_DATA;
 use engine::asset::fs;
+use engine::asset::loader;
 
-use engine::{MeshBuffer, Shader, ShaderProgram, Texture, TextureFiltering};
-use engine::render::ShaderKind;
+use engine::{MeshBuffer, ShaderFs, ShaderProgram, ShaderVs, Texture, TextureFiltering};
 use futures::{Async, Future};
 use std::mem;
 use std::fmt::Debug;
@@ -18,7 +18,7 @@ use image::ImageBuffer;
 
 impl<T> Debug for ResourceKind<T>
 where
-    T: Debug,
+    T: Debug + loader::Loadable,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -52,9 +52,9 @@ impl<T: Debug> ResourceKind<T> {
 }
 
 #[derive(Debug)]
-pub struct Resource<T: Debug>(RefCell<ResourceKind<T>>);
+pub struct Resource<T: Debug + loader::Loadable>(RefCell<ResourceKind<T>>);
 
-impl<T: Debug> Resource<T> {
+impl<T: Debug + loader::Loadable> Resource<T> {
     pub fn new_future<FT>(f: FT) -> Self
     where
         FT: Future<Item = T, Error = AssetError> + 'static,
@@ -108,7 +108,7 @@ impl<T: Debug> Resource<T> {
     }
 }
 
-impl<T: Debug> From<T> for Resource<T> {
+impl<T: Debug + loader::Loadable> From<T> for Resource<T> {
     fn from(r: T) -> Resource<T> {
         Resource::new(r)
     }
@@ -140,8 +140,6 @@ pub trait AssetSystem {
 pub trait Asset {
     type Resource;
 
-    fn gather<T: AssetSystem>(asys: &T, fname: &str) -> Self::Resource;
-
     fn new<T>(r: T) -> Rc<Self>
     where
         T: Into<Self::Resource>,
@@ -150,6 +148,16 @@ pub trait Asset {
     }
 
     fn new_from_resource(r: Self::Resource) -> Rc<Self>;
+}
+
+pub trait LoadableAsset: Asset {
+    fn load<T: AssetSystem>(asys: &T, files: Vec<fs::FileFuture>) -> Self::Resource;
+
+    fn gather<T: AssetSystem>(asys: &T, fname: &str) -> Vec<fs::FileFuture>;
+
+    fn load_resource<U: loader::Loadable + Debug + 'static>(f: fs::FileFuture) -> Resource<U> {
+        Resource::new_future(U::load_future(f))
+    }
 }
 
 pub struct AssetDatabase<FS, F>
@@ -222,12 +230,12 @@ where
 {
     fn new_asset<R>(&self, hm: &mut HashMap<String, Rc<R>>, name: &str) -> Rc<R>
     where
-        R: Asset,
+        R: LoadableAsset,
     {
         match hm.get(name) {
             Some(asset) => asset.clone(),
             None => {
-                let asset = R::new(R::gather(self, name));
+                let asset = R::new(R::load(self, R::gather(self, name)));
                 hm.insert(name.into(), asset.clone());
                 asset
             }
@@ -293,15 +301,15 @@ where
     }
 
     pub fn new_default_program() -> Rc<ShaderProgram> {
-        let vs = Shader::new(ShaderKind::Vertex, "phong_vs.glsl", DEFAULT_VS);
-        let fs = Shader::new(ShaderKind::Fragment, "phong_fs.glsl", DEFAULT_FS);
+        let vs = ShaderVs::new("phong_vs.glsl", DEFAULT_VS);
+        let fs = ShaderFs::new("phong_fs.glsl", DEFAULT_FS);
 
         ShaderProgram::new((Resource::new(vs), Resource::new(fs)))
     }
 
     pub fn new_default_ui_program() -> Rc<ShaderProgram> {
-        let vs = Shader::new(ShaderKind::Vertex, "ui_vs.glsl", DEFAULT_UI_VS);
-        let fs = Shader::new(ShaderKind::Fragment, "ui_fs.glsl", DEFAULT_UI_FS);
+        let vs = ShaderVs::new("ui_vs.glsl", DEFAULT_UI_VS);
+        let fs = ShaderFs::new("ui_fs.glsl", DEFAULT_UI_FS);
 
         ShaderProgram::new((Resource::new(vs), Resource::new(fs)))
     }

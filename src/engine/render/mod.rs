@@ -8,7 +8,7 @@ mod shader;
 mod uniforms;
 
 pub use self::camera::Camera;
-pub use self::shader::{Shader, ShaderKind};
+pub use self::shader::{ShaderFs, ShaderKind, ShaderVs};
 pub use self::shader_program::ShaderProgram;
 pub use self::texture::{Texture, TextureFiltering};
 pub use self::mesh::{Mesh, MeshBuffer, MeshData};

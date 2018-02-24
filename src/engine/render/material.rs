@@ -1,5 +1,5 @@
 use engine::core::ComponentBased;
-use engine::asset::{Asset, AssetSystem};
+use engine::asset::Asset;
 use engine::render::{ShaderProgram, Texture};
 
 use std::rc::Rc;
@@ -26,10 +26,6 @@ impl Material {
 
 impl Asset for Material {
     type Resource = ();
-
-    fn gather<T: AssetSystem>(_asys: &T, _fname: &str) -> Self::Resource {
-        unimplemented!();
-    }
 
     fn new_from_resource(_r: Self::Resource) -> Rc<Self> {
         unimplemented!();

@@ -10,4 +10,4 @@ glenum = { git = "https://github.com/oussama/glenum-rs.git" }
 gl = "0.6.0"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-stdweb =  "*"
+stdweb =  "0.4.0"

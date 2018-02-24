@@ -1,23 +1,25 @@
 <!DOCTYPE html>
+
 <head>
     <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=1" name="viewport" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-fork-ribbon-css/0.2.0/gh-fork-ribbon.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-fork-ribbon-css/0.2.0/gh-fork-ribbon.min.css"
+    />
     <!--[if lt IE 9]>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-fork-ribbon-css/0.2.0/gh-fork-ribbon.ie.min.css" />
-    <![endif]--> 
+    <![endif]-->
     <script>
         var Module = {};
         var __cargo_web = {};
-        Object.defineProperty( Module, 'canvas', {
-            get: function() {
-                if( __cargo_web.canvas ) {
+        Object.defineProperty(Module, 'canvas', {
+            get: function () {
+                if (__cargo_web.canvas) {
                     return __cargo_web.canvas;
                 }
 
-                var canvas = document.createElement( 'canvas' );
-                document.querySelector( 'body' ).appendChild( canvas );
+                var canvas = document.createElement('canvas');
+                document.querySelector('body').appendChild(canvas);
                 __cargo_web.canvas = canvas;
 
                 return canvas;
@@ -26,8 +28,10 @@
     </script>
 
 </head>
+
 <body>
-    <script src="unigame.js"></script>
-    <a class="github-fork-ribbon" href="https://github.com/edwin0cheng/unigame" title="Fork me on GitHub">Fork me on GitHub</a> 
+    <script src="unigame-demo.js"></script>
+    <a class="github-fork-ribbon" href="https://github.com/edwin0cheng/unigame" title="Fork me on GitHub">Fork me on GitHub</a>
 </body>
+
 </html>

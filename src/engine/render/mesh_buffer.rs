@@ -126,6 +126,7 @@ impl MeshBuffer {
         let state = state_option.as_ref().unwrap();
 
         /*======= Associating shaders to buffer objects =======*/
+        gl.bind_vertex_array(&state.vao);
 
         // Bind vertex buffer object
         gl.bind_buffer(BufferKind::Array, &state.vb);

@@ -302,6 +302,7 @@ where
                 Ok(_) => {
                     prog.commit(gl);
                     cmd.surface.buffer.render(gl);
+                    cmd.surface.buffer.unbind(gl);
                 }
                 Err(ref err) => match *err {
                     AssetError::NotReady => (),

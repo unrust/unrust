@@ -34,7 +34,6 @@ name = "unigame-demo"
 path = "src/bin/main.rs"
 
 [replace]
-"rand:0.3.20" = { path = "wasm-rand" }
 "rustc-serialize:0.3.24" = { path = "wasm-rustc-serialize" }
 
 # wasm compilation isn't currently compatible with incremental compilation

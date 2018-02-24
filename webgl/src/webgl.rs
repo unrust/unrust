@@ -692,7 +692,7 @@ impl GLContext {
     pub fn create_framebuffer(&self)  -> WebGLFrameBuffer {
         let val = js! {
             var ctx = Module.gl.get(@{self.reference});
-            return ctx.create_framebuffer();
+            return Module.gl.add(ctx.create_framebuffer());
         };
         WebGLFrameBuffer(val.try_into().unwrap())
     }

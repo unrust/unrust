@@ -552,4 +552,10 @@ impl GLContext {
             gl::FramebufferTexture2D(target as u32, attachment as u32, textarget as u32, texture.0, level);
         }
     }
+
+    pub fn unbind_framebuffer(&self, buffer: Buffers) {
+        unsafe {
+            gl::BindFramebuffer(buffer as u32, 0);
+        }
+    }
 }

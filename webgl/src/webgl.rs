@@ -692,7 +692,7 @@ impl GLContext {
     pub fn create_framebuffer(&self)  -> WebGLFrameBuffer {
         let val = js! {
             var ctx = Module.gl.get(@{self.reference});
-            return Module.gl.add(ctx.create_framebuffer());
+            return Module.gl.add(ctx.createFramebuffer());
         };
         WebGLFrameBuffer(val.try_into().unwrap())
     }
@@ -701,7 +701,7 @@ impl GLContext {
         js! {
             var ctx = Module.gl.get(@{self.reference});
             var fb = Module.gl.get(@{fb.deref()});
-            ctx.bind_framebuffer(@{buffer as u32}, fb);
+            ctx.bindFramebuffer(@{buffer as u32}, fb);
         }
     }
 
@@ -710,6 +710,14 @@ impl GLContext {
             var ctx = Module.gl.get(@{self.reference});
             var tex = Module.gl.get(@{&texture.0});
             ctx.framebufferTexture2D(@{target as u32},@{attachment as u32},@{textarget as u32},tex,@{level});
+        }
+    }
+
+    pub fn unbind_framebuffer(&self, buffer: Buffers) {
+        self.log("unbind_framebuffer");
+        js!{
+            var ctx = Module.gl.get(@{&self.reference});
+            ctx.bindFramebuffer(@{buffer as u32},null)
         }
     }
 }

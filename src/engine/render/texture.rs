@@ -1,5 +1,5 @@
 use webgl::*;
-use image::RgbaImage;
+use image::{RgbaImage,ImageBuffer};
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -43,8 +43,16 @@ struct TextureGLState {
 }
 
 impl Texture {
-    pub fn bind(&self, gl: &WebGLRenderingContext, unit: u32) -> Result<(), AssetError> {
-        self.prepare(gl)?;
+    pub fn new_empty(width: u32, height: u32) -> Rc<Self> {
+        Rc::new(Texture {
+            filtering: TextureFiltering::Linear,
+            img: Resource::new(ImageBuffer::new(width, height)),
+            gl_state: RefCell::new(None),
+        })
+    }
+
+    pub fn bind(&self, gl: &WebGLRenderingContext, unit: u32, with_framebuffer: bool) -> Result<(), AssetError> {
+        self.prepare(gl, with_framebuffer)?;
 
         let state_option = self.gl_state.borrow();
         let state = state_option.as_ref().unwrap();
@@ -55,23 +63,30 @@ impl Texture {
         Ok(())
     }
 
-    pub fn prepare(&self, gl: &WebGLRenderingContext) -> Result<(), AssetError> {
+    pub fn prepare(&self, gl: &WebGLRenderingContext, with_framebuffer: bool) -> Result<(), AssetError> {
         if self.gl_state.borrow().is_some() {
             return Ok(());
         }
 
         let img = self.img.try_into()?;
         self.gl_state
-            .replace(Some(texture_bind_buffer(&img, gl, &self.filtering)));
+            .replace(Some(texture_bind_buffer(&img, gl, &self.filtering, with_framebuffer)));
 
         Ok(())
     }
+
+
+}
+
+fn bind_to_framebuffer(gl: &WebGLRenderingContext, tex: &WebGLTexture) {
+    gl.framebuffer_texture2d(Buffers::Framebuffer, Buffers::ColorAttachment0, TextureBindPoint::Texture2d, tex, 0);
 }
 
 fn texture_bind_buffer(
     img: &RgbaImage,
     gl: &WebGLRenderingContext,
     texfilter: &TextureFiltering,
+    with_framebuffer: bool,
 ) -> TextureGLState {
     let tex = gl.create_texture();
 
@@ -103,6 +118,10 @@ fn texture_bind_buffer(
         TextureParameter::TextureWrapT,
         TextureWrap::ClampToEdge as i32,
     );
+
+    if with_framebuffer {
+        bind_to_framebuffer(gl, &tex);
+    }
 
     gl.unbind_texture();
 

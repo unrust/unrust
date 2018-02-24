@@ -170,7 +170,7 @@ where
                 &MaterialParam::Texture(ref tex) => {
                     let new_unit = ctx.prepare_cache_tex(&tex, |ctx, unit| {
                         // Binding texture
-                        tex.bind(&self.gl, unit)?;
+                        tex.bind(&self.gl, unit, false)?;
 
                         ctx.switch_tex += 1;
                         Ok(())

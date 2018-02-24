@@ -3,20 +3,17 @@ use webgl::*;
 use std::rc::Rc;
 use engine::render::Texture;
 
-pub struct Framebuffer {
-    pub texture:Rc<Texture>,
+pub struct FrameBuffer {
+    pub texture: Rc<Texture>,
     handle: WebGLFrameBuffer,
 }
 
-impl Framebuffer {
-    pub fn new(width: u32, height: u32, gl: &WebGLRenderingContext)-> Framebuffer {
+impl FrameBuffer {
+    pub fn new(width: u32, height: u32, gl: &WebGLRenderingContext) -> FrameBuffer {
         let texture = Texture::new_empty(width, height);
         let handle = gl.create_framebuffer();
 
-        Framebuffer {
-            texture,
-            handle,
-        }
+        FrameBuffer { texture, handle }
     }
     pub fn prepare(&self, gl: &WebGLRenderingContext) {
         self.bind(gl);

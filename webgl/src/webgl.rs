@@ -330,7 +330,7 @@ impl GLContext {
 
     pub fn draw_elements(&self, mode: Primitives, count: usize, kind: DataType, offset: u32) {
         self.log("draw_elemnts");
-        js_raw!({                        
+        js_raw!({
             var ctx = Module.gl.get(@{0});
             ctx.drawElements(@{1},@{2},@{3},@{4});
         }, [self.reference, mode as i32, count as i32, kind as i32, offset as i32 ]);
@@ -514,10 +514,10 @@ impl GLContext {
                 array[13],
                 array[14],
                 array[15],
-                r###"            
+                r###"
             var ctx = Module.gl.get($0);
-            var loc = Module.gl.get($1);   
-            var m = Module.gl.matrix4x4;                    
+            var loc = Module.gl.get($1);
+            var m = Module.gl.matrix4x4;
             m[0] = $2;
             m[1] = $3;
             m[2] = $4;
@@ -533,7 +533,7 @@ impl GLContext {
             m[12] = $14;
             m[13] = $15;
             m[14] = $16;
-            m[15] = $17;            
+            m[15] = $17;
 
             return ctx.uniformMatrix4fv(loc,false, m);
         "### as *const _ as *const u8,
@@ -608,7 +608,7 @@ impl GLContext {
         WebGLVertexArray(val.try_into().unwrap())
     }
 
-    pub fn bind_vertex_array(&self, vao: WebGLVertexArray) {
+    pub fn bind_vertex_array(&self, vao: &WebGLVertexArray) {
         self.log("bind_vertex_array");
         js! {
             var ctx = Module.gl.get(@{self.reference});
@@ -687,5 +687,29 @@ impl GLContext {
             var ctx = Module.gl.get(@{self.reference});
             return ctx.texParameterf(@{TextureBindPoint::Texture2d as u32},@{pname as u32},@{param})
         };
+    }
+
+    pub fn create_framebuffer(&self)  -> WebGLFrameBuffer {
+        let val = js! {
+            var ctx = Module.gl.get(@{self.reference});
+            return Module.gl.add(ctx.create_framebuffer());
+        };
+        WebGLFrameBuffer(val.try_into().unwrap())
+    }
+
+    pub fn bind_framebuffer(&self, buffer: Buffers, fb: &WebGLFrameBuffer) {
+        js! {
+            var ctx = Module.gl.get(@{self.reference});
+            var fb = Module.gl.get(@{fb.deref()});
+            ctx.bind_framebuffer(@{buffer as u32}, fb);
+        }
+    }
+
+    pub fn framebuffer_texture2d(&self, target:Buffers, attachment: Buffers, textarget: TextureBindPoint, texture: &WebGLTexture, level: i32) {
+        js! {
+            var ctx = Module.gl.get(@{self.reference});
+            var tex = Module.gl.get(@{&texture.0});
+            ctx.framebufferTexture2D(@{target as u32},@{attachment as u32},@{textarget as u32},tex,@{level});
+        }
     }
 }

@@ -118,6 +118,15 @@ pub mod common {
         }
     }
 
+    #[derive(Debug)]
+    pub struct WebGLFrameBuffer(pub Reference);
+    impl Deref for WebGLFrameBuffer {
+        type Target = Reference;
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
+    }
+
     pub fn print(s: &str) {
         GLContext::print(s);
     }

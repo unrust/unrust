@@ -12,10 +12,23 @@ pub fn check_gl_error(msg: &str) {
     unsafe {
         use gl;
         let err = gl::GetError();
-        if err != 0 {
-            panic!("GLError: {} {}", msg, err);
+        if err != gl::NO_ERROR {
+            panic!(
+                "GLError: {} {} ({})",
+                msg,
+                err,
+                match err {
+                    gl::INVALID_ENUM => "invalid enum",
+                    gl::INVALID_OPERATION => "invalid operation",
+                    gl::INVALID_VALUE => "invalid value",
+                    gl::OUT_OF_MEMORY => "out of memory",
+                    gl::STACK_OVERFLOW => "stack overflow",
+                    gl::STACK_UNDERFLOW => "stack underflow",
+                    _ => "unknown error",
         }
+            );
     }
+}
 }
 
 pub type WebGLContext<'p> = Box<'p + for<'a> FnMut(&'a str) -> *const c_void>;
@@ -508,7 +521,7 @@ impl GLContext {
         vao
     }
 
-    pub fn bind_vertex_array(&self, vao: WebGLVertexArray) {
+    pub fn bind_vertex_array(&self, vao: &WebGLVertexArray) {
         unsafe {
             gl::BindVertexArray(vao.0);
         }
@@ -517,6 +530,26 @@ impl GLContext {
     pub fn unbind_vertex_array(&self) {
         unsafe {
             gl::BindVertexArray(0);
+        }
+    }
+
+    pub fn create_framebuffer(&self)  -> WebGLFrameBuffer {
+        let mut fb = WebGLFrameBuffer(0);
+        unsafe {
+            gl::GenFramebuffers(1, &mut fb.0);
+        }
+        fb
+    }
+
+    pub fn bind_framebuffer(&self, buffer: Buffers, fb: &WebGLFrameBuffer) {
+        unsafe {
+            gl::BindFramebuffer(buffer as u32, fb.0);
+        }
+    }
+
+    pub fn framebuffer_texture2d(&self, target:Buffers, attachment: Buffers, textarget: TextureBindPoint, texture: &WebGLTexture, level: i32) {
+        unsafe {
+            gl::FramebufferTexture2D(target as u32, attachment as u32, textarget as u32, texture.0, level);
         }
     }
 }

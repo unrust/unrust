@@ -3,7 +3,7 @@ use AppConfig;
 
 use stdweb::web::{Element, IEventTarget};
 use stdweb::web::window;
-use stdweb::web::event::{ClickEvent, IKeyboardEvent, KeydownEvent, KeyupEvent};
+use stdweb::web::event::{ClickEvent, IKeyboardEvent, KeyDownEvent, KeyUpEvent};
 use stdweb::unstable::TryInto;
 
 use std::cell::RefCell;
@@ -44,7 +44,7 @@ impl App {
         use stdweb::web::*;
 
         let _ = stdweb::initialize();
-        let canvas = document().create_element("canvas");
+        let canvas = document().create_element("canvas").unwrap();
 
         js!{
             (@{&canvas}).width = @{config.size.0};
@@ -57,6 +57,7 @@ impl App {
 
         document()
             .query_selector("body")
+            .unwrap()
             .unwrap()
             .append_child(&canvas);
         App {
@@ -95,7 +96,7 @@ impl App {
 
         canvas.add_event_listener(map_event!{
             self.events,
-            KeydownEvent,
+            KeyDownEvent,
             KeyDown,
             e,
             events::KeyDownEvent {
@@ -115,7 +116,7 @@ impl App {
 
         canvas.add_event_listener(map_event!{
             self.events,
-            KeyupEvent,
+            KeyUpEvent,
             KeyUp,
             e,
             events::KeyUpEvent {

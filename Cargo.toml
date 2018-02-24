@@ -12,6 +12,8 @@ uni-app = {path="uni-app"}
 uni-glsl = {path="uni-glsl"}
 futures = "0.1"
 tobj = "0.1.6"
+# Bring in stdweb to make sure the main function will translate to js
+stdweb =  "0.4.0"
 
 [dependencies.lazy_static]
 version = "1.0"
@@ -28,11 +30,10 @@ name = "unigame"
 path = "src/lib.rs"
 
 [[bin]]
-name = "unigame"
-path = "src/main.rs"
+name = "unigame-demo"
+path = "src/bin/main.rs"
 
 [replace]
-"rand:0.3.20" = { path = "wasm-rand" }
 "rustc-serialize:0.3.24" = { path = "wasm-rustc-serialize" }
 
 # wasm compilation isn't currently compatible with incremental compilation

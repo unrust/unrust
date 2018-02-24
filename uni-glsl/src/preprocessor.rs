@@ -69,7 +69,8 @@ macro_rules! spe {
 }
 
 /// Parse a single comment.
-named!(pub comment<CS, CS>,
+named!(#[allow(unused_imports)], // fix value! warning
+    pub comment<CS, CS>,
     alt!(
     complete!(preceded!(tag!("//"), take_until!("\n"))) |
     complete!(delimited!(tag!("/*"), take_until!("*/"), tag!("*/"))) |

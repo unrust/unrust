@@ -33,6 +33,7 @@ where
     pub objects: Vec<Weak<RefCell<GameObject>>>,
     pub program_cache: RefCell<HashMap<&'static str, Rc<ShaderProgram>>>,
     pub asset_system: Box<A>,
+    pub screen_size: (u32, u32),
 
     pub gui_context: Rc<RefCell<imgui::Context>>,
 }
@@ -201,6 +202,15 @@ where
         prog.set("uNMatrix", modelm.try_inverse().unwrap().transpose());
         prog.set("uMMatrix", modelm);
         prog.set("uViewPos", camera.eye());
+
+        if let Some((x, y, w, h)) = camera.rect {
+            let sx = (self.screen_size.0 as f32) * x;
+            let sy = (self.screen_size.1 as f32) * (1.0 - y);
+            let sw = (self.screen_size.0 as f32) * w;
+            let sh = (self.screen_size.1 as f32) * h;
+
+            self.gl.viewport(sx as i32, sy as i32, sw as u32, sh as u32);
+        }
     }
 
     fn setup_light(&self, ctx: &EngineContext, prog: &ShaderProgram) {
@@ -383,6 +393,7 @@ where
             program_cache: RefCell::new(HashMap::new()),
             asset_system: Box::new(A::new()),
             gui_context: Rc::new(RefCell::new(imgui::Context::new(size.0, size.1))),
+            screen_size: size,
         }
     }
 }

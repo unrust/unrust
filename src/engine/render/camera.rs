@@ -4,6 +4,10 @@ pub struct Camera {
     pub v: Matrix4<f32>,
     pub p: Matrix4<f32>,
 
+    /// Optional viewport of this camera, in normalized coordinates (x, y, width, height)
+    /// from 0 (left/bottom) to 1 (right/top)
+    pub rect: Option<(f32, f32, f32, f32)>,
+
     eye: Point3<f32>,
 }
 
@@ -19,6 +23,7 @@ impl Camera {
             v: Matrix4::identity(),
             p: Matrix4::identity(),
             eye: Point3::new(0.0, 0.0, 0.0),
+            rect: None,
         }
     }
 

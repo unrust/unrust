@@ -108,6 +108,12 @@ impl<T: Debug> Resource<T> {
     }
 }
 
+impl<T: Debug> From<T> for Resource<T> {
+    fn from(r: T) -> Resource<T> {
+        Resource::new(r)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum AssetError {
     NotReady,
@@ -136,7 +142,14 @@ pub trait Asset {
 
     fn gather<T: AssetSystem>(asys: &T, fname: &str) -> Self::Resource;
 
-    fn new_with_resource(r: Self::Resource) -> Rc<Self>;
+    fn new<T>(r: T) -> Rc<Self>
+    where
+        T: Into<Self::Resource>,
+    {
+        Asset::new_from_resource(r.into())
+    }
+
+    fn new_from_resource(r: Self::Resource) -> Rc<Self>;
 }
 
 pub struct AssetDatabase<FS, F>
@@ -214,7 +227,7 @@ where
         match hm.get(name) {
             Some(asset) => asset.clone(),
             None => {
-                let asset = R::new_with_resource(R::gather(self, name));
+                let asset = R::new(R::gather(self, name));
                 hm.insert(name.into(), asset.clone());
                 asset
             }
@@ -224,18 +237,9 @@ where
     fn setup(&mut self) {
         {
             let mut hm = self.mesh_buffers.borrow_mut();
-            hm.insert(
-                "cube".into(),
-                MeshBuffer::new_with_resource(Resource::new(CubeMesh::new())),
-            );
-            hm.insert(
-                "plane".into(),
-                MeshBuffer::new_with_resource(Resource::new(PlaneMesh::new())),
-            );
-            hm.insert(
-                "screen_quad".into(),
-                MeshBuffer::new_with_resource(Resource::new(Quad::new())),
-            );
+            hm.insert("cube".into(), MeshBuffer::new(CubeMesh::new()));
+            hm.insert("plane".into(), MeshBuffer::new(PlaneMesh::new()));
+            hm.insert("screen_quad".into(), MeshBuffer::new(Quad::new()));
         }
 
         {
@@ -255,21 +259,20 @@ where
     }
 
     fn new_default_font_bitmap() -> Rc<Texture> {
-        let mut tex =
-            Texture::new_with_resource(Resource::new(ImageBuffer::from_fn(128, 64, |x, y| {
-                let cx: u32 = x / 8;
-                let cy: u32 = y / 8;
-                let c = &DEFAULT_FONT_DATA[(cx + cy * 16) as usize];
+        let mut tex = Texture::new(ImageBuffer::from_fn(128, 64, |x, y| {
+            let cx: u32 = x / 8;
+            let cy: u32 = y / 8;
+            let c = &DEFAULT_FONT_DATA[(cx + cy * 16) as usize];
 
-                let bx: u8 = (x % 8) as u8;
-                let by: u8 = (y % 8) as u8;
+            let bx: u8 = (x % 8) as u8;
+            let by: u8 = (y % 8) as u8;
 
-                if (c[by as usize] & (1 << bx)) != 0 {
-                    image::Rgba([0xff, 0xff, 0xff, 0xff])
-                } else {
-                    image::Rgba([0, 0, 0, 0])
-                }
-            })));
+            if (c[by as usize] & (1 << bx)) != 0 {
+                image::Rgba([0xff, 0xff, 0xff, 0xff])
+            } else {
+                image::Rgba([0, 0, 0, 0])
+            }
+        }));
 
         Rc::get_mut(&mut tex).unwrap().filtering = TextureFiltering::Nearest;
 
@@ -280,27 +283,27 @@ where
         // Construct a new ImageBuffer with the specified width and height.
 
         // Construct a new by repeated calls to the supplied closure.
-        Texture::new_with_resource(Resource::new(ImageBuffer::from_fn(64, 64, |x, y| {
+        Texture::new(ImageBuffer::from_fn(64, 64, |x, y| {
             if (x < 32 && y < 32) || (x > 32 && y > 32) {
                 image::Rgba([0xff, 0xff, 0xff, 0xff])
             } else {
                 image::Rgba([0, 0, 0, 0xff])
             }
-        })))
+        }))
     }
 
     pub fn new_default_program() -> Rc<ShaderProgram> {
         let vs = Shader::new(ShaderKind::Vertex, "phong_vs.glsl", DEFAULT_VS);
         let fs = Shader::new(ShaderKind::Fragment, "phong_fs.glsl", DEFAULT_FS);
 
-        ShaderProgram::new_with_resource((Resource::new(vs), Resource::new(fs)))
+        ShaderProgram::new((Resource::new(vs), Resource::new(fs)))
     }
 
     pub fn new_default_ui_program() -> Rc<ShaderProgram> {
         let vs = Shader::new(ShaderKind::Vertex, "ui_vs.glsl", DEFAULT_UI_VS);
         let fs = Shader::new(ShaderKind::Fragment, "ui_fs.glsl", DEFAULT_UI_FS);
 
-        ShaderProgram::new_with_resource((Resource::new(vs), Resource::new(fs)))
+        ShaderProgram::new((Resource::new(vs), Resource::new(fs)))
     }
 
     pub fn get_filename(&self, name: &str) -> String {

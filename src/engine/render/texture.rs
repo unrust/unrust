@@ -34,7 +34,7 @@ impl Asset for Texture {
         Resource::new_future(img)
     }
 
-    fn new_with_resource(res: Self::Resource) -> Rc<Self> {
+    fn new_from_resource(res: Self::Resource) -> Rc<Self> {
         Rc::new(Texture {
             filtering: TextureFiltering::Linear,
             img: res,

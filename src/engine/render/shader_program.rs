@@ -12,7 +12,7 @@ use futures::Future;
 impl Asset for ShaderProgram {
     type Resource = (Resource<Shader>, Resource<Shader>);
 
-    fn new_with_resource((vs, fs): Self::Resource) -> Rc<ShaderProgram> {
+    fn new_from_resource((vs, fs): Self::Resource) -> Rc<ShaderProgram> {
         Rc::new(ShaderProgram {
             gl_state: RefCell::new(None),
 

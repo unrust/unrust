@@ -81,7 +81,7 @@ impl Asset for MeshBuffer {
         unimplemented!();
     }
 
-    fn new_with_resource(r: Self::Resource) -> Rc<Self> {
+    fn new_from_resource(r: Self::Resource) -> Rc<Self> {
         Rc::new(MeshBuffer {
             data: r,
             gl_state: Default::default(),
@@ -108,29 +108,29 @@ impl MeshBuffer {
         Ok(())
     }
 
-    pub fn compute_bounds(&self) -> (Vector3<f32>, Vector3<f32>) {
+    fn compute_bounds(&self) -> Option<(Vector3<f32>, Vector3<f32>)> {
         let mut min = Vector3::new(MAX, MAX, MAX);
         let mut max = Vector3::new(MIN, MIN, MIN);
 
-        let data = self.data.try_borrow().unwrap();
+        let data = self.data.try_borrow().ok()?;
 
         for (i, v) in data.vertices.iter().enumerate() {
             min[i % 3] = v.min(min[i % 3]);
             max[i % 3] = v.max(max[i % 3]);
         }
 
-        (min, max)
+        Some((min, max))
     }
 
     /// bounds return (vmin, vmax)
-    pub fn bounds(&self) -> (Vector3<f32>, Vector3<f32>) {
+    pub fn bounds(&self) -> Option<(Vector3<f32>, Vector3<f32>)> {
         let mut bounds = self.bounds.borrow_mut();
 
         match *bounds {
-            Some(ref k) => *k,
+            Some(ref k) => Some(*k),
             None => {
-                *bounds = Some(self.compute_bounds());
-                bounds.unwrap()
+                *bounds = self.compute_bounds();
+                *bounds
             }
         }
     }

@@ -31,7 +31,7 @@ impl Asset for Material {
         unimplemented!();
     }
 
-    fn new_with_resource(_r: Self::Resource) -> Rc<Self> {
+    fn new_from_resource(_r: Self::Resource) -> Rc<Self> {
         unimplemented!();
     }
 }

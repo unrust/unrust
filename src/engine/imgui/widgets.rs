@@ -6,7 +6,7 @@ use super::Metric;
 
 use std::fmt::Debug;
 use engine::render::{MeshBuffer, MeshData};
-use engine::asset::{Asset, Resource};
+use engine::asset::Asset;
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -169,12 +169,12 @@ impl Widget for Label {
             let mut gomut = go.borrow_mut();
             let meshdata = make_text_mesh_data(&self.s, ssize);
 
-            let mesh = Mesh::new(MeshBuffer::new_with_resource(Resource::new(meshdata)));
+            let mesh = Mesh::new(MeshBuffer::new(meshdata));
             gomut.transform.append_translation_mut(&compute_translate(
                 &self.pos,
                 &self.pivot,
                 &ssize,
-                mesh.mesh_buffer.bounds(),
+                mesh.mesh_buffer.bounds().unwrap(),
             ));
 
             gomut.add_component(mesh);

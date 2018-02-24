@@ -25,10 +25,10 @@ pub fn check_gl_error(msg: &str) {
                     gl::STACK_OVERFLOW => "stack overflow",
                     gl::STACK_UNDERFLOW => "stack underflow",
                     _ => "unknown error",
-        }
+                }
             );
+        }
     }
-}
 }
 
 pub type WebGLContext<'p> = Box<'p + for<'a> FnMut(&'a str) -> *const c_void>;
@@ -285,6 +285,14 @@ impl GLContext {
         kind: DataType,
         pixels: &[u8],
     ) {
+        let p: *const c_void;
+
+        if pixels.len() > 0 {
+            p = pixels.as_ptr() as _;
+        } else {
+            p = 0 as _;
+        }
+
         unsafe {
             gl::TexImage2D(
                 target as _,
@@ -295,7 +303,7 @@ impl GLContext {
                 0,
                 format as _,
                 kind as _,
-                pixels.as_ptr() as _,
+                p as _,
             );
         }
     }
@@ -533,7 +541,7 @@ impl GLContext {
         }
     }
 
-    pub fn create_framebuffer(&self)  -> WebGLFrameBuffer {
+    pub fn create_framebuffer(&self) -> WebGLFrameBuffer {
         let mut fb = WebGLFrameBuffer(0);
         unsafe {
             gl::GenFramebuffers(1, &mut fb.0);
@@ -547,9 +555,22 @@ impl GLContext {
         }
     }
 
-    pub fn framebuffer_texture2d(&self, target:Buffers, attachment: Buffers, textarget: TextureBindPoint, texture: &WebGLTexture, level: i32) {
+    pub fn framebuffer_texture2d(
+        &self,
+        target: Buffers,
+        attachment: Buffers,
+        textarget: TextureBindPoint,
+        texture: &WebGLTexture,
+        level: i32,
+    ) {
         unsafe {
-            gl::FramebufferTexture2D(target as u32, attachment as u32, textarget as u32, texture.0, level);
+            gl::FramebufferTexture2D(
+                target as u32,
+                attachment as u32,
+                textarget as u32,
+                texture.0,
+                level,
+            );
         }
     }
 

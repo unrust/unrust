@@ -11,8 +11,10 @@ impl Loadable for RgbaImage {
 
 impl Loader<RgbaImage> for ImageLoader {
     fn load(mut file: Box<File>) -> Result<RgbaImage, AssetError> {
-        let buf = file.read_binary().map_err(|_| AssetError::InvalidFormat)?;
-        let img = image::load_from_memory(&buf).map_err(|_| AssetError::InvalidFormat)?;
+        let buf = file.read_binary()
+            .map_err(|_| AssetError::InvalidFormat(file.name()))?;
+        let img =
+            image::load_from_memory(&buf).map_err(|_| AssetError::InvalidFormat(file.name()))?;
         Ok(img.to_rgba())
     }
 }

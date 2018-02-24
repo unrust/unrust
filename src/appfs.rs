@@ -23,7 +23,10 @@ impl Future for AppFileReader {
             }
         }
 
-        if let Ok(f) = mem::replace(&mut self.0, Err(FileIoError::NoSuchFile)) {
+        if let Ok(f) = mem::replace(
+            &mut self.0,
+            Err(FileIoError::Unknown("unknown".to_string())),
+        ) {
             return Ok(Async::Ready(Box::new(f)));
         }
 
@@ -35,7 +38,8 @@ impl FileSystem for AppFileSystem {
     type File = AppFile;
 
     fn open(&self, filename: &str) -> FileFuture {
-        let f = uni_app::fs::FileSystem::open(filename).map_err(|_| FileIoError::NoSuchFile);
+        let f = uni_app::fs::FileSystem::open(filename)
+            .map_err(|_| FileIoError::NoSuchFile(filename.to_string()));
 
         Box::new(AppFileReader(match f {
             Err(err) => Err(err),

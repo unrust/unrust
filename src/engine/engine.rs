@@ -233,13 +233,22 @@ where
             .map(|(mesh, _)| {
                 let prog = ctx.prog.upgrade().unwrap();
 
-                if let Ok(_) = ctx.prepare_cache(&mesh.mesh_buffer, |ctx| {
+                let r = ctx.prepare_cache(&mesh.mesh_buffer, |ctx| {
                     mesh.bind(&self.gl, &prog)?;
                     ctx.switch_mesh += 1;
                     Ok(())
-                }) {
-                    prog.commit(gl);
-                    mesh.render(gl);
+                });
+
+                match r {
+                    Ok(_) => {
+                        prog.commit(gl);
+                        mesh.render(gl);
+                    }
+                    Err(ref err) => {
+                        if *err != AssetError::NotReady {
+                            panic!(format!("Failed to load mesh, reason {:?}", err));
+                        }
+                    }
                 }
             })
             .unwrap()
@@ -329,8 +338,12 @@ where
                     let result = object.find_component::<Material>();
 
                     if let Some((material, _)) = result {
-                        if self.setup_material(&mut ctx, &material).is_ok() {
-                            self.render_object(gl, &mut ctx, &object, camera);
+                        match self.setup_material(&mut ctx, &material) {
+                            Ok(_) => self.render_object(gl, &mut ctx, &object, camera),
+                            Err(ref err) if *err != AssetError::NotReady => {
+                                panic!("Failed to load material {:?}", err);
+                            }
+                            _ => (),
                         }
                     }
                 });

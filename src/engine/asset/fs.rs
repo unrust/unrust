@@ -15,9 +15,9 @@ pub trait File {
     fn read_binary(&mut self) -> Result<Vec<u8>, FileIoError>;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum FileIoError {
     NotReady,
-    NoSuchFile,
-    Unknown,
+    NoSuchFile(String),
+    Unknown(String),
 }

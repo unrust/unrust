@@ -114,10 +114,10 @@ impl<T: Debug + loader::Loadable> From<T> for Resource<T> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum AssetError {
     NotReady,
-    InvalidFormat,
+    InvalidFormat(String),
     FileIoError(fs::FileIoError),
 }
 

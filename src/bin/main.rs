@@ -213,7 +213,6 @@ pub fn main() {
     let app = App::new(config);
     {
         let mut game = Game::new(Engine::new(app.canvas(), size));
-        game.reset();
         game.engine.main_camera = Some(Camera::new());
 
         use imgui::Metric::*;

@@ -14,7 +14,7 @@ use appfs::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::ops::{Deref, DerefMut};
-use na::{Point3, Vector3, UnitQuaternion};
+use na::{Point3, UnitQuaternion, Vector3};
 use std::collections::HashMap;
 use std::sync::{Arc, Weak};
 
@@ -25,17 +25,14 @@ type Handle<T> = Rc<RefCell<T>>;
 
 struct Game {
     list: Vec<Handle<GameObject>>,
-    counter: u32,
     engine: AppEngine,
     point_light_coms: Vec<Weak<Component>>,
 }
 
 impl Game {
     fn new(engine: AppEngine) -> Game {
-
         let mut g = Game {
             list: Vec::new(),
-            counter: 0,
             engine: engine,
             point_light_coms: Vec::new(),
         };
@@ -47,7 +44,9 @@ impl Game {
     pub fn step(&mut self) {
         for go in self.iter() {
             let mut go_mut = go.borrow_mut();
-            go_mut.transform.append_rotation_mut(&UnitQuaternion::new(Vector3::new(0.01,0.02,0.005)));
+            go_mut
+                .transform
+                .append_rotation_mut(&UnitQuaternion::new(Vector3::new(0.01, 0.02, 0.005)));
         }
     }
 
@@ -144,10 +143,9 @@ pub fn main() {
     let size = (800, 600);
     let config = AppConfig::new("Framebuffer demo", size);
     let app = App::new(config);
-    let mut crt=false;
+    let mut crt = false;
     {
         let mut game = Game::new(Engine::new(app.canvas(), size));
-        game.reset();
         game.engine.main_camera = Some(Camera::new());
 
         use imgui::Metric::*;
@@ -156,7 +154,7 @@ pub fn main() {
         let mut last_event = None;
         let mut eye = Vector3::new(-3.0, 3.0, -3.0);
         let up = Vector3::new(0.0, 1.0, 0.0);
-        let fb = FrameBuffer::new(1024,1024, &game.engine.gl);
+        let fb = FrameBuffer::new(1024, 1024, &game.engine.gl);
         fb.prepare(&game.engine.gl);
 
         app.run(move |app: &mut App| {
@@ -194,8 +192,7 @@ pub fn main() {
                 for evt in events.iter() {
                     last_event = Some(evt.clone());
                     match evt {
-                        &AppEvent::Click(_) => {
-                        }
+                        &AppEvent::Click(_) => {}
 
                         &AppEvent::KeyDown(ref key) => {
                             match key.code.as_str() {

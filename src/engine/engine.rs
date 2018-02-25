@@ -28,7 +28,7 @@ where
     A: AssetSystem,
 {
     pub gl: WebGLRenderingContext,
-    pub main_camera: Option<Camera>,
+    pub main_camera: Option<Rc<RefCell<Camera>>>,
 
     pub objects: Vec<Weak<RefCell<GameObject>>>,
     pub program_cache: RefCell<HashMap<&'static str, Rc<ShaderProgram>>>,
@@ -341,6 +341,10 @@ where
 
         let mut ctx: EngineContext = Default::default();
 
+        if let Some(ref fb) = camera.frame_buffer {
+            fb.bind(&self.gl);
+        }
+
         self.prepare_ctx(&mut ctx);
 
         for obj in objects.iter() {
@@ -359,13 +363,17 @@ where
                 }
             });
         }
+
+        if let Some(ref fb) = camera.frame_buffer {
+            fb.unbind(&self.gl);
+        }
     }
 
     pub fn render(&mut self) {
         imgui::pre_render(self);
 
         if let Some(ref camera) = self.main_camera.as_ref() {
-            self.render_pass(camera);
+            self.render_pass(&camera.borrow());
         }
 
         // drop all gameobjects if there are no other references

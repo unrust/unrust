@@ -146,7 +146,7 @@ pub fn main() {
     let mut crt = false;
     {
         let mut game = Game::new(Engine::new(app.canvas(), size));
-        game.engine.main_camera = Some(Camera::new());
+        game.engine.main_camera = Some(Rc::new(RefCell::new(Camera::new())));
 
         use imgui::Metric::*;
 
@@ -154,13 +154,10 @@ pub fn main() {
         let mut last_event = None;
         let mut eye = Vector3::new(-3.0, 3.0, -3.0);
         let up = Vector3::new(0.0, 1.0, 0.0);
-        let fb = FrameBuffer::new(1024, 1024, &game.engine.gl);
+        let fb = Rc::new(FrameBuffer::new(1024, 1024, &game.engine.gl));
         fb.prepare(&game.engine.gl);
 
         app.run(move |app: &mut App| {
-            if crt {
-                fb.bind(&game.engine.gl);
-            }
             game.engine.begin();
             fps.step();
             game.step();
@@ -213,7 +210,7 @@ pub fn main() {
 
             // Update Camera
             {
-                let cam = game.engine.main_camera.as_mut().unwrap();
+                let mut cam = game.engine.main_camera.as_ref().unwrap().borrow_mut();
                 cam.lookat(
                     &Point3::from_coordinates(eye),
                     &Point3::new(0.0, 0.0, 0.0),
@@ -233,15 +230,24 @@ pub fn main() {
                 }
             }
 
-            if !crt {
-                // TODO render fb texture on screen
-                imgui::pivot((0.5, 0.5));
-                imgui::image(Native(0.5, 0.5), Native(0.5, 0.5), fb.texture.clone());
+            if crt {
+                // Setup fb for camera
+                let mut cam = game.engine.main_camera.as_ref().unwrap().borrow_mut();
+                cam.frame_buffer = Some(fb.clone());
+
+                // Render current scene by camera using given frame buffer
+                game.engine.render_pass(&cam);
+
+                // Clean up frame buffer in camera, as we could render normally later
+                cam.frame_buffer = None;
+
+                // render fb texture on screen
+                imgui::pivot((0.0, 1.0));
+                imgui::image(Native(0.0, 1.0), Pixel(300.0, 300.0), fb.texture.clone());
             }
 
             // Render
             game.engine.render();
-            fb.unbind(&game.engine.gl);
 
             // End
             game.engine.end();

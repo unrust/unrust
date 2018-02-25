@@ -148,9 +148,9 @@ where
     A: AssetSystem,
 {
     pub fn clear(&self) {
+        self.gl.clear_color(0.2, 0.2, 0.2, 1.0);
         self.gl.clear(BufferBit::Color);
         self.gl.clear(BufferBit::Depth);
-        self.gl.clear_color(0.2, 0.2, 0.2, 1.0);
     }
 
     fn setup_material(
@@ -202,13 +202,6 @@ where
         prog.set("uNMatrix", modelm.try_inverse().unwrap().transpose());
         prog.set("uMMatrix", modelm);
         prog.set("uViewPos", camera.eye());
-
-        if let Some(((x, y), (w, h))) = camera.rect {
-            self.gl.viewport(x, y, w, h);
-        } else {
-            self.gl
-                .viewport(0, 0, self.screen_size.0, self.screen_size.1);
-        }
     }
 
     fn setup_light(&self, ctx: &EngineContext, prog: &ShaderProgram) {
@@ -334,8 +327,6 @@ where
     }
 
     pub fn render_pass(&self, camera: &Camera) {
-        self.clear();
-
         let gl = &self.gl;
         let objects = &self.objects;
 
@@ -344,6 +335,15 @@ where
         if let Some(ref fb) = camera.frame_buffer {
             fb.bind(&self.gl);
         }
+
+        if let Some(((x, y), (w, h))) = camera.rect {
+            self.gl.viewport(x, y, w, h);
+        } else {
+            self.gl
+                .viewport(0, 0, self.screen_size.0, self.screen_size.1);
+        }
+
+        self.clear();
 
         self.prepare_ctx(&mut ctx);
 

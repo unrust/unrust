@@ -11,7 +11,7 @@ webgl = {path="webgl"}
 uni-app = {path="uni-app"}
 uni-glsl = {path="uni-glsl"}
 futures = "0.1"
-tobj = "0.1.6"
+obj = "0.8.2"
 # Bring in stdweb to make sure the main function will translate to js
 stdweb =  "0.4.0"
 

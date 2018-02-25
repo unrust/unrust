@@ -6,7 +6,7 @@
 extern crate futures;
 extern crate image;
 extern crate nalgebra as na;
-extern crate tobj;
+extern crate obj;
 extern crate uni_glsl;
 extern crate webgl;
 

@@ -12,6 +12,7 @@ use futures::{Async, Future};
 use std::mem;
 use std::fmt::Debug;
 use std::fmt;
+use std::ops::Deref;
 
 use image;
 use image::ImageBuffer;
@@ -151,20 +152,23 @@ pub trait Asset {
 }
 
 pub trait LoadableAsset: Asset {
-    fn load<T: AssetSystem>(asys: &T, files: Vec<fs::FileFuture>) -> Self::Resource;
+    fn load<T: AssetSystem + Clone + 'static>(
+        asys: &T,
+        files: Vec<fs::FileFuture>,
+    ) -> Self::Resource;
 
     fn gather<T: AssetSystem>(asys: &T, fname: &str) -> Vec<fs::FileFuture>;
 
-    fn load_resource<U: loader::Loadable + Debug + 'static>(f: fs::FileFuture) -> Resource<U> {
-        Resource::new_future(U::load_future(f))
+    fn load_resource<U, A>(asys: A, f: fs::FileFuture) -> Resource<U>
+    where
+        U: loader::Loadable + Debug + 'static,
+        A: AssetSystem + Clone + 'static,
+    {
+        Resource::new_future(U::load_future(asys, f))
     }
 }
 
-pub struct AssetDatabase<FS, F>
-where
-    FS: fs::FileSystem<File = F>,
-    F: fs::File,
-{
+pub struct AssetDatabaseContext<FS> {
     fs: FS,
     path: String,
     textures: RefCell<HashMap<String, Rc<Texture>>>,
@@ -172,9 +176,41 @@ where
     programs: RefCell<HashMap<String, Rc<ShaderProgram>>>,
 }
 
-impl<FS, F> AssetSystem for AssetDatabase<FS, F>
+pub struct AssetDatabase<FS, F>
 where
     FS: fs::FileSystem<File = F>,
+    F: fs::File,
+{
+    context: Rc<AssetDatabaseContext<FS>>,
+}
+
+impl<FS, F> Deref for AssetDatabase<FS, F>
+where
+    FS: fs::FileSystem<File = F>,
+    F: fs::File,
+{
+    type Target = AssetDatabaseContext<FS>;
+
+    fn deref(&self) -> &Self::Target {
+        self.context.as_ref()
+    }
+}
+
+impl<FS, F> Clone for AssetDatabase<FS, F>
+where
+    FS: fs::FileSystem<File = F>,
+    F: fs::File,
+{
+    fn clone(&self) -> Self {
+        AssetDatabase {
+            context: self.context.clone(),
+        }
+    }
+}
+
+impl<FS, F> AssetSystem for AssetDatabase<FS, F>
+where
+    FS: fs::FileSystem<File = F> + 'static,
     F: fs::File + 'static,
 {
     fn new_file(&self, name: &str) -> fs::FileFuture {
@@ -206,17 +242,19 @@ where
 
     fn new() -> AssetDatabase<FS, F> {
         let mut db = AssetDatabase {
-            fs: FS::default(),
-            path: String::default(),
-            textures: RefCell::new(HashMap::new()),
-            mesh_buffers: RefCell::new(HashMap::new()),
-            programs: RefCell::new(HashMap::new()),
+            context: Rc::new(AssetDatabaseContext {
+                fs: FS::default(),
+                path: String::default(),
+                textures: RefCell::new(HashMap::new()),
+                mesh_buffers: RefCell::new(HashMap::new()),
+                programs: RefCell::new(HashMap::new()),
+            }),
         };
 
         db.setup();
 
         if cfg!(not(target_arch = "wasm32")) {
-            db.path = "static/".into();
+            Rc::get_mut(&mut db.context).unwrap().path = "static/".into();
         }
 
         db
@@ -225,7 +263,7 @@ where
 
 impl<FS, F> AssetDatabase<FS, F>
 where
-    FS: fs::FileSystem<File = F>,
+    FS: fs::FileSystem<File = F> + 'static,
     F: fs::File + 'static,
 {
     fn new_asset<R>(&self, hm: &mut HashMap<String, Rc<R>>, name: &str) -> Rc<R>

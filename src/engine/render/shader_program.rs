@@ -27,10 +27,13 @@ impl Asset for ShaderProgram {
 }
 
 impl LoadableAsset for ShaderProgram {
-    fn load<T: AssetSystem>(_asys: &T, mut files: Vec<FileFuture>) -> Self::Resource {
+    fn load<T: AssetSystem + Clone + 'static>(
+        asys: &T,
+        mut files: Vec<FileFuture>,
+    ) -> Self::Resource {
         (
-            Self::load_resource::<ShaderVs>(files.remove(0)),
-            Self::load_resource::<ShaderFs>(files.remove(0)),
+            Self::load_resource::<ShaderVs, T>(asys.clone(), files.remove(0)),
+            Self::load_resource::<ShaderFs, T>(asys.clone(), files.remove(0)),
         )
     }
 

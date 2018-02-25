@@ -3,9 +3,7 @@ use std::mem::size_of;
 
 use super::ShaderProgram;
 use engine::core::ComponentBased;
-use engine::asset::{Asset, AssetError, AssetSystem, File, FileFuture, LoadableAsset, Resource};
-use engine::asset::loader;
-use engine::asset::loader::Loadable;
+use engine::asset::{Asset, AssetError, AssetSystem, FileFuture, LoadableAsset, Resource};
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -70,17 +68,6 @@ pub struct MeshData {
     pub indices: Vec<u16>,
 }
 
-pub struct MeshLoader {}
-impl loader::Loader<MeshData> for MeshLoader {
-    fn load(_file: Box<File>) -> Result<MeshData, AssetError> {
-        unimplemented!()
-    }
-}
-
-impl Loadable for MeshData {
-    type Loader = MeshLoader;
-}
-
 pub struct MeshBuffer {
     data: Resource<MeshData>,
     gl_state: RefCell<Option<MeshGLState>>,
@@ -100,8 +87,11 @@ impl Asset for MeshBuffer {
 }
 
 impl LoadableAsset for MeshBuffer {
-    fn load<T: AssetSystem>(_asys: &T, mut files: Vec<FileFuture>) -> Self::Resource {
-        Self::load_resource::<MeshData>(files.remove(0))
+    fn load<T>(asys: &T, mut files: Vec<FileFuture>) -> Self::Resource
+    where
+        T: AssetSystem + Clone + 'static,
+    {
+        Self::load_resource::<MeshData, T>(asys.clone(), files.remove(0))
     }
 
     fn gather<T: AssetSystem>(asys: &T, fname: &str) -> Vec<FileFuture> {

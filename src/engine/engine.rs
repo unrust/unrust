@@ -389,10 +389,13 @@ where
         gl.clear_color(0.5, 0.5, 0.5, 1.0);
 
         // Enable the depth test
-        gl.enable(Flag::DepthTest);
+        gl.enable(Flag::DepthTest as i32);
 
         // Enable alpha blending
-        gl.enable(Flag::Blend);
+        gl.enable(Flag::Blend as i32);
+
+        gl.enable(Culling::CullFace as i32);
+        gl.cull_face(Culling::Back);
 
         // Clear the color buffer bit
         gl.clear(BufferBit::Color);

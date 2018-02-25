@@ -234,11 +234,25 @@ impl GLContext {
         check_gl_error("clear_color");
     }
 
-    pub fn enable(&self, flag: Flag) {
+    pub fn enable(&self, flag: i32) {
         unsafe {
             gl::Enable(flag as _);
         }
         check_gl_error("enable");
+    }
+
+    pub fn disable(&self, flag: i32) {
+        unsafe {
+            gl::Disable(flag as _);
+        }
+        check_gl_error("disable");
+    }
+
+    pub fn cull_face(&self, flag: Culling) {
+        unsafe {
+            gl::CullFace(flag as _);
+        }
+        check_gl_error("cullface");
     }
 
     pub fn clear(&self, bit: BufferBit) {

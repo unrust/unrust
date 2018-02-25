@@ -302,11 +302,27 @@ impl GLContext {
         };
     }
 
-    pub fn enable(&self, flag: Flag) {
+    pub fn enable(&self, flag: i32) {
         self.log("enable");
         js! {
             var ctx = Module.gl.get(@{&self.reference});
             ctx.enable(@{flag as i32})
+        };
+    }
+
+    pub fn disable(&self, flag: i32) {
+        self.log("disable");
+        js! {
+            var ctx = Module.gl.get(@{&self.reference});
+            ctx.disable(@{flag as i32})
+        };
+    }
+
+    pub fn cull_face(&self, flag: Culling) {
+        self.log("cull_face");
+        js! {
+            var ctx = Module.gl.get(@{&self.reference});
+            ctx.cullFace(@{flag as i32})
         };
     }
 
@@ -366,12 +382,22 @@ impl GLContext {
         let params1 = js! { return [@{target as u32},@{level as u32},@{format as u32}] };
         let params2 =
             js! { return [@{width as u32},@{height as u32},@{format as u32},@{kind as u32}] };
-        js!{
-            var p = @{params1}.concat(@{params2});
-            var ctx = Module.gl.get(@{&self.reference});
 
-            ctx.texImage2D(p[0],p[1], p[2] ,p[3],p[4],0,p[2],p[6],@{TypedArray::from(pixels)});
-        };
+        if pixels.len() > 0 {
+            js!{
+                var p = @{params1}.concat(@{params2});
+                var ctx = Module.gl.get(@{&self.reference});
+
+                ctx.texImage2D(p[0],p[1], p[2] ,p[3],p[4],0,p[2],p[6],@{TypedArray::from(pixels)});
+            };
+        } else {
+            js!{
+                var p = @{params1}.concat(@{params2});
+                var ctx = Module.gl.get(@{&self.reference});
+
+                ctx.texImage2D(p[0],p[1], p[2] ,p[3],p[4],0,p[2],p[6],null);
+            };
+        }
     }
 
     pub fn tex_sub_image2d(
@@ -689,7 +715,7 @@ impl GLContext {
         };
     }
 
-    pub fn create_framebuffer(&self)  -> WebGLFrameBuffer {
+    pub fn create_framebuffer(&self) -> WebGLFrameBuffer {
         let val = js! {
             var ctx = Module.gl.get(@{self.reference});
             return Module.gl.add(ctx.createFramebuffer());
@@ -705,7 +731,14 @@ impl GLContext {
         }
     }
 
-    pub fn framebuffer_texture2d(&self, target:Buffers, attachment: Buffers, textarget: TextureBindPoint, texture: &WebGLTexture, level: i32) {
+    pub fn framebuffer_texture2d(
+        &self,
+        target: Buffers,
+        attachment: Buffers,
+        textarget: TextureBindPoint,
+        texture: &WebGLTexture,
+        level: i32,
+    ) {
         js! {
             var ctx = Module.gl.get(@{self.reference});
             var tex = Module.gl.get(@{&texture.0});

@@ -18,6 +18,7 @@ impl FrameBuffer {
     pub fn prepare(&self, gl: &WebGLRenderingContext) {
         self.bind(gl);
         self.texture.bind(gl, 0).unwrap();
+        self.unbind(gl);
     }
     pub fn bind(&self, gl: &WebGLRenderingContext) {
         gl.bind_framebuffer(Buffers::Framebuffer, &self.handle);

@@ -213,7 +213,7 @@ pub fn main() {
     let app = App::new(config);
     {
         let mut game = Game::new(Engine::new(app.canvas(), size));
-        game.engine.main_camera = Some(Rc::new(Camera::new()));
+        game.engine.main_camera = Some(Rc::new(RefCell::new(Camera::new())));
 
         use imgui::Metric::*;
 
@@ -276,14 +276,12 @@ pub fn main() {
 
             // Update Camera
             {
-                let cam = game.engine.main_camera.as_mut().unwrap();
+                let mut cam = game.engine.main_camera.as_ref().unwrap().borrow_mut();
                 cam.lookat(
                     &Point3::from_coordinates(eye),
                     &Point3::new(0.0, 0.0, 0.0),
                     &Vector3::new(0.0, 1.0, 0.0),
                 );
-
-                //cam.rect = Some((0.0, 0.5, 0.5, 0.5));
             }
 
             // Update Light

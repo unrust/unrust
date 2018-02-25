@@ -23,12 +23,15 @@ use std::cell::RefCell;
 
 use engine::core::GameObject;
 use engine::IEngine;
+use engine::render::Texture;
 use std::collections::HashMap;
 use std::ops::{Add, Sub};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Metric {
+    /// Left Top =(0,0), Right, Bottom = (1,1)
     Native(f32, f32),
+    /// Left Top = (0,0), Right, Bottom = (screen width,screen height)
     Pixel(f32, f32),
     Mixed((f32, f32), (f32, f32)),
 }
@@ -96,15 +99,13 @@ struct Imgui {
     inner: Arc<Mutex<ImguiRaw>>,
 }
 
-lazy_static! {
-    static ref INSTANCE: Arc<Mutex<ImguiRaw>> = {
-        Arc::new(Mutex::new(Default::default()))
-    };
-}
+thread_local!(
+    static INSTANCE: Arc<Mutex<ImguiRaw>> = Arc::new(Mutex::new(Default::default()))
+);
 
 fn imgui_inst() -> Imgui {
     return Imgui {
-        inner: INSTANCE.clone(),
+        inner: INSTANCE.with(|f| f.clone()),
     };
 }
 
@@ -142,11 +143,14 @@ pub fn pivot(p: (f32, f32)) {
     inner.pivot = Metric::Native(p.0, p.1);
 }
 
-/*
-    Label
-*/
+/// Label
 pub fn label(pos: Metric, s: &str) {
     add_widget(|id, pivot| widgets::Label::new(id, pos, pivot, s.into()));
+}
+
+/// Image
+pub fn image(pos: Metric, size: Metric, tex: Rc<Texture>) {
+    add_widget(|id, pivot| widgets::Image::new(id, pos, size, pivot, tex));
 }
 
 #[derive(Default)]

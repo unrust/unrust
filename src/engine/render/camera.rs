@@ -1,14 +1,16 @@
 use na::{Matrix4, Point3, Vector3};
+use engine::FrameBuffer;
 
 pub struct Camera {
     pub v: Matrix4<f32>,
     pub p: Matrix4<f32>,
 
-    /// Optional viewport of this camera, in normalized coordinates (x, y, width, height)
-    /// from 0 (left/bottom) to 1 (right/top)
-    pub rect: Option<(f32, f32, f32, f32)>,
+    /// Optional viewport of this camera,  (pos, size) in pixels
+    /// from 0 (left/top) to screen width/height (right/bottom)
+    pub rect: Option<((i32, i32), (u32, u32))>,
 
     eye: Point3<f32>,
+    pub frame_buffer: Option<FrameBuffer>,
 }
 
 impl Camera {
@@ -24,6 +26,7 @@ impl Camera {
             p: Matrix4::identity(),
             eye: Point3::new(0.0, 0.0, 0.0),
             rect: None,
+            frame_buffer: None,
         }
     }
 

@@ -233,12 +233,15 @@ pub fn main() {
                 }
             }
 
+            if !crt {
+                // TODO render fb texture on screen
+                imgui::pivot((0.5, 0.5));
+                imgui::image(Native(0.5, 0.5), Native(0.5, 0.5), fb.texture.clone());
+            }
+
             // Render
             game.engine.render();
             fb.unbind(&game.engine.gl);
-            if crt {
-                // TODO render fb texture on screen
-            }
 
             // End
             game.engine.end();

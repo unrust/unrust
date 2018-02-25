@@ -10,7 +10,4 @@ extern crate tobj;
 extern crate uni_glsl;
 extern crate webgl;
 
-#[macro_use]
-extern crate lazy_static;
-
 pub mod engine;

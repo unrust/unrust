@@ -5,24 +5,29 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use engine::asset::{Asset, AssetError, AssetSystem, FileFuture, LoadableAsset, Resource};
 
+#[derive(Debug)]
 pub enum TextureFiltering {
     Nearest,
     Linear,
 }
 
+#[derive(Debug)]
 pub struct ImageTexture {
     img: Resource<RgbaImage>,
 }
 
+#[derive(Debug)]
 pub struct RenderTexture {
     size: (u32, u32),
 }
 
+#[derive(Debug)]
 pub enum TextureKind {
     Image(ImageTexture),
     RenderTexture(RenderTexture),
 }
 
+#[derive(Debug)]
 pub struct Texture {
     pub filtering: TextureFiltering,
     gl_state: RefCell<Option<TextureGLState>>,
@@ -51,6 +56,7 @@ impl LoadableAsset for Texture {
     }
 }
 
+#[derive(Debug)]
 struct TextureGLState {
     tex: WebGLTexture,
 }

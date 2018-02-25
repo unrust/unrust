@@ -203,13 +203,11 @@ where
         prog.set("uMMatrix", modelm);
         prog.set("uViewPos", camera.eye());
 
-        if let Some((x, y, w, h)) = camera.rect {
-            let sx = (self.screen_size.0 as f32) * x;
-            let sy = (self.screen_size.1 as f32) * (1.0 - y);
-            let sw = (self.screen_size.0 as f32) * w;
-            let sh = (self.screen_size.1 as f32) * h;
-
-            self.gl.viewport(sx as i32, sy as i32, sw as u32, sh as u32);
+        if let Some(((x, y), (w, h))) = camera.rect {
+            self.gl.viewport(x, y, w, h);
+        } else {
+            self.gl
+                .viewport(0, 0, self.screen_size.0, self.screen_size.1);
         }
     }
 
@@ -311,26 +309,18 @@ where
         r
     }
 
-    pub fn render(&mut self) {
-        self.clear();
-        imgui::pre_render(self);
+    fn prepare_ctx(&self, ctx: &mut EngineContext) {
+        // prepare main light.
+        ctx.main_light = Some(self.find_component::<Light>().unwrap_or({
+            Component::new(Light::Directional(Directional {
+                direction: Vector3::new(0.5, -1.0, 1.0).normalize(),
+                ambient: Vector3::new(0.2, 0.2, 0.2),
+                diffuse: Vector3::new(0.5, 0.5, 0.5),
+                specular: Vector3::new(1.0, 1.0, 1.0),
+            }))
+        }));
 
-        let gl = &self.gl;
-        let objects = &self.objects;
-        if let &Some(camera) = &self.main_camera.as_ref() {
-            let mut ctx: EngineContext = Default::default();
-
-            // prepare main light.
-            ctx.main_light = Some(self.find_component::<Light>().unwrap_or({
-                Component::new(Light::Directional(Directional {
-                    direction: Vector3::new(0.5, -1.0, 1.0).normalize(),
-                    ambient: Vector3::new(0.2, 0.2, 0.2),
-                    diffuse: Vector3::new(0.5, 0.5, 0.5),
-                    specular: Vector3::new(1.0, 1.0, 1.0),
-                }))
-            }));
-
-            ctx.point_lights = self.find_all_components::<Light>()
+        ctx.point_lights = self.find_all_components::<Light>()
                 .into_iter()
                 .filter(|c| {
                     let light_com = c.try_as::<Light>().unwrap();
@@ -341,23 +331,41 @@ where
                 })
                 .take(4)            // only take 4 points light.
                 .collect();
+    }
 
-            for obj in objects.iter() {
-                obj.upgrade().map(|obj| {
-                    let object = obj.borrow();
-                    let result = object.find_component::<Material>();
+    pub fn render_pass(&self, camera: &Camera) {
+        self.clear();
 
-                    if let Some((material, _)) = result {
-                        match self.setup_material(&mut ctx, &material) {
-                            Ok(_) => self.render_object(gl, &mut ctx, &object, camera),
-                            Err(ref err) if *err != AssetError::NotReady => {
-                                panic!("Failed to load material {:?}", err);
-                            }
-                            _ => (),
+        let gl = &self.gl;
+        let objects = &self.objects;
+
+        let mut ctx: EngineContext = Default::default();
+
+        self.prepare_ctx(&mut ctx);
+
+        for obj in objects.iter() {
+            obj.upgrade().map(|obj| {
+                let object = obj.borrow();
+                let result = object.find_component::<Material>();
+
+                if let Some((material, _)) = result {
+                    match self.setup_material(&mut ctx, &material) {
+                        Ok(_) => self.render_object(gl, &mut ctx, &object, camera),
+                        Err(ref err) if *err != AssetError::NotReady => {
+                            panic!("Failed to load material {:?}", err);
                         }
+                        _ => (),
                     }
-                });
-            }
+                }
+            });
+        }
+    }
+
+    pub fn render(&mut self) {
+        imgui::pre_render(self);
+
+        if let Some(ref camera) = self.main_camera.as_ref() {
+            self.render_pass(camera);
         }
 
         // drop all gameobjects if there are no other references

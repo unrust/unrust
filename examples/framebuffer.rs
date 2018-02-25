@@ -235,15 +235,19 @@ pub fn main() {
                 let mut cam = game.engine.main_camera.as_ref().unwrap().borrow_mut();
                 cam.frame_buffer = Some(fb.clone());
 
+                // Setup proper viewport to render to the whole texture
+                cam.rect = Some(((0, 0), (1024, 1024)));
+
                 // Render current scene by camera using given frame buffer
                 game.engine.render_pass(&cam);
 
-                // Clean up frame buffer in camera, as we could render normally later
+                // Clean up stuffs in camera, as later we could render normally
                 cam.frame_buffer = None;
+                cam.rect = None;
 
                 // render fb texture on screen
                 imgui::pivot((0.0, 1.0));
-                imgui::image(Native(0.0, 1.0), Pixel(300.0, 300.0), fb.texture.clone());
+                imgui::image(Native(0.0, 1.0), Pixel(300.0, 225.0), fb.texture.clone());
             }
 
             // Render

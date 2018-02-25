@@ -12,19 +12,9 @@ pub enum TextureFiltering {
 }
 
 #[derive(Debug)]
-pub struct ImageTexture {
-    img: Resource<RgbaImage>,
-}
-
-#[derive(Debug)]
-pub struct RenderTexture {
-    size: (u32, u32),
-}
-
-#[derive(Debug)]
-pub enum TextureKind {
-    Image(ImageTexture),
-    RenderTexture(RenderTexture),
+enum TextureKind {
+    Image(Resource<RgbaImage>),
+    RenderTexture { size: (u32, u32) },
 }
 
 #[derive(Debug)]
@@ -41,7 +31,7 @@ impl Asset for Texture {
         Rc::new(Texture {
             filtering: TextureFiltering::Linear,
             gl_state: RefCell::new(None),
-            kind: TextureKind::Image(ImageTexture { img: res }),
+            kind: TextureKind::Image(res),
         })
     }
 }
@@ -66,9 +56,9 @@ impl Texture {
         Rc::new(Texture {
             filtering: TextureFiltering::Linear,
             gl_state: RefCell::new(None),
-            kind: TextureKind::RenderTexture(RenderTexture {
+            kind: TextureKind::RenderTexture {
                 size: (width, height),
-            }),
+            },
         })
     }
 
@@ -119,7 +109,7 @@ fn texture_bind_buffer(
 
     match kind {
         &TextureKind::Image(ref tex) => {
-            let img = tex.img.try_into()?;
+            let img = tex.try_into()?;
 
             gl.tex_image2d(
                 TextureBindPoint::Texture2d, // target
@@ -132,12 +122,12 @@ fn texture_bind_buffer(
             );
         }
 
-        &TextureKind::RenderTexture(ref tex) => {
+        &TextureKind::RenderTexture { size } => {
             gl.tex_image2d(
                 TextureBindPoint::Texture2d, // target
                 0,                           // level
-                tex.size.0 as u16,           // width
-                tex.size.1 as u16,           // height
+                size.0 as u16,               // width
+                size.1 as u16,               // height
                 PixelFormat::Rgba,           // format
                 DataType::U8,                // type
                 &[],                         // data
@@ -161,7 +151,7 @@ fn texture_bind_buffer(
         TextureWrap::ClampToEdge as i32,
     );
 
-    if let &TextureKind::RenderTexture(_) = kind {
+    if let &TextureKind::RenderTexture { .. } = kind {
         bind_to_framebuffer(gl, &tex);
     }
 

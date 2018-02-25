@@ -154,8 +154,7 @@ pub fn main() {
         let mut last_event = None;
         let mut eye = Vector3::new(-3.0, 3.0, -3.0);
         let up = Vector3::new(0.0, 1.0, 0.0);
-        let fb = Rc::new(FrameBuffer::new(1024, 1024, &game.engine.gl));
-        fb.prepare(&game.engine.gl);
+        let rt = Rc::new(RenderTexture::new(1024, 1024));
 
         app.run(move |app: &mut App| {
             game.engine.begin();
@@ -233,7 +232,7 @@ pub fn main() {
             if crt {
                 // Setup fb for camera
                 let mut cam = game.engine.main_camera.as_ref().unwrap().borrow_mut();
-                cam.frame_buffer = Some(fb.clone());
+                cam.render_texture = Some(rt.clone());
 
                 // Setup proper viewport to render to the whole texture
                 cam.rect = Some(((0, 0), (1024, 1024)));
@@ -242,12 +241,12 @@ pub fn main() {
                 game.engine.render_pass(&cam);
 
                 // Clean up stuffs in camera, as later we could render normally
-                cam.frame_buffer = None;
+                cam.render_texture = None;
                 cam.rect = None;
 
                 // render fb texture on screen
                 imgui::pivot((0.0, 1.0));
-                imgui::image(Native(0.0, 1.0), Pixel(300.0, 225.0), fb.texture.clone());
+                imgui::image(Native(0.0, 1.0), Pixel(300.0, 225.0), rt.as_texture());
             }
 
             // Render

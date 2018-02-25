@@ -1,6 +1,6 @@
 use na::{Matrix4, Point3, Vector3};
-use engine::FrameBuffer;
 use std::rc::Rc;
+use engine::render::RenderTexture;
 
 pub struct Camera {
     pub v: Matrix4<f32>,
@@ -11,7 +11,7 @@ pub struct Camera {
     pub rect: Option<((i32, i32), (u32, u32))>,
 
     eye: Point3<f32>,
-    pub frame_buffer: Option<Rc<FrameBuffer>>,
+    pub render_texture: Option<Rc<RenderTexture>>,
 }
 
 impl Camera {
@@ -27,7 +27,7 @@ impl Camera {
             p: Matrix4::identity(),
             eye: Point3::new(0.0, 0.0, 0.0),
             rect: None,
-            frame_buffer: None,
+            render_texture: None,
         }
     }
 

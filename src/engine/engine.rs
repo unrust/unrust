@@ -332,8 +332,8 @@ where
 
         let mut ctx: EngineContext = Default::default();
 
-        if let Some(ref fb) = camera.frame_buffer {
-            fb.bind(&self.gl);
+        if let Some(ref rt) = camera.render_texture {
+            rt.bind_frame_buffer(&self.gl);
         }
 
         if let Some(((x, y), (w, h))) = camera.rect {
@@ -364,8 +364,8 @@ where
             });
         }
 
-        if let Some(ref fb) = camera.frame_buffer {
-            fb.unbind(&self.gl);
+        if let Some(ref rt) = camera.render_texture {
+            rt.unbind_frame_buffer(&self.gl);
         }
     }
 

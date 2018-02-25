@@ -14,7 +14,7 @@ use appfs::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::ops::{Deref, DerefMut};
-use na::{Point3, Vector3, UnitQuaternion, Translation3};
+use na::{Point3, Vector3, UnitQuaternion};
 use std::collections::HashMap;
 use std::sync::{Arc, Weak};
 
@@ -31,7 +31,7 @@ struct Game {
 }
 
 impl Game {
-    fn new(mut engine: AppEngine) -> Game {
+    fn new(engine: AppEngine) -> Game {
 
         let mut g = Game {
             list: Vec::new(),
@@ -45,7 +45,6 @@ impl Game {
     }
 
     pub fn step(&mut self) {
-        let up = Vector3::new(0.0, 1.0, 0.0);
         for go in self.iter() {
             let mut go_mut = go.borrow_mut();
             go_mut.transform.append_rotation_mut(&UnitQuaternion::new(Vector3::new(0.01,0.02,0.005)));

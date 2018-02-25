@@ -1,6 +1,7 @@
 use engine::core::GameObject;
 use engine::render::{Material, MaterialParam, Mesh};
 use engine::engine::IEngine;
+use engine::render::Texture;
 
 use super::Metric;
 
@@ -15,7 +16,7 @@ use std::collections::HashMap;
 
 use na::{Translation3, Vector3};
 
-pub trait Widget: Send + Sync + Debug {
+pub trait Widget: Debug {
     fn id(&self) -> u32;
     fn bind(&self, ssize: (u32, u32), engine: &mut IEngine) -> Rc<RefCell<GameObject>>;
 
@@ -27,14 +28,6 @@ impl PartialEq for Widget {
     fn eq(&self, other: &Widget) -> bool {
         self.is_same(other)
     }
-}
-
-#[derive(Debug, PartialEq)]
-pub struct Label {
-    id: u32,
-    pos: Metric,
-    pivot: Metric,
-    s: String,
 }
 
 fn make_text_mesh_data(s: &str, size: (u32, u32)) -> MeshData {
@@ -115,19 +108,48 @@ fn make_text_mesh_data(s: &str, size: (u32, u32)) -> MeshData {
     }
 }
 
-impl Label {
-    pub fn new(id: u32, pos: Metric, pivot: Metric, s: String) -> Label {
-        Self {
-            id: id,
-            pos: pos,
-            pivot: pivot,
-            s: s,
-        }
+fn make_quad_mesh_data(size: (f32, f32)) -> MeshData {
+    let w = size.0;
+    let h = size.1;
+
+    let vertices: Vec<f32> = vec![
+            0.0, 0.0, 0.0,     // 0
+            0.0, -h, 0.0,    // 1
+            w, -h, 0.0,     // 2
+            w, 0.0, 0.0       // 3
+        ];
+
+    let uvs: Vec<f32> = vec![
+            // Top face
+            0.0, 1.0,
+            0.0, 0.0,
+            1.0, 0.0,
+            1.0, 1.0,
+        ];
+
+    let indices: Vec<u16> = vec![
+        0, 1, 2, 0, 2, 3 // Top face
+    ];
+
+    MeshData {
+        vertices: vertices,
+        uvs: Some(uvs),
+        normals: None,
+        indices: indices,
     }
 }
 
-fn to_pixel_pos(px: f32, py: f32, ssize: &(u32, u32)) -> (f32, f32) {
-    (((px * 2.0) / (ssize.0 as f32), (py * 2.0) / (ssize.1 as f32)))
+fn compute_size_to_ndc(size: &Metric, ssize: &(u32, u32)) -> (f32, f32) {
+    let (x, y) = match size {
+        &Metric::Native(px, py) => (px * 2.0, py * 2.0),
+        &Metric::Pixel(px, py) => to_pixel_pos(px, py, ssize),
+        &Metric::Mixed((ax, ay), (bx, by)) => {
+            let vp = to_pixel_pos(bx, by, ssize);
+            (ax * 2.0 + vp.0, ay * 2.0 + vp.1)
+        }
+    };
+
+    return (x, y);
 }
 
 fn compute_translate(
@@ -154,6 +176,29 @@ fn compute_translate(
     };
 
     Translation3::new(x - 1.0 - offsetx, y * -1.0 + 1.0 + offsety, 0.0)
+}
+
+fn to_pixel_pos(px: f32, py: f32, ssize: &(u32, u32)) -> (f32, f32) {
+    (((px * 2.0) / (ssize.0 as f32), (py * 2.0) / (ssize.1 as f32)))
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Label {
+    id: u32,
+    pos: Metric,
+    pivot: Metric,
+    s: String,
+}
+
+impl Label {
+    pub fn new(id: u32, pos: Metric, pivot: Metric, s: String) -> Label {
+        Self {
+            id: id,
+            pos: pos,
+            pivot: pivot,
+            s: s,
+        }
+    }
 }
 
 impl Widget for Label {
@@ -193,6 +238,87 @@ impl Widget for Label {
 
     fn is_same(&self, other: &Widget) -> bool {
         match other.as_any().downcast_ref::<Label>() {
+            Some(o) => o == self,
+            _ => false,
+        }
+    }
+
+    fn as_any(&self) -> &Any {
+        self
+    }
+}
+
+#[derive(Debug)]
+struct ImageTexture(Rc<Texture>);
+
+impl PartialEq for ImageTexture {
+    fn eq(&self, other: &ImageTexture) -> bool {
+        Rc::ptr_eq(&self.0, &other.0)
+    }
+
+    fn ne(&self, other: &ImageTexture) -> bool {
+        !Rc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Image {
+    id: u32,
+    pos: Metric,
+    size: Metric,
+    pivot: Metric,
+    texture: ImageTexture,
+}
+
+impl Image {
+    pub fn new(id: u32, pos: Metric, size: Metric, pivot: Metric, texture: Rc<Texture>) -> Image {
+        Self {
+            id: id,
+            pos: pos,
+            size: size,
+            pivot: pivot,
+            texture: ImageTexture(texture),
+        }
+    }
+}
+
+impl Widget for Image {
+    fn id(&self) -> u32 {
+        self.id
+    }
+
+    fn bind(&self, ssize: (u32, u32), engine: &mut IEngine) -> Rc<RefCell<GameObject>> {
+        let go = engine.new_gameobject();
+        let db = engine.asset_system();
+
+        {
+            let mut gomut = go.borrow_mut();
+            let meshdata = make_quad_mesh_data(compute_size_to_ndc(&self.size, &ssize));
+
+            let mesh = Mesh::new(MeshBuffer::new(meshdata));
+            gomut.transform.append_translation_mut(&compute_translate(
+                &self.pos,
+                &self.pivot,
+                &ssize,
+                mesh.mesh_buffer.bounds().unwrap(),
+            ));
+
+            gomut.add_component(mesh);
+
+            let mut textures = HashMap::new();
+            textures.insert(
+                "uDiffuse".to_string(),
+                MaterialParam::Texture(self.texture.0.clone()),
+            );
+
+            gomut.add_component(Material::new(db.new_program("default_ui"), textures));
+        }
+
+        go
+    }
+
+    fn is_same(&self, other: &Widget) -> bool {
+        match other.as_any().downcast_ref::<Image>() {
             Some(o) => o == self,
             _ => false,
         }

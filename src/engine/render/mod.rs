@@ -6,6 +6,8 @@ mod material;
 mod light;
 mod shader;
 mod uniforms;
+mod frame_buffer;
+mod render_texture;
 
 pub use self::camera::Camera;
 pub use self::shader::{ShaderFs, ShaderKind, ShaderVs};
@@ -14,3 +16,4 @@ pub use self::texture::{Texture, TextureFiltering};
 pub use self::mesh::{Mesh, MeshBuffer, MeshData};
 pub use self::material::{Material, MaterialParam};
 pub use self::light::{Directional, Light, Point};
+pub use self::render_texture::RenderTexture;

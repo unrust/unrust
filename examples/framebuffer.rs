@@ -4,46 +4,27 @@
 /* common */
 extern crate futures;
 extern crate nalgebra as na;
-extern crate ncollide;
-extern crate nphysics3d;
 extern crate uni_app;
 extern crate unigame;
 
-mod boxes_vee;
 mod appfs;
 
-use boxes_vee::*;
 use appfs::*;
 
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::ops::{Deref, DerefMut};
-use na::Isometry3;
+use na::{Point3, UnitQuaternion, Vector3};
 use std::collections::HashMap;
 use std::sync::{Arc, Weak};
-
-use nphysics3d::object::RigidBody;
-use na::{Point3, Vector3};
-use ncollide::shape::{Cuboid3, Plane3, Shape3};
 
 use unigame::engine::*;
 use uni_app::{App, AppConfig, AppEvent, FPS};
 
 type Handle<T> = Rc<RefCell<T>>;
 
-// Physic Object Component
-struct PhysicObject(Handle<RigidBody<f32>>);
-impl PhysicObject {
-    fn phy_transform(&self) -> Isometry3<f32> {
-        *self.0.borrow().position()
-    }
-}
-impl ComponentBased for PhysicObject {}
-
 struct Game {
     list: Vec<Handle<GameObject>>,
-    scene: Scene,
-    counter: u32,
     engine: AppEngine,
     point_light_coms: Vec<Weak<Component>>,
 }
@@ -52,9 +33,7 @@ impl Game {
     fn new(engine: AppEngine) -> Game {
         let mut g = Game {
             list: Vec::new(),
-            counter: 0,
             engine: engine,
-            scene: Scene::new(),
             point_light_coms: Vec::new(),
         };
 
@@ -62,85 +41,24 @@ impl Game {
         g
     }
 
-    fn add_object(&mut self, rb: Handle<RigidBody<f32>>) -> Handle<GameObject> {
-        let go = { self.engine.new_gameobject() };
-
-        {
-            let db = self.engine.asset_system();
-            let mut go_mut = go.borrow_mut();
-            go_mut.transform = *rb.borrow().position();
-
-            let texture = match self.counter % 5 {
-                0 => db.new_texture("tex_a.png"),
-                1 => db.new_texture("tex_r.png"),
-                _ => db.new_texture("tex_b.png"),
-            };
-
-            self.counter += 1;
-
-            let mut textures = HashMap::new();
-            textures.insert(
-                "uMaterial.diffuse".to_string(),
-                MaterialParam::Texture(texture),
-            );
-            textures.insert(
-                "uMaterial.shininess".to_string(),
-                MaterialParam::Float(32.0),
-            );
-
-            // temp set the material shiness here
-
-            go_mut.add_component(self.get(rb.borrow().shape().as_ref()).unwrap());
-            go_mut.add_component(PhysicObject(rb));
-            go_mut.add_component(Material::new(db.new_program("phong"), textures));
-        }
-
-        self.list.push(go.clone());
-        go
-    }
-
-    pub fn get(&self, shape: &Shape3<f32>) -> Option<Mesh> {
-        let db = self.engine.asset_system();
-
-        if let Some(_) = shape.as_shape::<Cuboid3<f32>>() {
-            Some(Mesh::new(db.new_mesh_buffer("cube")))
-        } else if let Some(_) = shape.as_shape::<Plane3<f32>>() {
-            Some(Mesh::new(db.new_mesh_buffer("plane")))
-        } else {
-            None
-        }
-    }
-
     pub fn step(&mut self) {
-        self.scene.step();
+        for go in self.iter() {
+            let mut go_mut = go.borrow_mut();
+            go_mut
+                .transform
+                .append_rotation_mut(&UnitQuaternion::new(Vector3::new(0.01, 0.02, 0.005)));
+        }
     }
 
     pub fn reset(&mut self) {
         self.list.clear();
         self.engine.asset_system_mut().reset();
-        self.scene = Scene::new();
         self.point_light_coms.clear();
 
         self.setup();
     }
 
-    fn rigid_bodies(&mut self) -> Vec<Handle<RigidBody<f32>>> {
-        self.scene
-            .world
-            .rigid_bodies()
-            .map(|rb| rb.clone())
-            .collect()
-    }
-
     pub fn setup(&mut self) {
-        {
-            let rigid_bodies = self.rigid_bodies();
-
-            for rb in rigid_bodies.into_iter() {
-                self.add_object(rb.clone());
-            }
-        }
-
         // add direction light to scene.
         let _dir_light_com = {
             let go = self.engine.new_gameobject();
@@ -185,11 +103,25 @@ impl Game {
             self.point_light_coms
                 .push(Arc::downgrade(&go_mut.add_component(com)));
         }
-    }
 
-    fn add_box(&mut self) {
-        let bx = self.scene.add_box();
-        self.add_object(bx);
+        let go = { self.engine.new_gameobject() };
+        {
+            let db = &mut self.engine.asset_system();
+            let mut go_mut = go.borrow_mut();
+            let texture = db.new_texture("tex_a.png");
+            let mut textures = HashMap::new();
+            textures.insert(
+                "uMaterial.diffuse".to_string(),
+                MaterialParam::Texture(texture),
+            );
+            textures.insert(
+                "uMaterial.shininess".to_string(),
+                MaterialParam::Float(32.0),
+            );
+            go_mut.add_component(Material::new(db.new_program("phong"), textures));
+            go_mut.add_component(Mesh::new(db.new_mesh_buffer("cube")));
+        }
+        self.list.push(go.clone());
     }
 }
 
@@ -209,8 +141,9 @@ impl DerefMut for Game {
 
 pub fn main() {
     let size = (800, 600);
-    let config = AppConfig::new("Test", size);
+    let config = AppConfig::new("Framebuffer demo", size);
     let app = App::new(config);
+    let mut crt = false;
     {
         let mut game = Game::new(Engine::new(app.canvas(), size));
         game.engine.main_camera = Some(Rc::new(RefCell::new(Camera::new())));
@@ -219,8 +152,9 @@ pub fn main() {
 
         let mut fps = FPS::new();
         let mut last_event = None;
-        let mut eye = Vector3::new(-30.0, 30.0, -30.0);
+        let mut eye = Vector3::new(-3.0, 3.0, -3.0);
         let up = Vector3::new(0.0, 1.0, 0.0);
+        let rt = Rc::new(RenderTexture::new(1024, 1024));
 
         app.run(move |app: &mut App| {
             game.engine.begin();
@@ -236,7 +170,7 @@ pub fn main() {
             imgui::pivot((1.0, 1.0));
             imgui::label(
                 Native(1.0, 1.0) - Pixel(8.0, 8.0),
-                "Click on canvas to drop new box.\n[WASD] : control camera\n[Esc]  : reload all (include assets)",
+                "F1 to turn framebuffer on/off.\n[Esc]  : reload all (include assets)",
             );
 
             imgui::pivot((1.0, 0.0));
@@ -254,12 +188,11 @@ pub fn main() {
                 for evt in events.iter() {
                     last_event = Some(evt.clone());
                     match evt {
-                        &AppEvent::Click(_) => {
-                            game.add_box();
-                        }
+                        &AppEvent::Click(_) => {}
 
                         &AppEvent::KeyDown(ref key) => {
                             match key.code.as_str() {
+                                "F1" => crt = !crt,
                                 "KeyA" => eye = na::Rotation3::new(up * -0.02) * eye,
                                 "KeyD" => eye = na::Rotation3::new(up * 0.02) * eye,
                                 "KeyW" => eye = eye - front * 2.0,
@@ -296,19 +229,24 @@ pub fn main() {
                 }
             }
 
-            // Update Transforms by physic object
-            {
-                let get_pb_tran = |o: &GameObject| {
-                    o.find_component::<PhysicObject>()
-                        .map(|(rb, _)| rb.phy_transform())
-                };
+            if crt {
+                // Setup fb for camera
+                let mut cam = game.engine.main_camera.as_ref().unwrap().borrow_mut();
+                cam.render_texture = Some(rt.clone());
 
-                for go in game.iter() {
-                    let mut go_mut = go.borrow_mut();
-                    if let Some(tran) = get_pb_tran(&go_mut) {
-                        go_mut.transform = tran;
-                    }
-                }
+                // Setup proper viewport to render to the whole texture
+                cam.rect = Some(((0, 0), (1024, 1024)));
+
+                // Render current scene by camera using given frame buffer
+                game.engine.render_pass(&cam);
+
+                // Clean up stuffs in camera, as later we could render normally
+                cam.render_texture = None;
+                cam.rect = None;
+
+                // render fb texture on screen
+                imgui::pivot((0.0, 1.0));
+                imgui::image(Native(0.0, 1.0), Pixel(300.0, 225.0), rt.as_texture());
             }
 
             // Render

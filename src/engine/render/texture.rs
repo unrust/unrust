@@ -5,15 +5,23 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use engine::asset::{Asset, AssetError, AssetSystem, FileFuture, LoadableAsset, Resource};
 
+#[derive(Debug)]
 pub enum TextureFiltering {
     Nearest,
     Linear,
 }
 
+#[derive(Debug)]
+enum TextureKind {
+    Image(Resource<RgbaImage>),
+    RenderTexture { size: (u32, u32) },
+}
+
+#[derive(Debug)]
 pub struct Texture {
     pub filtering: TextureFiltering,
     gl_state: RefCell<Option<TextureGLState>>,
-    img: Resource<RgbaImage>,
+    kind: TextureKind,
 }
 
 impl Asset for Texture {
@@ -22,8 +30,8 @@ impl Asset for Texture {
     fn new_from_resource(res: Self::Resource) -> Rc<Self> {
         Rc::new(Texture {
             filtering: TextureFiltering::Linear,
-            img: res,
             gl_state: RefCell::new(None),
+            kind: TextureKind::Image(res),
         })
     }
 }
@@ -38,11 +46,22 @@ impl LoadableAsset for Texture {
     }
 }
 
+#[derive(Debug)]
 struct TextureGLState {
     tex: WebGLTexture,
 }
 
 impl Texture {
+    pub fn new_render_texture(width: u32, height: u32) -> Rc<Self> {
+        Rc::new(Texture {
+            filtering: TextureFiltering::Linear,
+            gl_state: RefCell::new(None),
+            kind: TextureKind::RenderTexture {
+                size: (width, height),
+            },
+        })
+    }
+
     pub fn bind(&self, gl: &WebGLRenderingContext, unit: u32) -> Result<(), AssetError> {
         self.prepare(gl)?;
 
@@ -60,33 +79,61 @@ impl Texture {
             return Ok(());
         }
 
-        let img = self.img.try_into()?;
-        self.gl_state
-            .replace(Some(texture_bind_buffer(&img, gl, &self.filtering)));
+        let new_state = Some(texture_bind_buffer(gl, &self.filtering, &self.kind)?);
+
+        self.gl_state.replace(new_state);
 
         Ok(())
     }
 }
 
+fn bind_to_framebuffer(gl: &WebGLRenderingContext, tex: &WebGLTexture) {
+    gl.framebuffer_texture2d(
+        Buffers::Framebuffer,
+        Buffers::ColorAttachment0,
+        TextureBindPoint::Texture2d,
+        tex,
+        0,
+    );
+}
+
 fn texture_bind_buffer(
-    img: &RgbaImage,
     gl: &WebGLRenderingContext,
     texfilter: &TextureFiltering,
-) -> TextureGLState {
+    kind: &TextureKind,
+) -> Result<TextureGLState, AssetError> {
     let tex = gl.create_texture();
 
     gl.active_texture(0);
     gl.bind_texture(&tex);
 
-    gl.tex_image2d(
-        TextureBindPoint::Texture2d, // target
-        0,                           // level
-        img.width() as u16,          // width
-        img.height() as u16,         // height
-        PixelFormat::Rgba,           // format
-        DataType::U8,                // type
-        &*img,                       // data
-    );
+    match kind {
+        &TextureKind::Image(ref tex) => {
+            let img = tex.try_into()?;
+
+            gl.tex_image2d(
+                TextureBindPoint::Texture2d, // target
+                0,                           // level
+                img.width() as u16,          // width
+                img.height() as u16,         // height
+                PixelFormat::Rgba,           // format
+                DataType::U8,                // type
+                &*img,                       // data
+            );
+        }
+
+        &TextureKind::RenderTexture { size } => {
+            gl.tex_image2d(
+                TextureBindPoint::Texture2d, // target
+                0,                           // level
+                size.0 as u16,               // width
+                size.1 as u16,               // height
+                PixelFormat::Rgba,           // format
+                DataType::U8,                // type
+                &[],                         // data
+            );
+        }
+    }
 
     let filtering: i32 = match texfilter {
         &TextureFiltering::Nearest => TextureMagFilter::Nearest as i32,
@@ -104,7 +151,11 @@ fn texture_bind_buffer(
         TextureWrap::ClampToEdge as i32,
     );
 
+    if let &TextureKind::RenderTexture { .. } = kind {
+        bind_to_framebuffer(gl, &tex);
+    }
+
     gl.unbind_texture();
 
-    TextureGLState { tex: tex }
+    Ok(TextureGLState { tex: tex })
 }

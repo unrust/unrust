@@ -28,11 +28,12 @@ where
     A: AssetSystem,
 {
     pub gl: WebGLRenderingContext,
-    pub main_camera: Option<Camera>,
+    pub main_camera: Option<Rc<RefCell<Camera>>>,
 
     pub objects: Vec<Weak<RefCell<GameObject>>>,
     pub program_cache: RefCell<HashMap<&'static str, Rc<ShaderProgram>>>,
     pub asset_system: Box<A>,
+    pub screen_size: (u32, u32),
 
     pub gui_context: Rc<RefCell<imgui::Context>>,
 }
@@ -147,9 +148,9 @@ where
     A: AssetSystem,
 {
     pub fn clear(&self) {
+        self.gl.clear_color(0.2, 0.2, 0.2, 1.0);
         self.gl.clear(BufferBit::Color);
         self.gl.clear(BufferBit::Depth);
-        self.gl.clear_color(0.2, 0.2, 0.2, 1.0);
     }
 
     fn setup_material(
@@ -301,26 +302,18 @@ where
         r
     }
 
-    pub fn render(&mut self) {
-        self.clear();
-        imgui::pre_render(self);
+    fn prepare_ctx(&self, ctx: &mut EngineContext) {
+        // prepare main light.
+        ctx.main_light = Some(self.find_component::<Light>().unwrap_or({
+            Component::new(Light::Directional(Directional {
+                direction: Vector3::new(0.5, -1.0, 1.0).normalize(),
+                ambient: Vector3::new(0.2, 0.2, 0.2),
+                diffuse: Vector3::new(0.5, 0.5, 0.5),
+                specular: Vector3::new(1.0, 1.0, 1.0),
+            }))
+        }));
 
-        let gl = &self.gl;
-        let objects = &self.objects;
-        if let &Some(camera) = &self.main_camera.as_ref() {
-            let mut ctx: EngineContext = Default::default();
-
-            // prepare main light.
-            ctx.main_light = Some(self.find_component::<Light>().unwrap_or({
-                Component::new(Light::Directional(Directional {
-                    direction: Vector3::new(0.5, -1.0, 1.0).normalize(),
-                    ambient: Vector3::new(0.2, 0.2, 0.2),
-                    diffuse: Vector3::new(0.5, 0.5, 0.5),
-                    specular: Vector3::new(1.0, 1.0, 1.0),
-                }))
-            }));
-
-            ctx.point_lights = self.find_all_components::<Light>()
+        ctx.point_lights = self.find_all_components::<Light>()
                 .into_iter()
                 .filter(|c| {
                     let light_com = c.try_as::<Light>().unwrap();
@@ -331,23 +324,56 @@ where
                 })
                 .take(4)            // only take 4 points light.
                 .collect();
+    }
 
-            for obj in objects.iter() {
-                obj.upgrade().map(|obj| {
-                    let object = obj.borrow();
-                    let result = object.find_component::<Material>();
+    pub fn render_pass(&self, camera: &Camera) {
+        let gl = &self.gl;
+        let objects = &self.objects;
 
-                    if let Some((material, _)) = result {
-                        match self.setup_material(&mut ctx, &material) {
-                            Ok(_) => self.render_object(gl, &mut ctx, &object, camera),
-                            Err(ref err) if *err != AssetError::NotReady => {
-                                panic!("Failed to load material {:?}", err);
-                            }
-                            _ => (),
+        let mut ctx: EngineContext = Default::default();
+
+        if let Some(ref rt) = camera.render_texture {
+            rt.bind_frame_buffer(&self.gl);
+        }
+
+        if let Some(((x, y), (w, h))) = camera.rect {
+            self.gl.viewport(x, y, w, h);
+        } else {
+            self.gl
+                .viewport(0, 0, self.screen_size.0, self.screen_size.1);
+        }
+
+        self.clear();
+
+        self.prepare_ctx(&mut ctx);
+
+        for obj in objects.iter() {
+            obj.upgrade().map(|obj| {
+                let object = obj.borrow();
+                let result = object.find_component::<Material>();
+
+                if let Some((material, _)) = result {
+                    match self.setup_material(&mut ctx, &material) {
+                        Ok(_) => self.render_object(gl, &mut ctx, &object, camera),
+                        Err(ref err) if *err != AssetError::NotReady => {
+                            panic!("Failed to load material {:?}", err);
                         }
+                        _ => (),
                     }
-                });
-            }
+                }
+            });
+        }
+
+        if let Some(ref rt) = camera.render_texture {
+            rt.unbind_frame_buffer(&self.gl);
+        }
+    }
+
+    pub fn render(&mut self) {
+        imgui::pre_render(self);
+
+        if let Some(ref camera) = self.main_camera.as_ref() {
+            self.render_pass(&camera.borrow());
         }
 
         // drop all gameobjects if there are no other references
@@ -363,10 +389,13 @@ where
         gl.clear_color(0.5, 0.5, 0.5, 1.0);
 
         // Enable the depth test
-        gl.enable(Flag::DepthTest);
+        gl.enable(Flag::DepthTest as i32);
 
         // Enable alpha blending
-        gl.enable(Flag::Blend);
+        gl.enable(Flag::Blend as i32);
+
+        gl.enable(Culling::CullFace as i32);
+        gl.cull_face(Culling::Back);
 
         // Clear the color buffer bit
         gl.clear(BufferBit::Color);
@@ -383,6 +412,7 @@ where
             program_cache: RefCell::new(HashMap::new()),
             asset_system: Box::new(A::new()),
             gui_context: Rc::new(RefCell::new(imgui::Context::new(size.0, size.1))),
+            screen_size: size,
         }
     }
 }

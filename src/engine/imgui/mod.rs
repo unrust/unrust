@@ -23,12 +23,15 @@ use std::cell::RefCell;
 
 use engine::core::GameObject;
 use engine::IEngine;
+use engine::render::Texture;
 use std::collections::HashMap;
 use std::ops::{Add, Sub};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Metric {
+    /// Left Top =(0,0), Right, Bottom = (1,1)
     Native(f32, f32),
+    /// Left Top = (0,0), Right, Bottom = (screen width,screen height)
     Pixel(f32, f32),
     Mixed((f32, f32), (f32, f32)),
 }
@@ -96,15 +99,13 @@ struct Imgui {
     inner: Arc<Mutex<ImguiRaw>>,
 }
 
-lazy_static! {
-    static ref INSTANCE: Arc<Mutex<ImguiRaw>> = {
-        Arc::new(Mutex::new(Default::default()))
-    };
-}
+thread_local!(
+    static INSTANCE: Arc<Mutex<ImguiRaw>> = Arc::new(Mutex::new(Default::default()))
+);
 
 fn imgui_inst() -> Imgui {
     return Imgui {
-        inner: INSTANCE.clone(),
+        inner: INSTANCE.with(|f| f.clone()),
     };
 }
 
@@ -142,17 +143,22 @@ pub fn pivot(p: (f32, f32)) {
     inner.pivot = Metric::Native(p.0, p.1);
 }
 
-/*
-    Label
-*/
+/// Label
 pub fn label(pos: Metric, s: &str) {
     add_widget(|id, pivot| widgets::Label::new(id, pos, pivot, s.into()));
 }
 
+/// Image
+pub fn image(pos: Metric, size: Metric, tex: Rc<Texture>) {
+    add_widget(|id, pivot| widgets::Image::new(id, pos, size, pivot, tex));
+}
+
+type WidgetGoMap = HashMap<u32, (Arc<widgets::Widget>, Rc<RefCell<GameObject>>)>;
+
 #[derive(Default)]
 pub struct Context {
     screen_size: (u32, u32),
-    go: HashMap<u32, (Arc<widgets::Widget>, Rc<RefCell<GameObject>>)>,
+    go: WidgetGoMap,
 }
 
 impl Context {
@@ -164,6 +170,17 @@ impl Context {
     }
 }
 
+fn strip_cache(curr: u32, hm: &mut WidgetGoMap) {
+    let empties: Vec<_> = hm.iter()
+        .filter(|&(k, _)| *k > curr)
+        .map(|(k, _)| k.clone())
+        .collect();
+
+    for empty in empties {
+        hm.remove(&empty);
+    }
+}
+
 pub fn pre_render(engine: &mut IEngine) {
     let imgui = imgui_inst();
     let inner = imgui.inner.lock().unwrap();
@@ -171,20 +188,25 @@ pub fn pre_render(engine: &mut IEngine) {
 
     let mut ctx_mut = ctx.borrow_mut();
     let (sw, sh) = ctx_mut.screen_size;
-    let hm = &mut ctx_mut.go;
 
-    for w in inner.render_list.iter() {
-        match hm.get_mut(&w.id()) {
-            None => {
-                hm.insert(w.id(), (w.clone(), w.bind((sw, sh), engine)));
-            }
-            Some(&mut (ref oldw, _)) => {
-                if **oldw != **w {
+    {
+        let hm = &mut ctx_mut.go;
+        for w in inner.render_list.iter() {
+            match hm.get_mut(&w.id()) {
+                None => {
                     hm.insert(w.id(), (w.clone(), w.bind((sw, sh), engine)));
                 }
-            }
-        };
+                Some(&mut (ref oldw, _)) => {
+                    if **oldw != **w {
+                        hm.insert(w.id(), (w.clone(), w.bind((sw, sh), engine)));
+                    }
+                }
+            };
+        }
     }
+
+    // remove all go in hm which id >= last id
+    strip_cache(inner.id, &mut ctx_mut.go);
 }
 
 pub fn end() {}

@@ -1,10 +1,17 @@
 use na::{Matrix4, Point3, Vector3};
+use std::rc::Rc;
+use engine::render::RenderTexture;
 
 pub struct Camera {
     pub v: Matrix4<f32>,
     pub p: Matrix4<f32>,
 
+    /// Optional viewport of this camera,  (pos, size) in pixels
+    /// from 0 (left/top) to screen width/height (right/bottom)
+    pub rect: Option<((i32, i32), (u32, u32))>,
+
     eye: Point3<f32>,
+    pub render_texture: Option<Rc<RenderTexture>>,
 }
 
 impl Camera {
@@ -19,6 +26,8 @@ impl Camera {
             v: Matrix4::identity(),
             p: Matrix4::identity(),
             eye: Point3::new(0.0, 0.0, 0.0),
+            rect: None,
+            render_texture: None,
         }
     }
 

@@ -15,7 +15,6 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::ops::{Deref, DerefMut};
 use na::{Point3, UnitQuaternion, Vector3};
-use std::collections::HashMap;
 use std::sync::{Arc, Weak};
 
 use unigame::engine::*;
@@ -107,19 +106,19 @@ impl Game {
         let go = { self.engine.new_gameobject() };
         {
             let db = &mut self.engine.asset_system();
-            let mut go_mut = go.borrow_mut();
-            let texture = db.new_texture("tex_a.png");
-            let mut textures = HashMap::new();
-            textures.insert(
-                "uMaterial.diffuse".to_string(),
-                MaterialParam::Texture(texture),
-            );
-            textures.insert(
-                "uMaterial.shininess".to_string(),
-                MaterialParam::Float(32.0),
-            );
-            go_mut.add_component(Material::new(db.new_program("phong"), textures));
-            go_mut.add_component(Mesh::new(db.new_mesh_buffer("meshobj_test_model.obj")));
+
+            let prefab_handler = {
+                let go = go.clone();
+                move |r: Result<Prefab, AssetError>| {
+                    if let Ok(prefab) = r {
+                        for c in prefab.components {
+                            go.borrow_mut().add_component(c.clone());
+                        }
+                    }
+                }
+            };
+
+            db.new_prefab("meshobj_test_model.obj", Box::new(prefab_handler));
         }
         self.list.push(go.clone());
     }

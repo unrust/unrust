@@ -6,11 +6,14 @@ use engine::asset::{CubeMesh, PlaneMesh, Quad};
 use engine::asset::default_font_bitmap::DEFAULT_FONT_DATA;
 use engine::asset::fs;
 use engine::asset::loader;
+use engine::asset::loader::Loadable;
 use engine::asset::Resource;
 
 use engine::{MeshBuffer, ShaderFs, ShaderProgram, ShaderVs, Texture, TextureFiltering};
 use std::fmt::Debug;
 use std::ops::Deref;
+use futures::{Async, Future};
+use std::boxed::FnBox;
 
 use image;
 use image::ImageBuffer;
@@ -21,6 +24,8 @@ pub enum AssetError {
     InvalidFormat(String),
     FileIoError(fs::FileIoError),
 }
+
+type PrefabHandler = Box<FnBox(Result<loader::Prefab, AssetError>)>;
 
 pub trait AssetSystem {
     fn new() -> Self
@@ -35,7 +40,11 @@ pub trait AssetSystem {
 
     fn new_mesh_buffer(&self, name: &str) -> Rc<MeshBuffer>;
 
+    fn new_prefab(&self, name: &str, f: PrefabHandler);
+
     fn reset(&mut self);
+
+    fn step(&mut self);
 }
 
 pub trait Asset {
@@ -68,12 +77,16 @@ pub trait LoadableAsset: Asset {
     }
 }
 
+type PrefabFuture = Box<Future<Item = loader::Prefab, Error = AssetError>>;
+
 pub struct AssetDatabaseContext<FS> {
     fs: FS,
     path: String,
     textures: RefCell<HashMap<String, Rc<Texture>>>,
     mesh_buffers: RefCell<HashMap<String, Rc<MeshBuffer>>>,
     programs: RefCell<HashMap<String, Rc<ShaderProgram>>>,
+
+    pending_prefabs: RefCell<Vec<(PrefabHandler, PrefabFuture)>>,
 }
 
 pub struct AssetDatabase<FS, F>
@@ -140,6 +153,11 @@ where
         self.setup();
     }
 
+    fn new_prefab(&self, name: &str, f: PrefabHandler) {
+        let prefab = loader::Prefab::load_future(self.clone(), self.new_file(name));
+        self.pending_prefabs.borrow_mut().push((f, prefab));
+    }
+
     fn new() -> AssetDatabase<FS, F> {
         let mut db = AssetDatabase {
             context: Rc::new(AssetDatabaseContext {
@@ -148,6 +166,7 @@ where
                 textures: RefCell::new(HashMap::new()),
                 mesh_buffers: RefCell::new(HashMap::new()),
                 programs: RefCell::new(HashMap::new()),
+                pending_prefabs: RefCell::new(Vec::new()),
             }),
         };
 
@@ -158,6 +177,30 @@ where
         }
 
         db
+    }
+
+    fn step(&mut self) {
+        let pending_prefabs = self.pending_prefabs
+            .borrow_mut()
+            .drain(0..)
+            .collect::<Vec<_>>();
+
+        let new_pending = pending_prefabs
+            .into_iter()
+            .filter_map(|(f, mut prefab)| match prefab.poll() {
+                Err(e) => {
+                    f(Err(e));
+                    None
+                }
+                Ok(Async::NotReady) => Some((f, prefab)),
+                Ok(Async::Ready(i)) => {
+                    f(Ok(i));
+                    None
+                }
+            })
+            .collect();
+
+        *self.pending_prefabs.borrow_mut() = new_pending;
     }
 }
 

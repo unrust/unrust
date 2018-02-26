@@ -179,6 +179,11 @@ where
 
                     prog.set(&name, new_unit as i32);
                 }
+
+                &MaterialParam::Vector3(f) => {
+                    prog.set(&name, f);
+                }
+
                 &MaterialParam::Float(f) => {
                     prog.set(&name, f);
                 }
@@ -257,6 +262,8 @@ where
 
     pub fn begin(&mut self) {
         imgui::begin();
+
+        self.asset_system_mut().step();
     }
 
     pub fn end(&mut self) {}

@@ -1,4 +1,5 @@
 #![feature(nll)]
+#![feature(fnbox)]
 #![recursion_limit = "512"]
 #![feature(integer_atomics)]
 

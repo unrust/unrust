@@ -9,6 +9,7 @@ pub mod loader;
 pub use self::primitives::{CubeMesh, PlaneMesh};
 pub use self::quad::Quad;
 pub use self::asset_database::{Asset, AssetDatabase, AssetError, AssetSystem, LoadableAsset};
+pub use self::loader::Prefab;
 
 pub use self::resource::Resource;
 pub use self::fs::*;

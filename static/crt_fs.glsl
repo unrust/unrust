@@ -8,7 +8,7 @@ varying vec3 vColor;
 varying vec2 vTextureCoord;
 uniform sampler2D uDiffuse;
 
-const float crtBend			= 2.8;
+const float crtBend			= 4.8;
 const float crtOverscan		= 0.1;
 vec2 crt(vec2 coord)
 {

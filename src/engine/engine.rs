@@ -350,7 +350,7 @@ where
         for obj in objects.iter() {
             obj.upgrade().map(|obj| {
                 let object = obj.borrow();
-                if object.visible {
+                if object.active {
                     let result = object.find_component::<Material>();
 
                     if let Some((material, _)) = result {
@@ -424,7 +424,7 @@ impl<A: AssetSystem> IEngine for Engine<A> {
         let go = Rc::new(RefCell::new(GameObject {
             transform: Isometry3::identity(),
             scale: Vector3::new(1.0, 1.0, 1.0),
-            visible: true,
+            active: true,
             components: vec![],
         }));
 

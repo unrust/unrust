@@ -131,7 +131,6 @@ impl Game {
             );
             go_mut.add_component(Material::new(db.new_program("crt"), params));
             go_mut.add_component(Mesh::new(db.new_mesh_buffer("screen_quad")));
-            // go_mut.visible=false;
         }
         self.list.push(screen_quad.clone());
     }
@@ -228,8 +227,8 @@ pub fn main() {
                 // Setup proper viewport to render to the whole texture
                 cam.rect = Some(((0, 0), (1024, 1024)));
                 // show only cube
-                game.list[5].borrow_mut().visible=true;
-                game.list[6].borrow_mut().visible=false;
+                game.list[5].borrow_mut().active=true;
+                game.list[6].borrow_mut().active=false;
                 imgui::pivot((0.0, 0.0));
                 imgui::label(
                     Native(0.0, 0.0) + Pixel(8.0, 8.0),
@@ -255,8 +254,8 @@ pub fn main() {
                 cam.rect = None;
             }
             // show only screen_quad
-            game.list[5].borrow_mut().visible=false;
-            game.list[6].borrow_mut().visible=true;
+            game.list[5].borrow_mut().active=false;
+            game.list[6].borrow_mut().active=true;
             // Render
             game.engine.render();
 

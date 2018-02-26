@@ -32,7 +32,7 @@ void main(void) {
     if (crtCoords.x < 0.0 || crtCoords.x > 1.0 || crtCoords.y < 0.0 || crtCoords.y > 1.0) {
     	gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
     } else {
-        float coef=0.8 + abs(sin(600*vTextureCoord.t)) * 0.2;
+        float coef=0.8 + abs(sin(600.0*vTextureCoord.t)) * 0.2;
         gl_FragColor = texture2D(uDiffuse, crtCoords) * vec4(0.8,1.0*coef,0.7,1.0)  ;
     }
 }

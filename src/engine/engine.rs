@@ -357,15 +357,17 @@ where
         for obj in objects.iter() {
             obj.upgrade().map(|obj| {
                 let object = obj.borrow();
-                let result = object.find_component::<Material>();
+                if object.active {
+                    let result = object.find_component::<Material>();
 
-                if let Some((material, _)) = result {
-                    match self.setup_material(&mut ctx, &material) {
-                        Ok(_) => self.render_object(gl, &mut ctx, &object, camera),
-                        Err(ref err) if *err != AssetError::NotReady => {
-                            panic!("Failed to load material {:?}", err);
+                    if let Some((material, _)) = result {
+                        match self.setup_material(&mut ctx, &material) {
+                            Ok(_) => self.render_object(gl, &mut ctx, &object, camera),
+                            Err(ref err) if *err != AssetError::NotReady => {
+                                panic!("Failed to load material {:?}", err);
+                            }
+                            _ => (),
                         }
-                        _ => (),
                     }
                 }
             });
@@ -429,6 +431,7 @@ impl<A: AssetSystem> IEngine for Engine<A> {
         let go = Rc::new(RefCell::new(GameObject {
             transform: Isometry3::identity(),
             scale: Vector3::new(1.0, 1.0, 1.0),
+            active: true,
             components: vec![],
         }));
 

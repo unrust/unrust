@@ -13,10 +13,10 @@ impl Quad {
 
         let uvs: Vec<f32> = vec![
             // Top face
-            0.0, 0.0,
             0.0, 1.0,
-            1.0, 1.0,
+            0.0, 0.0,
             1.0, 0.0,
+            1.0, 1.0,
         ];
 
         let indices: Vec<u16> = vec![

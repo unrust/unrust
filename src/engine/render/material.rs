@@ -8,6 +8,9 @@ use std::collections::HashMap;
 pub enum MaterialParam {
     Texture(Rc<Texture>),
     Float(f32),
+    Vec2(f32,f32),
+    Vec3(f32,f32,f32),
+    Vec4(f32,f32,f32,f32),
 }
 
 pub struct Material {

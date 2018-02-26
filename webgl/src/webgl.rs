@@ -604,6 +604,16 @@ impl GLContext {
         }
     }
 
+    pub fn uniform_2f(&self, location: &WebGLUniformLocation, value: (f32, f32)) {
+        js!{
+            var p = [@{value.0},@{value.1}];
+            var ctx = Module.gl.get(@{self.reference});
+            var loc = Module.gl.get(@{location.deref()});
+
+            ctx.uniform2f(loc,p[0],p[1])
+        }
+    }
+
     pub fn uniform_3f(&self, location: &WebGLUniformLocation, value: (f32, f32, f32)) {
         js!{
             var p = [@{value.0},@{value.1},@{value.2}];

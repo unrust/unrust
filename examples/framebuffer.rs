@@ -108,17 +108,16 @@ impl Game {
         {
             let db = &mut self.engine.asset_system();
             let mut go_mut = go.borrow_mut();
-            let texture = db.new_texture("tex_a.png");
-            let mut textures = HashMap::new();
-            textures.insert(
+            let mut params = HashMap::new();
+            params.insert(
                 "uMaterial.diffuse".to_string(),
-                MaterialParam::Texture(texture),
+                MaterialParam::Texture(db.new_texture("tex_a.png")),
             );
-            textures.insert(
+            params.insert(
                 "uMaterial.shininess".to_string(),
                 MaterialParam::Float(32.0),
             );
-            go_mut.add_component(Material::new(db.new_program("phong"), textures));
+            go_mut.add_component(Material::new(db.new_program("phong"), params));
             go_mut.add_component(Mesh::new(db.new_mesh_buffer("cube")));
         }
         self.list.push(go.clone());

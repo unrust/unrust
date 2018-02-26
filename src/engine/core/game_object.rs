@@ -16,6 +16,7 @@ fn next_component_id() -> u64 {
 
 pub trait Component: Any {
     fn id(&self) -> u64;
+
     fn typeid(&self) -> TypeId;
 
     fn as_any(&self) -> &Any;

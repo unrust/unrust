@@ -242,10 +242,11 @@ where
 
         for cmd in commands {
             if let Err(err) = self.setup_material(ctx, &*cmd.surface.material) {
-                if err != AssetError::NotReady {
-                    panic!(format!("Failed to load mesh, reason {:?}", err));
+                if let AssetError::NotReady = err {
+                    continue;
                 }
-                continue;
+
+                panic!(format!("Failed to load mesh, reason {:?}", err));
             }
 
             let prog = ctx.prog.upgrade().unwrap();
@@ -263,11 +264,10 @@ where
                     prog.commit(gl);
                     cmd.surface.buffer.render(gl);
                 }
-                Err(ref err) => {
-                    if *err != AssetError::NotReady {
-                        panic!(format!("Failed to load mesh, reason {:?}", err));
-                    }
-                }
+                Err(ref err) => match *err {
+                    AssetError::NotReady => (),
+                    _ => panic!(format!("Failed to load mesh, reason {:?}", err)),
+                },
             }
         }
     }

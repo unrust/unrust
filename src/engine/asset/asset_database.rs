@@ -18,7 +18,7 @@ use std::boxed::FnBox;
 use image;
 use image::ImageBuffer;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug)]
 pub enum AssetError {
     NotReady,
     InvalidFormat(String),

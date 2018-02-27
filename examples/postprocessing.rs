@@ -195,16 +195,6 @@ pub fn main() {
                 }
             }
 
-            // Update Camera
-            {
-                let mut cam = game.engine.main_camera.as_ref().unwrap().borrow_mut();
-                cam.lookat(
-                    &Point3::from_coordinates(eye),
-                    &Point3::new(0.0, 0.0, 0.0),
-                    &Vector3::new(0.0, 1.0, 0.0),
-                );
-            }
-
             // Update Light
             for light_com_weak in game.point_light_coms.iter() {
                 if let Some(light_com) = light_com_weak.upgrade() {
@@ -224,6 +214,12 @@ pub fn main() {
 
                 // Setup proper viewport to render to the whole texture
                 cam.rect = Some(((0, 0), (1024, 1024)));
+                cam.lookat(
+                    &Point3::from_coordinates(eye),
+                    &Point3::new(0.0, 0.0, 0.0),
+                    &Vector3::new(0.0, 1.0, 0.0),
+                );
+
                 // show only cube
                 game.list[5].borrow_mut().active = true;
                 game.list[6].borrow_mut().active = false;

@@ -17,7 +17,11 @@ pub struct Camera {
 impl Camera {
     pub fn lookat(&mut self, eye: &Point3<f32>, target: &Point3<f32>, up: &Vector3<f32>) {
         self.v = Matrix4::look_at_rh(eye, target, up);
-        self.p = Matrix4::new_perspective(800.0 / 600.0, 3.1415 / 4.0, 1.0, 1000.0);
+        let mut aspect: f32 = 800.0/600.0;
+        if let Some(((_,_),(w,h))) = self.rect {
+            aspect = w as f32 / h as f32;
+        }
+        self.p = Matrix4::new_perspective(aspect, 3.1415 / 4.0, 1.0, 1000.0);
         self.eye = *eye;
     }
 

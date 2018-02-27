@@ -4,6 +4,7 @@ use gl;
 use std::os::raw::c_void;
 
 use std::ffi::CString;
+use std::ffi::CStr;
 use common::*;
 use std::ptr;
 use std::str;
@@ -31,6 +32,16 @@ pub fn check_gl_error(msg: &str) {
     }
 }
 
+/// gl::GetString convenient wrapper
+fn get_string(param: u32) -> String {
+    return unsafe {
+        let data = CStr::from_ptr(gl::GetString(param) as *const _)
+            .to_bytes()
+            .to_vec();
+        String::from_utf8(data).unwrap()
+    };
+}
+
 pub type WebGLContext<'p> = Box<'p + for<'a> FnMut(&'a str) -> *const c_void>;
 
 impl WebGLRenderingContext {
@@ -46,7 +57,9 @@ impl WebGLRenderingContext {
 impl GLContext {
     pub fn new() -> GLContext {
         //  unsafe { gl::Enable(gl::DEPTH_TEST) };
-
+        println!("opengl {}", get_string(gl::VERSION));
+        println!("shading language {}",get_string(gl::SHADING_LANGUAGE_VERSION));
+        println!("vendor {}", get_string(gl::VENDOR));
         GLContext { reference: 0 }
     }
 

@@ -117,8 +117,11 @@ impl Game {
                 "uMaterial.shininess".to_string(),
                 MaterialParam::Float(32.0),
             );
-            go_mut.add_component(Material::new(db.new_program("phong"), params));
-            go_mut.add_component(Mesh::new(db.new_mesh_buffer("cube")));
+
+            let material = Material::new(db.new_program("phong"), params);
+            let mut mesh = Mesh::new();
+            mesh.add_surface(db.new_mesh_buffer("cube"), Rc::new(material));
+            go_mut.add_component(mesh);
         }
         self.list.push(go.clone());
     }

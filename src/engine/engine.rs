@@ -8,7 +8,8 @@ use std::sync::Arc;
 use engine::core::{Component, ComponentBased, GameObject};
 use engine::render::Camera;
 use engine::render::{Directional, Light};
-use engine::render::{Material, MaterialParam, Mesh, MeshBuffer, ShaderProgram, Texture};
+use engine::render::{Material, MaterialParam, Mesh, MeshBuffer, MeshSurface, ShaderProgram,
+                     Texture};
 use engine::asset::{AssetError, AssetSystem};
 
 use super::imgui;
@@ -143,6 +144,17 @@ impl EngineContext {
     }
 }
 
+struct RenderCommand {
+    pub surface: Rc<MeshSurface>,
+    pub model_m: Matrix4<f32>,
+}
+
+fn compute_model_m(object: &GameObject) -> Matrix4<f32> {
+    // Setup Matrices
+    let modelm = object.transform.to_homogeneous();
+    modelm * Matrix4::new_nonuniform_scaling(&object.scale)
+}
+
 impl<A> Engine<A>
 where
     A: AssetSystem,
@@ -179,6 +191,7 @@ where
 
                     prog.set(&name, new_unit as i32);
                 }
+
                 &MaterialParam::Float(f) => {
                     prog.set(&name, f);
                 }
@@ -199,11 +212,7 @@ where
         Ok(())
     }
 
-    fn setup_camera(&self, ctx: &mut EngineContext, object: &GameObject, camera: &Camera) {
-        // Setup Matrices
-        let mut modelm = object.transform.to_homogeneous();
-        modelm = modelm * Matrix4::new_nonuniform_scaling(&object.scale);
-
+    fn setup_camera(&self, ctx: &mut EngineContext, modelm: Matrix4<f32>, camera: &Camera) {
         let prog = ctx.prog.upgrade().unwrap();
         // setup_camera
         prog.set("uMVMatrix", camera.v * modelm);
@@ -228,44 +237,50 @@ where
         }
     }
 
-    fn render_object(
+    fn render_commands(
         &self,
-        gl: &WebGLRenderingContext,
         ctx: &mut EngineContext,
-        object: &GameObject,
+        commands: Vec<RenderCommand>,
         camera: &Camera,
     ) {
-        self.setup_camera(ctx, object, camera);
+        let gl = &self.gl;
 
-        // Setup Mesh
-        object
-            .find_component::<Mesh>()
-            .map(|(mesh, _)| {
-                let prog = ctx.prog.upgrade().unwrap();
-
-                let r = ctx.prepare_cache(&mesh.mesh_buffer, |ctx| {
-                    mesh.bind(&self.gl, &prog)?;
-                    ctx.switch_mesh += 1;
-                    Ok(())
-                });
-
-                match r {
-                    Ok(_) => {
-                        prog.commit(gl);
-                        mesh.render(gl);
-                    }
-                    Err(ref err) => {
-                        if *err != AssetError::NotReady {
-                            panic!(format!("Failed to load mesh, reason {:?}", err));
-                        }
-                    }
+        for cmd in commands {
+            if let Err(err) = self.setup_material(ctx, &*cmd.surface.material) {
+                if let AssetError::NotReady = err {
+                    continue;
                 }
-            })
-            .unwrap()
+
+                panic!(format!("Failed to load mesh, reason {:?}", err));
+            }
+
+            let prog = ctx.prog.upgrade().unwrap();
+
+            let r = ctx.prepare_cache(&cmd.surface.buffer, |ctx| {
+                cmd.surface.buffer.bind(&self.gl, &prog)?;
+                ctx.switch_mesh += 1;
+                Ok(())
+            });
+
+            self.setup_camera(ctx, cmd.model_m, camera);
+
+            match r {
+                Ok(_) => {
+                    prog.commit(gl);
+                    cmd.surface.buffer.render(gl);
+                }
+                Err(ref err) => match *err {
+                    AssetError::NotReady => (),
+                    _ => panic!(format!("Failed to load mesh, reason {:?}", err)),
+                },
+            }
+        }
     }
 
     pub fn begin(&mut self) {
         imgui::begin();
+
+        self.asset_system_mut().step();
     }
 
     pub fn end(&mut self) {}
@@ -336,7 +351,6 @@ where
     }
 
     pub fn render_pass(&self, camera: &Camera) {
-        let gl = &self.gl;
         let objects = &self.objects;
 
         let mut ctx: EngineContext = Default::default();
@@ -356,24 +370,26 @@ where
 
         self.prepare_ctx(&mut ctx);
 
+        let mut commands = Vec::new();
         for obj in objects.iter() {
             obj.upgrade().map(|obj| {
                 let object = obj.borrow();
                 if object.active {
-                    let result = object.find_component::<Material>();
+                    let result = object.find_component::<Mesh>();
 
-                    if let Some((material, _)) = result {
-                        match self.setup_material(&mut ctx, &material) {
-                            Ok(_) => self.render_object(gl, &mut ctx, &object, camera),
-                            Err(ref err) if *err != AssetError::NotReady => {
-                                panic!("Failed to load material {:?}", err);
-                            }
-                            _ => (),
+                    if let Some((mesh, _)) = result {
+                        for surface in mesh.surfaces.iter() {
+                            commands.push(RenderCommand {
+                                surface: surface.clone(),
+                                model_m: compute_model_m(&*object),
+                            })
                         }
                     }
                 }
             });
         }
+
+        self.render_commands(&mut ctx, commands, camera);
 
         if let Some(ref rt) = camera.render_texture {
             rt.unbind_frame_buffer(&self.gl);

@@ -37,8 +37,11 @@ impl Asset for Texture {
 }
 
 impl LoadableAsset for Texture {
-    fn load<T: AssetSystem>(_asys: &T, mut files: Vec<FileFuture>) -> Self::Resource {
-        Self::load_resource::<RgbaImage>(files.remove(0))
+    fn load<T: AssetSystem + Clone + 'static>(
+        asys: &T,
+        mut files: Vec<FileFuture>,
+    ) -> Self::Resource {
+        Self::load_resource::<RgbaImage, T>(asys.clone(), files.remove(0))
     }
 
     fn gather<T: AssetSystem>(asys: &T, fname: &str) -> Vec<FileFuture> {

@@ -1,4 +1,3 @@
-use engine::core::ComponentBased;
 use engine::asset::Asset;
 use engine::render::{ShaderProgram, Texture};
 
@@ -35,5 +34,3 @@ impl Asset for Material {
         unimplemented!();
     }
 }
-
-impl ComponentBased for Material {}

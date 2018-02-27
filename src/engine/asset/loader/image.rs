@@ -1,5 +1,5 @@
 use engine::asset::loader::{Loadable, Loader};
-use engine::asset::{AssetError, File};
+use engine::asset::{AssetError, AssetSystem, File};
 use image::RgbaImage;
 use image;
 
@@ -10,7 +10,10 @@ impl Loadable for RgbaImage {
 }
 
 impl Loader<RgbaImage> for ImageLoader {
-    fn load(mut file: Box<File>) -> Result<RgbaImage, AssetError> {
+    fn load<A>(_asys: A, mut file: Box<File>) -> Result<RgbaImage, AssetError>
+    where
+        A: AssetSystem + Clone,
+    {
         let buf = file.read_binary()
             .map_err(|_| AssetError::InvalidFormat(file.name()))?;
         let img =

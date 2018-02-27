@@ -78,37 +78,39 @@ impl Game {
 
             self.counter += 1;
 
-            let mut textures = HashMap::new();
-            textures.insert(
+            let mut params = HashMap::new();
+            params.insert(
                 "uMaterial.diffuse".to_string(),
                 MaterialParam::Texture(texture),
             );
-            textures.insert(
+            params.insert(
                 "uMaterial.shininess".to_string(),
                 MaterialParam::Float(32.0),
             );
 
-            // temp set the material shiness here
+            let material = Material::new(db.new_program("phong"), params);
 
-            go_mut.add_component(self.get(rb.borrow().shape().as_ref()).unwrap());
+            go_mut.add_component(self.get(rb.borrow().shape().as_ref(), material));
             go_mut.add_component(PhysicObject(rb));
-            go_mut.add_component(Material::new(db.new_program("phong"), textures));
         }
 
         self.list.push(go.clone());
         go
     }
 
-    pub fn get(&self, shape: &Shape3<f32>) -> Option<Mesh> {
+    pub fn get(&self, shape: &Shape3<f32>, material: Material) -> Mesh {
         let db = self.engine.asset_system();
+        let mut mesh = Mesh::new();
 
         if let Some(_) = shape.as_shape::<Cuboid3<f32>>() {
-            Some(Mesh::new(db.new_mesh_buffer("cube")))
+            mesh.add_surface(db.new_mesh_buffer("cube"), Rc::new(material));
         } else if let Some(_) = shape.as_shape::<Plane3<f32>>() {
-            Some(Mesh::new(db.new_mesh_buffer("plane")))
+            mesh.add_surface(db.new_mesh_buffer("plane"), Rc::new(material));
         } else {
-            None
+            unimplemented!();
         }
+
+        mesh
     }
 
     pub fn step(&mut self) {

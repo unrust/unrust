@@ -1,4 +1,4 @@
-use na::{Matrix4, Vector3};
+use na::{Matrix4, Vector2, Vector3, Vector4};
 use std::fmt::Debug;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
@@ -65,9 +65,33 @@ impl UniformAdapter for i32 {
     }
 }
 
+impl UniformAdapter for Vector2<f32> {
+    fn set(&self, gl: &WebGLRenderingContext, loc: &WebGLUniformLocation) {
+        gl.uniform_2f(&loc, (self.x, self.y));
+    }
+
+    fn to_hash(&self) -> u64 {
+        let mut s = DefaultHasher::new();
+        s.write(&self.as_slice().into_bytes());
+        s.finish()
+    }
+}
+
 impl UniformAdapter for Vector3<f32> {
     fn set(&self, gl: &WebGLRenderingContext, loc: &WebGLUniformLocation) {
         gl.uniform_3f(&loc, (self.x, self.y, self.z));
+    }
+
+    fn to_hash(&self) -> u64 {
+        let mut s = DefaultHasher::new();
+        s.write(&self.as_slice().into_bytes());
+        s.finish()
+    }
+}
+
+impl UniformAdapter for Vector4<f32> {
+    fn set(&self, gl: &WebGLRenderingContext, loc: &WebGLUniformLocation) {
+        gl.uniform_4f(&loc, (self.x, self.y, self.z, self.w));
     }
 
     fn to_hash(&self) -> u64 {

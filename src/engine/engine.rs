@@ -182,6 +182,15 @@ where
                 &MaterialParam::Float(f) => {
                     prog.set(&name, f);
                 }
+                &MaterialParam::Vec2(v) => {
+                    prog.set(&name, v);
+                }
+                &MaterialParam::Vec3(v) => {
+                    prog.set(&name, v);
+                }
+                &MaterialParam::Vec4(v) => {
+                    prog.set(&name, v);
+                }
             }
         }
 

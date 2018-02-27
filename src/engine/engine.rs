@@ -182,14 +182,14 @@ where
                 &MaterialParam::Float(f) => {
                     prog.set(&name, f);
                 }
-                &MaterialParam::Vec2(f1,f2) => {
-                    prog.set(&name, Vector2::new(f1,f2));
+                &MaterialParam::Vec2(v) => {
+                    prog.set(&name, v);
                 }
-                &MaterialParam::Vec3(f1,f2,f3) => {
-                    prog.set(&name, Vector3::new(f1,f2,f3));
+                &MaterialParam::Vec3(v) => {
+                    prog.set(&name, v);
                 }
-                &MaterialParam::Vec4(f1,f2,f3,f4) => {
-                    prog.set(&name, Vector4::new(f1,f2,f3,f4));
+                &MaterialParam::Vec4(v) => {
+                    prog.set(&name, v);
                 }
             }
         }

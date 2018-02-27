@@ -4,13 +4,14 @@ use engine::render::{ShaderProgram, Texture};
 
 use std::rc::Rc;
 use std::collections::HashMap;
+use na::{Vector2, Vector3, Vector4};
 
 pub enum MaterialParam {
     Texture(Rc<Texture>),
     Float(f32),
-    Vec2(f32,f32),
-    Vec3(f32,f32,f32),
-    Vec4(f32,f32,f32,f32),
+    Vec2(Vector2<f32>),
+    Vec3(Vector3<f32>),
+    Vec4(Vector4<f32>),
 }
 
 pub struct Material {

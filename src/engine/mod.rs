@@ -10,6 +10,6 @@ pub use self::imgui::Metric;
 pub use self::render::*;
 pub use self::asset::*;
 pub use self::core::{Component, ComponentBased, GameObject};
-pub use self::engine::IEngine;
+pub use self::engine::{IEngine,ClearOption};
 
 pub type Engine<FS, F> = engine::Engine<AssetDatabase<FS, F>>;

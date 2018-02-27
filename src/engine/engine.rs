@@ -155,14 +155,32 @@ fn compute_model_m(object: &GameObject) -> Matrix4<f32> {
     modelm * Matrix4::new_nonuniform_scaling(&object.scale)
 }
 
+pub struct ClearOption {
+    pub color: Option<(f32,f32,f32,f32)>,
+    pub clear_color: bool,
+    pub clear_depth: bool,
+    pub clear_stencil: bool,
+}
+
 impl<A> Engine<A>
 where
     A: AssetSystem,
 {
-    pub fn clear(&self) {
-        self.gl.clear_color(0.2, 0.2, 0.2, 1.0);
-        self.gl.clear(BufferBit::Color);
-        self.gl.clear(BufferBit::Depth);
+    pub fn clear(&self, option: ClearOption) {
+        if let Some(col) = option.color {
+            self.gl.clear_color(col.0, col.1, col.2, col.3);
+        } else {
+            self.gl.clear_color(0.0, 0.0, 0.0, 1.0);
+        }
+        if option.clear_color {
+            self.gl.clear(BufferBit::Color);
+        }
+        if option.clear_depth {
+            self.gl.clear(BufferBit::Depth);
+        }
+        if option.clear_stencil {
+            self.gl.clear(BufferBit::Stencil);
+        }
     }
 
     pub fn resize(&mut self, size: (u32, u32)) {
@@ -354,7 +372,7 @@ where
                 .collect();
     }
 
-    pub fn render_pass(&self, camera: &Camera) {
+    pub fn render_pass(&self, camera: &Camera, clear_option: ClearOption) {
         let objects = &self.objects;
 
         let mut ctx: EngineContext = Default::default();
@@ -370,7 +388,7 @@ where
                 .viewport(0, 0, self.screen_size.0, self.screen_size.1);
         }
 
-        self.clear();
+        self.clear(clear_option);
 
         self.prepare_ctx(&mut ctx);
 
@@ -400,11 +418,11 @@ where
         }
     }
 
-    pub fn render(&mut self) {
+    pub fn render(&mut self, clear_option: ClearOption) {
         imgui::pre_render(self);
 
         if let Some(ref camera) = self.main_camera.as_ref() {
-            self.render_pass(&camera.borrow());
+            self.render_pass(&camera.borrow(), clear_option);
         }
 
         // drop all gameobjects if there are no other references

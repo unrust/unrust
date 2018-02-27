@@ -15,7 +15,6 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::ops::{Deref, DerefMut};
 use na::{Point3, UnitQuaternion, Vector3};
-use std::collections::HashMap;
 use std::sync::{Arc, Weak};
 
 use unigame::engine::*;
@@ -108,16 +107,10 @@ impl Game {
         {
             let db = &mut self.engine.asset_system();
             let mut go_mut = go.borrow_mut();
-            let mut params = HashMap::new();
-            params.insert(
-                "uMaterial.diffuse".to_string(),
-                MaterialParam::Texture(db.new_texture("tex_a.png")),
-            );
-            params.insert(
-                "uMaterial.shininess".to_string(),
-                MaterialParam::Float(32.0),
-            );
-            let material = Material::new(db.new_program("phong"), params);
+
+            let mut material = Material::new(db.new_program("phong"));
+            material.set("uMaterial.diffuse", db.new_texture("tex_a.png"));
+            material.set("uMaterial.shininess", 32.0);
 
             let mut mesh = Mesh::new();
             mesh.add_surface(db.new_mesh_buffer("cube"), Rc::new(material));
@@ -129,13 +122,10 @@ impl Game {
         {
             let db = &mut self.engine.asset_system();
             let mut go_mut = screen_quad.borrow_mut();
-            let mut params = HashMap::new();
-            params.insert(
-                "uDiffuse".to_string(),
-                MaterialParam::Texture(self.rt.as_texture()),
-            );
 
-            let material = Material::new(db.new_program("crt"), params);
+            let mut material = Material::new(db.new_program("crt"));
+            material.set("uDiffuse", self.rt.as_texture());
+
             let mut mesh = Mesh::new();
             mesh.add_surface(db.new_mesh_buffer("screen_quad"), Rc::new(material));
             go_mut.add_component(mesh);

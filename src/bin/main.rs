@@ -19,7 +19,6 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::ops::{Deref, DerefMut};
 use na::Isometry3;
-use std::collections::HashMap;
 use std::sync::{Arc, Weak};
 
 use nphysics3d::object::RigidBody;
@@ -78,17 +77,9 @@ impl Game {
 
             self.counter += 1;
 
-            let mut params = HashMap::new();
-            params.insert(
-                "uMaterial.diffuse".to_string(),
-                MaterialParam::Texture(texture),
-            );
-            params.insert(
-                "uMaterial.shininess".to_string(),
-                MaterialParam::Float(32.0),
-            );
-
-            let material = Material::new(db.new_program("phong"), params);
+            let mut material = Material::new(db.new_program("phong"));
+            material.set("uMaterial.diffuse", texture);
+            material.set("uMaterial.shininess", 32.0);
 
             go_mut.add_component(self.get(rb.borrow().shape().as_ref(), material));
             go_mut.add_component(PhysicObject(rb));

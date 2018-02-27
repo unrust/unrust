@@ -1,6 +1,6 @@
 use engine::asset::loader::{Loadable, Loader};
 use engine::asset::{Asset, AssetError, AssetSystem, File, FileFuture, Resource};
-use engine::render::{Material, MaterialParam, Mesh, MeshBuffer, MeshData};
+use engine::render::{Material, Mesh, MeshBuffer, MeshData};
 use engine::core::Component;
 use std::sync::Arc;
 use std::rc::Rc;
@@ -75,23 +75,10 @@ impl PrefabLoader {
                     normals: if gn.len() > 0 { Some(gn) } else { None },
                 };
 
-                let mut params = HashMap::new();
-                params.insert(
-                    "uMaterial.ambient".to_string(),
-                    MaterialParam::Vec3(ambient),
-                );
-
-                params.insert(
-                    "uMaterial.diffuse".to_string(),
-                    MaterialParam::Vec3(diffuse),
-                );
-
-                params.insert(
-                    "uMaterial.shininess".to_string(),
-                    MaterialParam::Float(32.0),
-                );
-
-                let material = Material::new(shader_program.clone(), params);
+                let mut material = Material::new(shader_program.clone());
+                material.set("uMaterial.ambient", ambient);
+                material.set("uMaterial.diffuse", diffuse);
+                material.set("uMaterial.shininess", 32.0);
 
                 mesh.add_surface(
                     MeshBuffer::new_from_resource(Resource::new(mesh_data)),

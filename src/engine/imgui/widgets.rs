@@ -1,5 +1,5 @@
 use engine::core::GameObject;
-use engine::render::{Material, MaterialParam, Mesh};
+use engine::render::{Material, Mesh};
 use engine::engine::IEngine;
 use engine::render::Texture;
 
@@ -12,7 +12,6 @@ use engine::asset::Asset;
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::any::Any;
-use std::collections::HashMap;
 
 use na::{Translation3, Vector3};
 
@@ -214,17 +213,11 @@ impl Widget for Label {
             let mut gomut = go.borrow_mut();
             let meshdata = make_text_mesh_data(&self.s, ssize);
 
-            let mut params = HashMap::new();
-            params.insert(
-                "uDiffuse".to_string(),
-                MaterialParam::Texture(db.new_texture("default_font_bitmap")),
-            );
-
             let mut mesh = Mesh::new();
-            mesh.add_surface(
-                MeshBuffer::new(meshdata),
-                Rc::new(Material::new(db.new_program("default_ui"), params)),
-            );
+            let mut material = Material::new(db.new_program("default_ui"));
+            material.set("uDiffuse", db.new_texture("default_font_bitmap"));
+
+            mesh.add_surface(MeshBuffer::new(meshdata), Rc::new(material));
 
             gomut.transform.append_translation_mut(&compute_translate(
                 &self.pos,
@@ -298,17 +291,11 @@ impl Widget for Image {
             let mut gomut = go.borrow_mut();
             let meshdata = make_quad_mesh_data(compute_size_to_ndc(&self.size, &ssize));
 
-            let mut params = HashMap::new();
-            params.insert(
-                "uDiffuse".to_string(),
-                MaterialParam::Texture(self.texture.0.clone()),
-            );
-
             let mut mesh = Mesh::new();
-            mesh.add_surface(
-                MeshBuffer::new(meshdata),
-                Rc::new(Material::new(db.new_program("default_ui"), params)),
-            );
+            let mut material = Material::new(db.new_program("default_ui"));
+            material.set("uDiffuse", self.texture.0.clone());
+
+            mesh.add_surface(MeshBuffer::new(meshdata), Rc::new(material));
 
             gomut.transform.append_translation_mut(&compute_translate(
                 &self.pos,

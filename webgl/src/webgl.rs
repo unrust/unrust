@@ -106,6 +106,9 @@ impl GLContext {
                     delete Module.gl.pool[id];
                     return c;
                 };
+                console.log("opengl "+gl.getParameter(gl.VERSION));
+                console.log("shading language " + gl.getParameter(gl.SHADING_LANGUAGE_VERSION));
+                console.log("vendor " + gl.getParameter(gl.VENDOR));
             }
 
             return Module.gl.add(gl);

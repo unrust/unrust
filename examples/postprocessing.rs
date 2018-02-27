@@ -44,8 +44,10 @@ impl Game {
     }
 
     pub fn step(&mut self) {
-        self[5].borrow_mut().transform
-                .append_rotation_mut(&UnitQuaternion::new(Vector3::new(0.01, 0.02, 0.005)));
+        self[5]
+            .borrow_mut()
+            .transform
+            .append_rotation_mut(&UnitQuaternion::new(Vector3::new(0.01, 0.02, 0.005)));
     }
 
     pub fn reset(&mut self) {
@@ -115,8 +117,11 @@ impl Game {
                 "uMaterial.shininess".to_string(),
                 MaterialParam::Float(32.0),
             );
-            go_mut.add_component(Material::new(db.new_program("phong"), params));
-            go_mut.add_component(Mesh::new(db.new_mesh_buffer("cube")));
+            let material = Material::new(db.new_program("phong"), params);
+
+            let mut mesh = Mesh::new();
+            mesh.add_surface(db.new_mesh_buffer("cube"), Rc::new(material));
+            go_mut.add_component(mesh);
         }
         self.list.push(go.clone());
 
@@ -129,8 +134,11 @@ impl Game {
                 "uDiffuse".to_string(),
                 MaterialParam::Texture(self.rt.as_texture()),
             );
-            go_mut.add_component(Material::new(db.new_program("crt"), params));
-            go_mut.add_component(Mesh::new(db.new_mesh_buffer("screen_quad")));
+
+            let material = Material::new(db.new_program("crt"), params);
+            let mut mesh = Mesh::new();
+            mesh.add_surface(db.new_mesh_buffer("screen_quad"), Rc::new(material));
+            go_mut.add_component(mesh);
         }
         self.list.push(screen_quad.clone());
     }
@@ -227,8 +235,8 @@ pub fn main() {
                 // Setup proper viewport to render to the whole texture
                 cam.rect = Some(((0, 0), (1024, 1024)));
                 // show only cube
-                game.list[5].borrow_mut().active=true;
-                game.list[6].borrow_mut().active=false;
+                game.list[5].borrow_mut().active = true;
+                game.list[6].borrow_mut().active = false;
                 imgui::pivot((0.0, 0.0));
                 imgui::label(
                     Native(0.0, 0.0) + Pixel(8.0, 8.0),
@@ -254,8 +262,8 @@ pub fn main() {
                 cam.rect = None;
             }
             // show only screen_quad
-            game.list[5].borrow_mut().active=false;
-            game.list[6].borrow_mut().active=true;
+            game.list[5].borrow_mut().active = false;
+            game.list[6].borrow_mut().active = true;
             // Render
             game.engine.render();
 

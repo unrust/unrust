@@ -214,23 +214,26 @@ impl Widget for Label {
             let mut gomut = go.borrow_mut();
             let meshdata = make_text_mesh_data(&self.s, ssize);
 
-            let mesh = Mesh::new(MeshBuffer::new(meshdata));
-            gomut.transform.append_translation_mut(&compute_translate(
-                &self.pos,
-                &self.pivot,
-                &ssize,
-                mesh.mesh_buffer.bounds().unwrap(),
-            ));
-
-            gomut.add_component(mesh);
-
-            let mut textures = HashMap::new();
-            textures.insert(
+            let mut params = HashMap::new();
+            params.insert(
                 "uDiffuse".to_string(),
                 MaterialParam::Texture(db.new_texture("default_font_bitmap")),
             );
 
-            gomut.add_component(Material::new(db.new_program("default_ui"), textures));
+            let mut mesh = Mesh::new();
+            mesh.add_surface(
+                MeshBuffer::new(meshdata),
+                Rc::new(Material::new(db.new_program("default_ui"), params)),
+            );
+
+            gomut.transform.append_translation_mut(&compute_translate(
+                &self.pos,
+                &self.pivot,
+                &ssize,
+                mesh.bounds().unwrap(),
+            ));
+
+            gomut.add_component(mesh);
         }
 
         go
@@ -295,23 +298,26 @@ impl Widget for Image {
             let mut gomut = go.borrow_mut();
             let meshdata = make_quad_mesh_data(compute_size_to_ndc(&self.size, &ssize));
 
-            let mesh = Mesh::new(MeshBuffer::new(meshdata));
-            gomut.transform.append_translation_mut(&compute_translate(
-                &self.pos,
-                &self.pivot,
-                &ssize,
-                mesh.mesh_buffer.bounds().unwrap(),
-            ));
-
-            gomut.add_component(mesh);
-
-            let mut textures = HashMap::new();
-            textures.insert(
+            let mut params = HashMap::new();
+            params.insert(
                 "uDiffuse".to_string(),
                 MaterialParam::Texture(self.texture.0.clone()),
             );
 
-            gomut.add_component(Material::new(db.new_program("default_ui"), textures));
+            let mut mesh = Mesh::new();
+            mesh.add_surface(
+                MeshBuffer::new(meshdata),
+                Rc::new(Material::new(db.new_program("default_ui"), params)),
+            );
+
+            gomut.transform.append_translation_mut(&compute_translate(
+                &self.pos,
+                &self.pivot,
+                &ssize,
+                mesh.bounds().unwrap(),
+            ));
+
+            gomut.add_component(mesh);
         }
 
         go

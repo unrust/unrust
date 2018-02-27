@@ -3,6 +3,7 @@ use engine::asset::{Asset, AssetError, AssetSystem, File, Resource};
 use engine::render::{Material, MaterialParam, Mesh, MeshBuffer, MeshData};
 use engine::core::Component;
 use std::sync::Arc;
+use std::rc::Rc;
 use na;
 
 use obj;
@@ -81,9 +82,7 @@ impl Loader<Prefab> for PrefabLoader {
         };
 
         // create the mesh componet
-        let mesh = Component::new(Mesh::new(MeshBuffer::new_from_resource(Resource::new(
-            mesh_data,
-        ))));
+        let mut mesh = Mesh::new();
 
         let mut params = HashMap::new();
         params.insert(
@@ -101,10 +100,15 @@ impl Loader<Prefab> for PrefabLoader {
             MaterialParam::Float(32.0),
         );
 
-        let material = Component::new(Material::new(asys.new_program("obj"), params));
+        let material = Material::new(asys.new_program("obj"), params);
+
+        mesh.add_surface(
+            MeshBuffer::new_from_resource(Resource::new(mesh_data)),
+            Rc::new(material),
+        );
 
         Ok(Prefab {
-            components: vec![mesh, material],
+            components: vec![Component::new(mesh)],
         })
     }
 }

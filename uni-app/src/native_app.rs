@@ -50,6 +50,7 @@ fn translate_event(e: glutin::Event) -> Option<AppEvent> {
                     code: translate_keyevent(input),
                 })),
             },
+            WindowEvent::Resized(w, h) => Some(AppEvent::Resized((w, h))),
 
             _ => None,
         }

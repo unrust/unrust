@@ -1,10 +1,12 @@
 use stdweb;
 use AppConfig;
 
-use stdweb::web::{Element, IEventTarget};
+use stdweb::web::IEventTarget;
 use stdweb::web::window;
-use stdweb::web::event::{ClickEvent, IKeyboardEvent, KeyDownEvent, KeyUpEvent};
+use stdweb::web::event::{ClickEvent, IKeyboardEvent, KeyDownEvent, KeyUpEvent, ResizeEvent};
 use stdweb::unstable::TryInto;
+use stdweb::web::html_element::CanvasElement;
+use stdweb::web::IHtmlElement;
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -13,7 +15,7 @@ use AppEvent;
 use FPS;
 
 pub struct App {
-    window: Element,
+    window: CanvasElement,
     pub events: Rc<RefCell<Vec<AppEvent>>>,
 }
 
@@ -44,7 +46,11 @@ impl App {
         use stdweb::web::*;
 
         let _ = stdweb::initialize();
-        let canvas = document().create_element("canvas").unwrap();
+        let canvas: CanvasElement = document()
+            .create_element("canvas")
+            .unwrap()
+            .try_into()
+            .unwrap();
 
         js!{
             (@{&canvas}).width = @{config.size.0};
@@ -66,7 +72,7 @@ impl App {
         }
     }
 
-    pub fn canvas(&self) -> &stdweb::web::Element {
+    pub fn canvas(&self) -> &CanvasElement {
         &self.window
     }
 
@@ -85,7 +91,7 @@ impl App {
     where
         F: 'static + FnMut(&mut Self) -> (),
     {
-        let canvas: &Element = self.canvas();
+        let canvas: &CanvasElement = self.canvas();
 
         canvas.add_event_listener(map_event!{
             self.events,
@@ -121,6 +127,17 @@ impl App {
             e,
             events::KeyUpEvent {
                 code: e.code()
+            }
+        });
+
+        canvas.add_event_listener({
+            let canvas = canvas.clone();
+
+            map_event!{
+                self.events,
+                ResizeEvent,
+                Resized,
+                (canvas.offset_width() as u32, canvas.offset_height() as u32)
             }
         });
 

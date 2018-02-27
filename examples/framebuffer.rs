@@ -184,7 +184,7 @@ pub fn main() {
                     last_event = Some(evt.clone());
                     match evt {
                         &AppEvent::Click(_) => {}
-
+                        &AppEvent::Resized(size) => game.engine.resize(size),
                         &AppEvent::KeyDown(ref key) => {
                             match key.code.as_str() {
                                 "F1" => crt = !crt,

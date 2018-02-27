@@ -49,20 +49,20 @@ impl AppConfig {
 }
 
 mod events {
-    #[derive(Debug,Clone)]
+    #[derive(Debug, Clone)]
     pub struct ClickEvent;
-    
-    #[derive(Debug,Clone)]
+
+    #[derive(Debug, Clone)]
     pub struct KeyDownEvent {
         pub code: String,
     }
 
-    #[derive(Debug,Clone)]
+    #[derive(Debug, Clone)]
     pub struct KeyPressEvent {
         pub code: String,
     }
 
-    #[derive(Debug,Clone)]
+    #[derive(Debug, Clone)]
     pub struct KeyUpEvent {
         pub code: String,
     }
@@ -75,6 +75,7 @@ pub enum AppEvent {
     Click(ClickEvent),
     KeyDown(KeyDownEvent),
     KeyUp(KeyUpEvent),
+    Resized((u32, u32)),
 }
 
 pub struct FPS {

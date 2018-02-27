@@ -165,6 +165,10 @@ where
         self.gl.clear(BufferBit::Depth);
     }
 
+    pub fn resize(&mut self, size: (u32, u32)) {
+        self.screen_size = size;
+    }
+
     fn setup_material(
         &self,
         ctx: &mut EngineContext,

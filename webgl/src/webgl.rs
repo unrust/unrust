@@ -1,15 +1,16 @@
 use std::ops::Deref;
 use stdweb::web::*;
 use stdweb::unstable::TryInto;
+use stdweb::web::html_element::CanvasElement;
 use glenum::*;
 use common::*;
 
-pub type WebGLContext<'a> = &'a Element;
+pub type WebGLContext<'a> = &'a CanvasElement;
 
 impl WebGLRenderingContext {
     pub fn new(canvas: WebGLContext) -> WebGLRenderingContext {
         WebGLRenderingContext {
-            common: GLContext::new(canvas, "webgl"),
+            common: GLContext::new(&canvas.clone().into(), "webgl"),
         }
     }
 }

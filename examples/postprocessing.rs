@@ -178,7 +178,7 @@ pub fn main() {
                     last_event = Some(evt.clone());
                     match evt {
                         &AppEvent::Click(_) => {}
-
+                        &AppEvent::Resized(size) => game.engine.resize(size),
                         &AppEvent::KeyDown(ref key) => {
                             match key.code.as_str() {
                                 "KeyA" => eye = na::Rotation3::new(up * -0.02) * eye,

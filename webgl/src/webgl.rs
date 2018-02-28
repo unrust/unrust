@@ -10,7 +10,7 @@ pub type WebGLContext<'a> = &'a CanvasElement;
 impl WebGLRenderingContext {
     pub fn new(canvas: WebGLContext) -> WebGLRenderingContext {
         WebGLRenderingContext {
-            common: GLContext::new(&canvas.clone().into(), "webgl"),
+            common: GLContext::new(&canvas.clone().into()),
         }
     }
 }
@@ -75,9 +75,12 @@ impl GLContext {
         js!{ console.log(@{msg.into()})};
     }
 
-    pub fn new<'a>(canvas: &Element, context: &'a str) -> GLContext {
+    pub fn new<'a>(canvas: &Element) -> GLContext {
         let gl = js!{
-            var gl = (@{canvas}).getContext(@{context});
+            var gl = (@{canvas}).getContext("webgl2");
+            if (!gl) {
+                gl = (@{canvas}).getContext("webgl");
+            }
 
             // Create gl related objects
             if( !Module.gl) {
@@ -642,9 +645,12 @@ impl GLContext {
         self.log("create_vertex_array");
         let val = js! {
             var ctx = Module.gl.get(@{self.reference});
-            return Module.gl.add(ctx.createVertexArray());
+            if (ctx.createVertexArray) {
+                return Module.gl.add(ctx.createVertexArray());
+            } else {
+                return 0;
+            }
         };
-
         WebGLVertexArray(val.try_into().unwrap())
     }
 
@@ -652,16 +658,21 @@ impl GLContext {
         self.log("bind_vertex_array");
         js! {
             var ctx = Module.gl.get(@{self.reference});
-            var vao = Module.gl.get(@{vao.deref()});
-            ctx.bindVertexArray(vao)
+            if (ctx.bindVertexArray) {
+                var vao = Module.gl.get(@{vao.deref()});
+                ctx.bindVertexArray(vao);
+            }
         }
     }
 
-    pub fn unbind_vertex_array(&self) {
+    pub fn unbind_vertex_array(&self, vao: &WebGLVertexArray) {
         self.log("unbind_vertex_array");
         js! {
             var ctx = Module.gl.get(@{self.reference});
-            ctx.bindVertexArray(0)
+            if (ctx.unbindVertexArray) {
+                var vao = Module.gl.get(@{vao.deref()});
+                ctx.unbindVertexArray(vao);
+            }
         }
     }
 

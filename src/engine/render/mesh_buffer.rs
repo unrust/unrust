@@ -24,6 +24,7 @@ impl<T> IntoBytes for Vec<T> {
 }
 
 struct MeshGLState {
+    pub vao: WebGLVertexArray,
     pub vb: WebGLBuffer,
     pub uvb: Option<WebGLBuffer>,
     pub nb: Option<WebGLBuffer>,
@@ -125,6 +126,7 @@ impl MeshBuffer {
         let state = state_option.as_ref().unwrap();
 
         /*======= Associating shaders to buffer objects =======*/
+        gl.bind_vertex_array(&state.vao);
 
         // Bind vertex buffer object
         gl.bind_buffer(BufferKind::Array, &state.vb);
@@ -166,6 +168,12 @@ impl MeshBuffer {
 
         gl.draw_elements(Primitives::Triangles, data.indices.len(), DataType::U16, 0);
     }
+
+    pub fn unbind(&self, gl: &WebGLRenderingContext) {
+        let state_option = self.gl_state.borrow();
+        let state = state_option.as_ref().unwrap();
+        gl.unbind_vertex_array(&state.vao);
+    }
 }
 
 fn mesh_bind_buffer(
@@ -175,6 +183,10 @@ fn mesh_bind_buffer(
     indices: &Vec<u16>,
     gl: &WebGLRenderingContext,
 ) -> MeshGLState {
+    // some opengl 3.x core profile require a VAO. See issue #11
+    let vao = gl.create_vertex_array();
+    gl.bind_vertex_array(&vao);
+
     // Create an empty buffer object to store vertex buffer
     let vertex_buffer = gl.create_buffer();
     {
@@ -245,6 +257,7 @@ fn mesh_bind_buffer(
     }
 
     MeshGLState {
+        vao,
         vb: vertex_buffer,
         uvb: uv_buffer,
         nb: normal_buffer,

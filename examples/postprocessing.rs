@@ -207,6 +207,17 @@ pub fn main() {
                 }
             }
 
+            // Update Camera
+            {
+                let mut cam = game.engine.main_camera.as_ref().unwrap().borrow_mut();
+
+                cam.lookat(
+                    &Point3::from_coordinates(eye),
+                    &Point3::new(0.0, 0.0, 0.0),
+                    &Vector3::new(0.0, 1.0, 0.0),
+                );
+            }
+
             // Setup fb for camera
             {
                 let mut cam = game.engine.main_camera.as_ref().unwrap().borrow_mut();
@@ -214,12 +225,6 @@ pub fn main() {
 
                 // Setup proper viewport to render to the whole texture
                 cam.rect = Some(((0, 0), (1024, 1024)));
-                cam.lookat(
-                    &Point3::from_coordinates(eye),
-                    &Point3::new(0.0, 0.0, 0.0),
-                    &Vector3::new(0.0, 1.0, 0.0),
-                );
-
                 // show only cube
                 game.list[5].borrow_mut().active = true;
                 game.list[6].borrow_mut().active = false;

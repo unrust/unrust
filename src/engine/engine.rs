@@ -156,7 +156,7 @@ fn compute_model_m(object: &GameObject) -> Matrix4<f32> {
 }
 
 pub struct ClearOption {
-    pub color: Option<(f32,f32,f32,f32)>,
+    pub color: Option<(f32, f32, f32, f32)>,
     pub clear_color: bool,
     pub clear_depth: bool,
     pub clear_stencil: bool,
@@ -238,7 +238,7 @@ where
         let prog = ctx.prog.upgrade().unwrap();
         // setup_camera
         prog.set("uMVMatrix", camera.v * modelm);
-        prog.set("uPMatrix", camera.p);
+        prog.set("uPMatrix", camera.perspective(self.screen_size));
         prog.set("uNMatrix", modelm.try_inverse().unwrap().transpose());
         prog.set("uMMatrix", modelm);
         prog.set("uViewPos", camera.eye());

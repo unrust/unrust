@@ -241,7 +241,15 @@ pub fn main() {
                     &format!("last event: {:?}", last_event),
                 );
                 // Render current scene by camera using given frame buffer
-                game.engine.render_pass(&cam, ClearOption{color:Some((0.2,0.2,0.2,1.0)),clear_color:true,clear_depth:true, clear_stencil:false});
+                game.engine.render_pass(
+                    &cam,
+                    ClearOption {
+                        color: Some((0.2, 0.2, 0.2, 1.0)),
+                        clear_color: true,
+                        clear_depth: true,
+                        clear_stencil: false,
+                    },
+                );
 
                 // Clean up stuffs in camera, as later we could render normally
                 cam.render_texture = None;
@@ -251,7 +259,12 @@ pub fn main() {
             game.list[5].borrow_mut().active = false;
             game.list[6].borrow_mut().active = true;
             // Render
-            game.engine.render(ClearOption{color:None,clear_color:true,clear_depth:true, clear_stencil:false});
+            game.engine.render(ClearOption {
+                color: None,
+                clear_color: true,
+                clear_depth: true,
+                clear_stencil: false,
+            });
 
             // End
             game.engine.end();

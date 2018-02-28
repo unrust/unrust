@@ -1,7 +1,7 @@
-# unigame
+# unrust
 A simple webgl physics (wasm32-unknown-unknown / native-opengl) demo 
 
-[Live demo](https://edwin0cheng.github.io/unigame_demo/)
+[Live demo](https://edwin0cheng.github.io/unrust_demo/)
 
 This project is my first try on rust, to test the possiblity of wasm32-unknown-unknown target.
 

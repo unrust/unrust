@@ -11,6 +11,7 @@ use engine::render::{Directional, Light};
 use engine::render::{Material, MaterialParam, Mesh, MeshBuffer, MeshSurface, ShaderProgram,
                      Texture};
 use engine::asset::{AssetError, AssetSystem};
+use std::default::Default;
 
 use super::imgui;
 
@@ -156,10 +157,21 @@ fn compute_model_m(object: &GameObject) -> Matrix4<f32> {
 }
 
 pub struct ClearOption {
-    pub color: Option<(f32,f32,f32,f32)>,
+    pub color: Option<(f32, f32, f32, f32)>,
     pub clear_color: bool,
     pub clear_depth: bool,
     pub clear_stencil: bool,
+}
+
+impl Default for ClearOption {
+    fn default() -> Self {
+        ClearOption {
+            color: Some((0.3, 0.3, 0.3, 1.0)),
+            clear_color: true,
+            clear_depth: true,
+            clear_stencil: false,
+        }
+    }
 }
 
 impl<A> Engine<A>

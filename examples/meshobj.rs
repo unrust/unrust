@@ -227,7 +227,7 @@ pub fn main() {
             }
 
             // Render
-            game.engine.render();
+            game.engine.render(ClearOption::default());
 
             // End
             game.engine.end();

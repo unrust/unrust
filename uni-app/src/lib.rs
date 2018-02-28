@@ -49,12 +49,17 @@ impl AppConfig {
 }
 
 mod events {
+    use std::fmt;
+
     #[derive(Debug, Clone)]
     pub struct ClickEvent;
 
-    #[derive(Debug, Clone)]
+    #[derive(Clone)]
     pub struct KeyDownEvent {
         pub code: String,
+        pub shift: bool,
+        pub alt: bool,
+        pub ctrl: bool,
     }
 
     #[derive(Debug, Clone)]
@@ -62,10 +67,40 @@ mod events {
         pub code: String,
     }
 
-    #[derive(Debug, Clone)]
+    #[derive(Clone)]
     pub struct KeyUpEvent {
         pub code: String,
+        pub shift: bool,
+        pub alt: bool,
+        pub ctrl: bool,
     }
+
+    impl fmt::Debug for KeyUpEvent {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            write!(
+                f,
+                "{} {} {} {}",
+                if self.shift { "shift" } else { "" },
+                if self.alt { "alt" } else { "" },
+                if self.ctrl { "ctrl" } else { "" },
+                self.code,
+            )
+        }
+    }
+
+    impl fmt::Debug for KeyDownEvent {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            write!(
+                f,
+                "{} {} {} {}",
+                if self.shift { "shift" } else { "" },
+                if self.alt { "alt" } else { "" },
+                if self.ctrl { "ctrl" } else { "" },
+                self.code,
+            )
+        }
+    }
+
 }
 
 pub use events::*;

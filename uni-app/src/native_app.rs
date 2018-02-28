@@ -45,9 +45,15 @@ fn translate_event(e: glutin::Event) -> Option<AppEvent> {
             WindowEvent::KeyboardInput { input, .. } => match input.state {
                 ElementState::Pressed => Some(AppEvent::KeyDown(events::KeyDownEvent {
                     code: translate_keyevent(input),
+                    shift: input.modifiers.shift,
+                    alt: input.modifiers.alt,
+                    ctrl: input.modifiers.ctrl,
                 })),
                 ElementState::Released => Some(AppEvent::KeyUp(events::KeyUpEvent {
                     code: translate_keyevent(input),
+                    shift: input.modifiers.shift,
+                    alt: input.modifiers.alt,
+                    ctrl: input.modifiers.ctrl,
                 })),
             },
             WindowEvent::Resized(w, h) => Some(AppEvent::Resized((w, h))),

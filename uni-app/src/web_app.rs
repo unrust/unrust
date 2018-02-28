@@ -7,6 +7,7 @@ use stdweb::web::event::{ClickEvent, IKeyboardEvent, KeyDownEvent, KeyUpEvent, R
 use stdweb::unstable::TryInto;
 use stdweb::web::html_element::CanvasElement;
 use stdweb::web::IHtmlElement;
+use stdweb::traits::IEvent;
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -26,6 +27,7 @@ macro_rules! map_event {
         {
             let events = $events.clone();
             move |$ee: $x| {
+                $ee.prevent_default();
                 events.borrow_mut().push(AppEvent::$y($e));
             }
         }
@@ -106,7 +108,10 @@ impl App {
             KeyDown,
             e,
             events::KeyDownEvent {
-                code: e.code()
+                code: e.code(),
+                shift: e.shift_key(),
+                alt: e.alt_key(),
+                ctrl: e.ctrl_key(),
             }
         });
 
@@ -126,7 +131,10 @@ impl App {
             KeyUp,
             e,
             events::KeyUpEvent {
-                code: e.code()
+                code: e.code(),
+                shift: e.shift_key(),
+                alt: e.alt_key(),
+                ctrl: e.ctrl_key(),
             }
         });
 

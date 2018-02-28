@@ -32,9 +32,6 @@ impl PrefabLoader {
         let uvs: Vec<[f32; 2]> = model.texture;
         let normals: Vec<[f32; 3]> = model.normal;
 
-        let mut ambient = Vector3::new(0.2, 0.2, 0.2);
-        let mut diffuse = Vector3::new(0.2, 0.2, 0.2);
-
         let shader_program = asys.new_program("obj");
 
         // create the mesh componet
@@ -42,9 +39,18 @@ impl PrefabLoader {
 
         for o in model.objects {
             for g in o.groups {
+                let mut ambient = Vector3::new(0.2, 0.2, 0.2);
+                let mut diffuse = Vector3::new(0.2, 0.2, 0.2);
+                let mut specular = Vector3::new(0.2, 0.2, 0.2);
+                let mut shininess = 10.0;
+                let mut transparent = 1.0;
+
                 if let Some(material) = g.material {
                     material.ka.map(|ka| ambient = ka.into());
                     material.kd.map(|kd| diffuse = kd.into());
+                    material.ks.map(|ks| specular = ks.into());
+                    material.ns.map(|ns| shininess = ns);
+                    material.d.map(|d| transparent = d);
                 }
 
                 let mut indices = Vec::new();
@@ -78,7 +84,9 @@ impl PrefabLoader {
                 let mut material = Material::new(shader_program.clone());
                 material.set("uMaterial.ambient", ambient);
                 material.set("uMaterial.diffuse", diffuse);
-                material.set("uMaterial.shininess", 32.0);
+                material.set("uMaterial.specular", specular);
+                material.set("uMaterial.shininess", shininess);
+                material.set("uMaterial.transparent", transparent);
 
                 mesh.add_surface(
                     MeshBuffer::new_from_resource(Resource::new(mesh_data)),

@@ -2,6 +2,7 @@
 #![feature(integer_atomics)]
 
 /* common */
+extern crate alga;
 extern crate futures;
 extern crate nalgebra as na;
 extern crate ncollide;
@@ -305,7 +306,12 @@ pub fn main() {
             }
 
             // Render
-            game.engine.render(ClearOption{color:Some((0.2,0.2,0.2,1.0)),clear_color:true,clear_depth:true, clear_stencil:false});
+            game.engine.render(ClearOption {
+                color: Some((0.2, 0.2, 0.2, 1.0)),
+                clear_color: true,
+                clear_depth: true,
+                clear_stencil: false,
+            });
 
             // End
             game.engine.end();

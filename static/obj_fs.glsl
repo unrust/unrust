@@ -31,7 +31,9 @@ struct PointLight {
 struct Material {
     vec3 ambient;
     vec3 diffuse;
+    vec3 specular;
     float shininess;
+    float transparent;
 };
 
 uniform vec3 uViewPos;
@@ -59,7 +61,9 @@ void main(void) {
     for(int i = 0; i < UNI_POINT_LIGHTS; i++)
         result += CalcPointLight(uPointLights[i], norm, vFragPos, viewDir);
 
-    gl_FragColor = vec4(result, 1.0);           
+    // float gamma = 2.2;    
+    // gl_FragColor = vec4(pow(result, vec3(1.0/gamma)), uMaterial.transparent);           
+    gl_FragColor = vec4(result, uMaterial.transparent);           
 }
 
 vec3 CalcDirectionalLight(DirectionalLight light, vec3 normal, vec3 viewDir)
@@ -72,10 +76,13 @@ vec3 CalcDirectionalLight(DirectionalLight light, vec3 normal, vec3 viewDir)
     vec3 diffuse = light.diffuse * diff * uMaterial.diffuse;  
 
     // specular    
-    vec3 reflectDir = reflect(-lightDir, normal);  
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0), uMaterial.shininess);
-    vec3 specular = light.specular * spec; 
+    // Use blinn here
+    vec3 halfwayDir = normalize(lightDir + viewDir);  
+    float spec = pow(max(dot(normal, halfwayDir), 0.0), uMaterial.shininess);
+    
+    vec3 specular = light.specular * spec * uMaterial.specular; 
 
+    //return ambient + diffuse + specular;
     return ambient + diffuse + specular;
 }
 
@@ -86,8 +93,10 @@ vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
     // diffuse shading
     float diff = max(dot(normal, lightDir), 0.0);
     // specular shading
-    vec3 reflectDir = reflect(-lightDir, normal);
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0), uMaterial.shininess);
+    
+    // Use blinn here
+    vec3 halfwayDir = normalize(lightDir + viewDir);  
+    float spec = pow(max(dot(normal, halfwayDir), 0.0), uMaterial.shininess);
     
     // attenuation
     float distance = length(light.position - fragPos);
@@ -97,7 +106,7 @@ vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
     // combine results
     vec3 ambient = light.ambient * uMaterial.ambient;
     vec3 diffuse = light.diffuse * diff * uMaterial.diffuse;
-    vec3 specular = light.specular * spec;
+    vec3 specular = light.specular * spec * uMaterial.specular;
     
     ambient *= attenuation;
     diffuse *= attenuation;

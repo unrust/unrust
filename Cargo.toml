@@ -12,6 +12,7 @@ uni-app = {path="uni-app"}
 uni-glsl = {path="uni-glsl"}
 futures = "0.1"
 obj = "0.8.2"
+alga = "0.5"
 # Bring in stdweb to make sure the main function will translate to js
 stdweb =  "0.4.0"
 

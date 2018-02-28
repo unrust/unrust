@@ -4,6 +4,7 @@
 #![feature(integer_atomics)]
 
 /* common */
+extern crate alga;
 extern crate futures;
 extern crate image;
 extern crate nalgebra as na;

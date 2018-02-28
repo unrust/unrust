@@ -195,16 +195,6 @@ pub fn main() {
                 }
             }
 
-            // Update Camera
-            {
-                let mut cam = game.engine.main_camera.as_ref().unwrap().borrow_mut();
-                cam.lookat(
-                    &Point3::from_coordinates(eye),
-                    &Point3::new(0.0, 0.0, 0.0),
-                    &Vector3::new(0.0, 1.0, 0.0),
-                );
-            }
-
             // Update Light
             for light_com_weak in game.point_light_coms.iter() {
                 if let Some(light_com) = light_com_weak.upgrade() {
@@ -215,6 +205,17 @@ pub fn main() {
                         light.point_mut().unwrap().position = na::Rotation3::new(up * 0.02) * pos;
                     }
                 }
+            }
+
+            // Update Camera
+            {
+                let mut cam = game.engine.main_camera.as_ref().unwrap().borrow_mut();
+
+                cam.lookat(
+                    &Point3::from_coordinates(eye),
+                    &Point3::new(0.0, 0.0, 0.0),
+                    &Vector3::new(0.0, 1.0, 0.0),
+                );
             }
 
             // Setup fb for camera
@@ -245,7 +246,15 @@ pub fn main() {
                     &format!("last event: {:?}", last_event),
                 );
                 // Render current scene by camera using given frame buffer
-                game.engine.render_pass(&cam, ClearOption{color:Some((0.2,0.2,0.2,1.0)),clear_color:true,clear_depth:true, clear_stencil:false});
+                game.engine.render_pass(
+                    &cam,
+                    ClearOption {
+                        color: Some((0.2, 0.2, 0.2, 1.0)),
+                        clear_color: true,
+                        clear_depth: true,
+                        clear_stencil: false,
+                    },
+                );
 
                 // Clean up stuffs in camera, as later we could render normally
                 cam.render_texture = None;
@@ -255,7 +264,12 @@ pub fn main() {
             game.list[5].borrow_mut().active = false;
             game.list[6].borrow_mut().active = true;
             // Render
-            game.engine.render(ClearOption{color:None,clear_color:true,clear_depth:true, clear_stencil:false});
+            game.engine.render(ClearOption {
+                color: None,
+                clear_color: true,
+                clear_depth: true,
+                clear_stencil: false,
+            });
 
             // End
             game.engine.end();

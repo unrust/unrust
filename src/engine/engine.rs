@@ -250,7 +250,7 @@ where
         let prog = ctx.prog.upgrade().unwrap();
         // setup_camera
         prog.set("uMVMatrix", camera.v * modelm);
-        prog.set("uPMatrix", camera.p);
+        prog.set("uPMatrix", camera.perspective(self.screen_size));
         prog.set("uNMatrix", modelm.try_inverse().unwrap().transpose());
         prog.set("uMMatrix", modelm);
         prog.set("uViewPos", camera.eye());

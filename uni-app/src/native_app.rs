@@ -66,7 +66,12 @@ impl App {
         let window = glutin::WindowBuilder::new()
             .with_title(config.title)
             .with_dimensions(config.size.0, config.size.1);
-        let context = glutin::ContextBuilder::new().with_vsync(config.vsync);
+        let context = glutin::ContextBuilder::new()
+            .with_vsync(config.vsync)
+            .with_gl(GlRequest::GlThenGles {
+                opengl_version: (3, 1),
+                opengles_version: (2, 0),
+            });
         let gl_window = glutin::GlWindow::new(window, context, &events_loop).unwrap();
 
         unsafe {

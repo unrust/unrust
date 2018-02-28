@@ -1,11 +1,11 @@
 use uni_app;
-use unigame::engine::{Engine, File, FileFuture, FileIoError, FileSystem};
+use unrust::engine::{Engine, File, FileFuture, FileIoError, FileSystem};
 
 use futures::{Async, Future};
 use futures::future;
 use std::mem;
 
-// unigame engine support different file system.
+// unrust engine support different file system.
 #[derive(Default)]
 pub struct AppFileSystem {}
 pub struct AppFile(String, uni_app::fs::File);

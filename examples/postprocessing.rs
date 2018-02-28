@@ -5,7 +5,7 @@
 extern crate futures;
 extern crate nalgebra as na;
 extern crate uni_app;
-extern crate unigame;
+extern crate unrust;
 
 mod appfs;
 
@@ -17,7 +17,7 @@ use std::ops::{Deref, DerefMut};
 use na::{Point3, UnitQuaternion, Vector3};
 use std::sync::{Arc, Weak};
 
-use unigame::engine::*;
+use unrust::engine::*;
 use uni_app::{App, AppConfig, AppEvent, FPS};
 
 type Handle<T> = Rc<RefCell<T>>;

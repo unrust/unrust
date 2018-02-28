@@ -6,7 +6,7 @@ extern crate alga;
 extern crate futures;
 extern crate nalgebra as na;
 extern crate uni_app;
-extern crate unigame;
+extern crate unrust;
 
 mod appfs;
 
@@ -18,7 +18,7 @@ use std::ops::{Deref, DerefMut};
 use na::{Matrix4, Point3, Vector3};
 use std::sync::{Arc, Weak};
 
-use unigame::engine::*;
+use unrust::engine::*;
 use uni_app::{App, AppConfig, AppEvent, FPS};
 use alga::linear::Transformation;
 

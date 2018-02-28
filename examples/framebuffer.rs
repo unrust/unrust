@@ -5,7 +5,7 @@
 extern crate futures;
 extern crate nalgebra as na;
 extern crate uni_app;
-extern crate unigame;
+extern crate unrust;
 
 mod appfs;
 
@@ -17,7 +17,7 @@ use std::ops::{Deref, DerefMut};
 use na::{Point3, UnitQuaternion, Vector3};
 use std::sync::{Arc, Weak};
 
-use unigame::engine::*;
+use unrust::engine::*;
 use uni_app::{App, AppConfig, AppEvent, FPS};
 
 type Handle<T> = Rc<RefCell<T>>;
@@ -233,7 +233,15 @@ pub fn main() {
                 cam.rect = Some(((0, 0), (1024, 1024)));
 
                 // Render current scene by camera using given frame buffer
-                game.engine.render_pass(&cam, ClearOption{color:Some((0.2,0.2,0.2,1.0)),clear_color:true, clear_depth:true, clear_stencil:false});
+                game.engine.render_pass(
+                    &cam,
+                    ClearOption {
+                        color: Some((0.2, 0.2, 0.2, 1.0)),
+                        clear_color: true,
+                        clear_depth: true,
+                        clear_stencil: false,
+                    },
+                );
 
                 // Clean up stuffs in camera, as later we could render normally
                 cam.render_texture = None;
@@ -245,7 +253,12 @@ pub fn main() {
             }
 
             // Render
-            game.engine.render(ClearOption{color:Some((0.2,0.2,0.2,1.0)),clear_color:true, clear_depth:true, clear_stencil:false});
+            game.engine.render(ClearOption {
+                color: Some((0.2, 0.2, 0.2, 1.0)),
+                clear_color: true,
+                clear_depth: true,
+                clear_stencil: false,
+            });
 
             // End
             game.engine.end();

@@ -8,7 +8,7 @@ extern crate nalgebra as na;
 extern crate ncollide;
 extern crate nphysics3d;
 extern crate uni_app;
-extern crate unigame;
+extern crate unrust;
 
 mod boxes_vee;
 mod appfs;
@@ -26,7 +26,7 @@ use nphysics3d::object::RigidBody;
 use na::{Point3, Vector3};
 use ncollide::shape::{Cuboid3, Plane3, Shape3};
 
-use unigame::engine::*;
+use unrust::engine::*;
 use uni_app::{App, AppConfig, AppEvent, FPS};
 
 type Handle<T> = Rc<RefCell<T>>;

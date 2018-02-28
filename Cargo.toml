@@ -1,5 +1,5 @@
 [package]
-name = "unigame"
+name = "unrust"
 version = "0.1.0"
 authors = ["Edwin Cheng <edwin0cheng@gmail.com>"]
 
@@ -27,11 +27,11 @@ default-features = false
 features = ["png_codec"]
 
 [lib]
-name = "unigame"
+name = "unrust"
 path = "src/lib.rs"
 
 [[bin]]
-name = "unigame-demo"
+name = "unrust-demo"
 path = "src/bin/main.rs"
 
 [replace]

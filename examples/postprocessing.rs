@@ -186,6 +186,9 @@ pub fn main() {
                                 "KeyW" => eye = eye - front * 2.0,
                                 "KeyS" => eye = eye + front * 2.0,
                                 "Escape" => game.reset(),
+                                "Enter" => if key.alt {
+                                    println!("ALT-ENTER");
+                                },
                                 _ => (),
                             };
                         }

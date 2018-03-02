@@ -48,7 +48,7 @@ impl AppConfig {
     }
 }
 
-mod events {
+pub mod events {
     use std::fmt;
 
     #[derive(Debug, Clone)]

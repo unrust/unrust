@@ -75,7 +75,16 @@ pub struct GameObject {
     pub transform: Isometry3<f32>,
     pub scale: Vector3<f32>,
     pub active: bool,
-    pub components: Vec<Arc<Component>>,
+
+    components: Vec<Arc<Component>>,
+    // A dirty flag indicated it component changed
+    dirty: bool,
+}
+
+impl Default for GameObject {
+    fn default() -> GameObject {
+        GameObject::new()
+    }
 }
 
 pub trait IntoComponentPtr {
@@ -98,6 +107,16 @@ impl IntoComponentPtr for Arc<Component> {
 }
 
 impl GameObject {
+    pub fn new() -> GameObject {
+        GameObject {
+            transform: Isometry3::identity(),
+            scale: Vector3::new(1.0, 1.0, 1.0),
+            active: true,
+            dirty: false,
+            components: vec![],
+        }
+    }
+
     pub fn find_component<T>(&self) -> Option<(Ref<T>, Arc<Component>)>
     where
         T: 'static,
@@ -119,6 +138,16 @@ impl GameObject {
     {
         let p: Arc<Component> = c.into_component_ptr();
         self.components.push(p.clone());
+        self.dirty = true;
+
         p
+    }
+
+    pub fn changed(&self) -> bool {
+        self.dirty
+    }
+
+    pub fn clear_changed(&mut self) {
+        self.dirty = false
     }
 }

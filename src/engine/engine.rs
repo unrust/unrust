@@ -436,6 +436,9 @@ where
 
         if let Some(ref camera) = self.main_camera.as_ref() {
             self.render_pass(&camera.borrow(), clear_option);
+        } else {
+            // We dont have a main camera here, just clean the screen.
+            self.clear(clear_option);
         }
 
         // drop all gameobjects if there are no other references
@@ -481,12 +484,7 @@ where
 
 impl<A: AssetSystem> IEngine for Engine<A> {
     fn new_gameobject(&mut self) -> Rc<RefCell<GameObject>> {
-        let go = Rc::new(RefCell::new(GameObject {
-            transform: Isometry3::identity(),
-            scale: Vector3::new(1.0, 1.0, 1.0),
-            active: true,
-            components: vec![],
-        }));
+        let go = Rc::new(RefCell::new(GameObject::new()));
 
         self.objects.push(Rc::downgrade(&go));
         go

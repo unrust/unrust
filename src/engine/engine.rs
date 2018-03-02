@@ -23,6 +23,8 @@ pub trait IEngine {
     fn asset_system_mut<'a>(&'a mut self) -> &'a mut AssetSystem;
 
     fn gui_context(&mut self) -> Rc<RefCell<imgui::Context>>;
+
+    fn screen_size(&self) -> (u32, u32);
 }
 
 pub struct Engine<A>
@@ -197,6 +199,8 @@ where
 
     pub fn resize(&mut self, size: (u32, u32)) {
         self.screen_size = size;
+
+        self.gui_context.borrow_mut().reset();
     }
 
     fn setup_material(
@@ -481,7 +485,7 @@ where
             objects: vec![],
             program_cache: RefCell::new(HashMap::new()),
             asset_system: Box::new(A::new()),
-            gui_context: Rc::new(RefCell::new(imgui::Context::new(size.0, size.1))),
+            gui_context: Rc::new(RefCell::new(imgui::Context::new())),
             screen_size: size,
         }
     }
@@ -505,5 +509,9 @@ impl<A: AssetSystem> IEngine for Engine<A> {
 
     fn asset_system_mut<'a>(&'a mut self) -> &'a mut AssetSystem {
         &mut *self.asset_system
+    }
+
+    fn screen_size(&self) -> (u32, u32) {
+        self.screen_size
     }
 }

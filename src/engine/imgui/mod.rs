@@ -157,16 +157,16 @@ type WidgetGoMap = HashMap<u32, (Arc<widgets::Widget>, Rc<RefCell<GameObject>>)>
 
 #[derive(Default)]
 pub struct Context {
-    screen_size: (u32, u32),
     go: WidgetGoMap,
 }
 
 impl Context {
-    pub fn new(screen_w: u32, screen_h: u32) -> Context {
-        Context {
-            screen_size: (screen_w, screen_h),
-            go: HashMap::new(),
-        }
+    pub fn new() -> Context {
+        Context { go: HashMap::new() }
+    }
+
+    pub fn reset(&mut self) {
+        self.go.clear()
     }
 }
 
@@ -187,7 +187,7 @@ pub fn pre_render(engine: &mut IEngine) {
     let ctx = { &mut engine.gui_context() };
 
     let mut ctx_mut = ctx.borrow_mut();
-    let (sw, sh) = ctx_mut.screen_size;
+    let (sw, sh) = engine.screen_size();
 
     {
         let hm = &mut ctx_mut.go;

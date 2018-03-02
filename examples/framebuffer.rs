@@ -178,7 +178,7 @@ impl Actor for Cube {
 }
 
 pub fn main() {
-    let world = WorldBuilder::new("Basic demo")
+    let world = WorldBuilder::new("Frame Buffer demo")
         .with_size((800, 600))
         .with_stats(true)
         .build();

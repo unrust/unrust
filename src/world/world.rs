@@ -7,6 +7,7 @@ use std::collections::BTreeSet;
 use world::app_fs::AppEngine;
 use engine::{AssetSystem, Camera, ClearOption, Component, ComponentBased, Engine, GameObject,
              IEngine};
+
 use engine::imgui;
 
 use uni_app::{App, AppConfig, AppEvent, FPS};
@@ -244,6 +245,14 @@ pub trait Actor {
     fn new() -> Box<Actor>
     where
         Self: Sized;
+
+    fn new_actor<T>(a: T) -> Box<Actor>
+    where
+        Self: Sized,
+        T: 'static + Actor,
+    {
+        Box::new(a)
+    }
 }
 
 impl ComponentBased for Box<Actor> {}

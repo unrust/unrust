@@ -1,281 +1,194 @@
-#![recursion_limit = "512"]
-#![feature(integer_atomics)]
-
-/* common */
-extern crate futures;
-extern crate nalgebra as na;
-extern crate uni_app;
 extern crate unrust;
 
-mod appfs;
+use unrust::world::{Actor, Handle, World, WorldBuilder};
+use unrust::engine::{ClearOption, Directional, GameObject, Light, Material, Mesh, RenderTexture};
+use unrust::world::events::*;
+use unrust::math::*;
 
-use appfs::*;
+// GUI
+use unrust::imgui;
 
-use std::cell::RefCell;
 use std::rc::Rc;
-use std::ops::{Deref, DerefMut};
-use na::{Point3, UnitQuaternion, Vector3};
-use std::sync::{Arc, Weak};
 
-use unrust::engine::*;
-use uni_app::{App, AppConfig, AppEvent, FPS};
-
-type Handle<T> = Rc<RefCell<T>>;
-
-struct Game {
-    list: Vec<Handle<GameObject>>,
-    engine: AppEngine,
-    point_light_coms: Vec<Weak<Component>>,
-    rt: Rc<RenderTexture>,
+pub struct MainScene {
+    eye: Vector3<f32>,
+    last_event: Option<AppEvent>,
 }
 
-impl Game {
-    fn new(engine: AppEngine) -> Game {
-        let mut g = Game {
-            list: Vec::new(),
-            engine: engine,
-            point_light_coms: Vec::new(),
-            rt: Rc::new(RenderTexture::new(1024, 1024)),
-        };
-
-        g.setup();
-        g
+// Actor is a trait object which would act like an component
+// (Because Box<Actor> implemented ComponentBased)
+impl Actor for MainScene {
+    fn new() -> Box<Actor> {
+        Box::new(MainScene {
+            eye: Vector3::new(-3.0, 3.0, -3.0),
+            last_event: None,
+        })
     }
 
-    pub fn step(&mut self) {
-        self[5]
-            .borrow_mut()
-            .transform
-            .append_rotation_mut(&UnitQuaternion::new(Vector3::new(0.01, 0.02, 0.005)));
-    }
-
-    pub fn reset(&mut self) {
-        self.list.clear();
-        self.engine.asset_system_mut().reset();
-        self.point_light_coms.clear();
-
-        self.setup();
-    }
-
-    pub fn setup(&mut self) {
+    fn start(&mut self, _go: &mut GameObject, world: &mut World) {
         // add direction light to scene.
-        let _dir_light_com = {
-            let go = self.engine.new_gameobject();
-            // Make sure it is store some where, else it will gc
-            self.push(go.clone());
+        let go = world.new_game_object();
+        go.borrow_mut()
+            .add_component(Light::new(Directional::default()));
 
-            let mut go_mut = go.borrow_mut();
-            let com = go_mut.add_component(Light::new(Directional {
-                direction: Vector3::new(0.5, -1.0, 1.0).normalize(),
-                ambient: Vector3::new(0.2, 0.2, 0.2),
-                diffuse: Vector3::new(0.5, 0.5, 0.5),
-                specular: Vector3::new(1.0, 1.0, 1.0),
-            }));
+        // Added Crt
+        let go = world.new_game_object();
+        go.borrow_mut().add_component(Crt::new());
+    }
 
-            com
-        };
+    fn update(&mut self, _go: &mut GameObject, world: &mut World) {
+        // Handle Events
+        {
+            let target = Vector3::new(0.0, 0.0, 0.0);
+            let front = (self.eye - target).normalize();
+            let up = Vector3::y();
 
-        // Add 4 points light to scene
-        let point_light_positions = vec![
-            Vector3::new(-30.0, 30.0, -30.0),
-            Vector3::new(-15.0, 300.0, -10.0),
-            Vector3::new(30.0, 50.0, 30.0),
-            Vector3::new(30.0, 100.0, -20.0),
-        ];
+            let mut reset = false;
 
-        for p in point_light_positions.into_iter() {
-            let go = self.engine.new_gameobject();
-            // Make sure it is store some where, else it will gc
-            self.push(go.clone());
+            for evt in world.events().iter() {
+                self.last_event = Some(evt.clone());
+                match evt {
+                    &AppEvent::KeyDown(ref key) => {
+                        match key.code.as_str() {
+                            "KeyA" => self.eye = Rotation3::new(up * -0.02) * self.eye,
+                            "KeyD" => self.eye = Rotation3::new(up * 0.02) * self.eye,
+                            "KeyW" => self.eye -= front * 2.0,
+                            "KeyS" => self.eye += front * 2.0,
+                            "Escape" => reset = true,
+                            _ => (),
+                        };
+                    }
 
-            let mut go_mut = go.borrow_mut();
-            let com = Light::new(Point {
-                position: p,
-                ambient: Vector3::new(0.05, 0.05, 0.05),
-                diffuse: Vector3::new(0.8, 0.8, 0.8),
-                specular: Vector3::new(1.0, 1.0, 1.0),
-                constant: 1.0,
-                linear: 0.022,
-                quadratic: 0.0019,
-            });
+                    _ => (),
+                }
+            }
 
-            self.point_light_coms
-                .push(Arc::downgrade(&go_mut.add_component(com)));
+            if reset {
+                world.reset();
+                // Because reset will remove all objects in the world,
+                // included this Actor itself
+                // so will need to add it back.
+                world.root().add_component(MainScene::new());
+            }
         }
 
-        let go = { self.engine.new_gameobject() };
+        // Update Camera
         {
-            let db = &mut self.engine.asset_system();
-            let mut go_mut = go.borrow_mut();
+            let mut cam = world.engine().main_camera.as_ref().unwrap().borrow_mut();
 
-            let mut material = Material::new(db.new_program("phong"));
-            material.set("uMaterial.diffuse", db.new_texture("tex_a.png"));
-            material.set("uMaterial.shininess", 32.0);
-
-            let mut mesh = Mesh::new();
-            mesh.add_surface(db.new_mesh_buffer("cube"), Rc::new(material));
-            go_mut.add_component(mesh);
+            cam.lookat(
+                &Point3::from_coordinates(self.eye),
+                &Point3::new(0.0, 0.0, 0.0),
+                &Vector3::new(0.0, 1.0, 0.0),
+            );
         }
-        self.list.push(go.clone());
 
-        let screen_quad = { self.engine.new_gameobject() };
+        // GUI
+        use imgui::Metric::*;
+
+        imgui::pivot((1.0, 1.0));
+        imgui::label(
+            Native(1.0, 1.0) - Pixel(8.0, 8.0),
+            "[WASD] : control camera\n[Esc]  : reload all (include assets)",
+        );
+
+        imgui::pivot((1.0, 0.0));
+        imgui::label(
+            Native(1.0, 0.0) + Pixel(-8.0, 8.0),
+            &format!("last event: {:?}", self.last_event),
+        );
+    }
+}
+
+pub struct Crt {
+    rt: Rc<RenderTexture>,
+    cube: Handle<GameObject>,
+}
+
+impl Actor for Crt {
+    fn new() -> Box<Actor> {
+        Box::new(Crt {
+            rt: Rc::new(RenderTexture::new(1024, 1024)),
+            cube: Default::default(),
+        })
+    }
+
+    fn start(&mut self, go: &mut GameObject, world: &mut World) {
         {
-            let db = &mut self.engine.asset_system();
-            let mut go_mut = screen_quad.borrow_mut();
+            let db = &mut world.asset_system();
 
             let mut material = Material::new(db.new_program("crt"));
             material.set("uDiffuse", self.rt.as_texture());
 
             let mut mesh = Mesh::new();
             mesh.add_surface(db.new_mesh_buffer("screen_quad"), Rc::new(material));
-            go_mut.add_component(mesh);
+            go.add_component(mesh);
         }
-        self.list.push(screen_quad.clone());
+
+        // Added a cube in the scene
+        self.cube = world.new_game_object();
+        self.cube.borrow_mut().add_component(Cube::new());
+    }
+
+    fn update(&mut self, go: &mut GameObject, world: &mut World) {
+        // Setup fb for camera
+        let mut cam = world.engine().main_camera.as_ref().unwrap().borrow_mut();
+        cam.render_texture = Some(self.rt.clone());
+
+        // Setup proper viewport to render to the whole texture
+        cam.rect = Some(((0, 0), (1024, 1024)));
+
+        // show only cube
+        // TODO it is a little bit hacky, we should support a PostProcessing Component
+        self.cube.borrow_mut().active = true;
+        go.active = false;
+
+        // Render current scene by camera using given frame buffer
+        world.engine().render_pass(&cam, ClearOption::default());
+
+        // show only this crt
+        self.cube.borrow_mut().active = false;
+        go.active = true;
+
+        // Clean up stuffs in camera, as later we could render normally
+        cam.render_texture = None;
+        cam.rect = None;
     }
 }
 
-impl Deref for Game {
-    type Target = Vec<Handle<GameObject>>;
+pub struct Cube {}
 
-    fn deref(&self) -> &Self::Target {
-        &self.list
+impl Actor for Cube {
+    fn new() -> Box<Actor> {
+        Box::new(Cube {})
     }
-}
 
-impl DerefMut for Game {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.list
+    fn start(&mut self, go: &mut GameObject, world: &mut World) {
+        let db = &mut world.asset_system();
+
+        let mut material = Material::new(db.new_program("phong"));
+        material.set("uMaterial.diffuse", db.new_texture("tex_a.png"));
+        material.set("uMaterial.shininess", 32.0);
+
+        let mut mesh = Mesh::new();
+        mesh.add_surface(db.new_mesh_buffer("cube"), material);
+        go.add_component(mesh);
+    }
+
+    fn update(&mut self, go: &mut GameObject, _world: &mut World) {
+        go.transform
+            .append_rotation_mut(&UnitQuaternion::new(Vector3::new(0.01, 0.02, 0.005)));
     }
 }
 
 pub fn main() {
-    let size = (800, 600);
-    let config = AppConfig::new("Postprocessing demo", size);
-    let app = App::new(config);
-    {
-        let mut game = Game::new(Engine::new(app.canvas(), size));
-        game.engine.main_camera = Some(Rc::new(RefCell::new(Camera::new())));
+    let world = WorldBuilder::new("Post Processing demo")
+        .with_size((800, 600))
+        .with_stats(true)
+        .build();
 
-        use imgui::Metric::*;
+    // Add the main scene as component of the root game object
+    world.root().add_component(MainScene::new());
 
-        let mut fps = FPS::new();
-        let mut last_event = None;
-        let mut eye = Vector3::new(-3.0, 3.0, -3.0);
-        let up = Vector3::new(0.0, 1.0, 0.0);
-
-        app.run(move |app: &mut App| {
-            game.engine.begin();
-            fps.step();
-            game.step();
-
-            // Handle Events
-            {
-                let target = Vector3::new(0.0, 0.0, 0.0);
-                let front = (eye - target).normalize();
-
-                let events = app.events.borrow();
-                for evt in events.iter() {
-                    last_event = Some(evt.clone());
-                    match evt {
-                        &AppEvent::Click(_) => {}
-                        &AppEvent::Resized(size) => game.engine.resize(size),
-                        &AppEvent::KeyDown(ref key) => {
-                            match key.code.as_str() {
-                                "KeyA" => eye = na::Rotation3::new(up * -0.02) * eye,
-                                "KeyD" => eye = na::Rotation3::new(up * 0.02) * eye,
-                                "KeyW" => eye = eye - front * 2.0,
-                                "KeyS" => eye = eye + front * 2.0,
-                                "Escape" => game.reset(),
-                                "Enter" => if key.alt {
-                                    println!("ALT-ENTER");
-                                },
-                                _ => (),
-                            };
-                        }
-
-                        _ => (),
-                    }
-                }
-            }
-
-            // Update Light
-            for light_com_weak in game.point_light_coms.iter() {
-                if let Some(light_com) = light_com_weak.upgrade() {
-                    if let Some(lr) = light_com.try_as::<Light>() {
-                        let mut light = lr.borrow_mut();
-                        let mut pos = light.point().unwrap().position;
-
-                        light.point_mut().unwrap().position = na::Rotation3::new(up * 0.02) * pos;
-                    }
-                }
-            }
-
-            // Update Camera
-            {
-                let mut cam = game.engine.main_camera.as_ref().unwrap().borrow_mut();
-
-                cam.lookat(
-                    &Point3::from_coordinates(eye),
-                    &Point3::new(0.0, 0.0, 0.0),
-                    &Vector3::new(0.0, 1.0, 0.0),
-                );
-            }
-
-            // Setup fb for camera
-            {
-                let mut cam = game.engine.main_camera.as_ref().unwrap().borrow_mut();
-                cam.render_texture = Some(game.rt.clone());
-
-                // Setup proper viewport to render to the whole texture
-                cam.rect = Some(((0, 0), (1024, 1024)));
-                // show only cube
-                game.list[5].borrow_mut().active = true;
-                game.list[6].borrow_mut().active = false;
-                imgui::pivot((0.0, 0.0));
-                imgui::label(
-                    Native(0.0, 0.0) + Pixel(8.0, 8.0),
-                    &format!("fps: {} nobj: {}", fps.fps, game.engine.objects.len()),
-                );
-
-                imgui::pivot((1.0, 1.0));
-                imgui::label(
-                    Native(1.0, 1.0) - Pixel(8.0, 8.0),
-                    "[Esc]  : reload all (include assets)",
-                );
-
-                imgui::pivot((1.0, 0.0));
-                imgui::label(
-                    Native(1.0, 0.0) + Pixel(-8.0, 8.0),
-                    &format!("last event: {:?}", last_event),
-                );
-                // Render current scene by camera using given frame buffer
-                game.engine.render_pass(
-                    &cam,
-                    ClearOption {
-                        color: Some((0.2, 0.2, 0.2, 1.0)),
-                        clear_color: true,
-                        clear_depth: true,
-                        clear_stencil: false,
-                    },
-                );
-
-                // Clean up stuffs in camera, as later we could render normally
-                cam.render_texture = None;
-                cam.rect = None;
-            }
-            // show only screen_quad
-            game.list[5].borrow_mut().active = false;
-            game.list[6].borrow_mut().active = true;
-            // Render
-            game.engine.render(ClearOption {
-                color: None,
-                clear_color: true,
-                clear_depth: true,
-                clear_stencil: false,
-            });
-
-            // End
-            game.engine.end();
-        });
-    }
+    world.event_loop();
 }

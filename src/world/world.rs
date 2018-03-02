@@ -207,12 +207,7 @@ impl World {
             self.step();
 
             // Render
-            self.engine.render(ClearOption {
-                color: None,
-                clear_color: true,
-                clear_depth: true,
-                clear_stencil: false,
-            });
+            self.engine.render(ClearOption::default());
 
             // End
             self.engine.end();

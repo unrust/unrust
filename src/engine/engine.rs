@@ -327,7 +327,11 @@ where
     {
         for obj in self.objects.iter() {
             if let Some(r) = obj.upgrade().map_or(None, |obj| {
-                obj.borrow().find_component::<T>().map(|(_, c)| c)
+                if let Ok(o) = obj.try_borrow() {
+                    return o.find_component::<T>().map(|(_, c)| c);
+                }
+
+                None
             }) {
                 if !func(r) {
                     return;
@@ -408,16 +412,17 @@ where
         let mut commands = Vec::new();
         for obj in objects.iter() {
             obj.upgrade().map(|obj| {
-                let object = obj.borrow();
-                if object.active {
-                    let result = object.find_component::<Mesh>();
+                if let Ok(object) = obj.try_borrow() {
+                    if object.active {
+                        let result = object.find_component::<Mesh>();
 
-                    if let Some((mesh, _)) = result {
-                        for surface in mesh.surfaces.iter() {
-                            commands.push(RenderCommand {
-                                surface: surface.clone(),
-                                model_m: compute_model_m(&*object),
-                            })
+                        if let Some((mesh, _)) = result {
+                            for surface in mesh.surfaces.iter() {
+                                commands.push(RenderCommand {
+                                    surface: surface.clone(),
+                                    model_m: compute_model_m(&*object),
+                                })
+                            }
                         }
                     }
                 }

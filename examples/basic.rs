@@ -10,6 +10,7 @@ use unrust::imgui;
 
 pub struct MainScene {
     eye: Vector3<f32>,
+    last_event: Option<AppEvent>,
 }
 
 // Actor is a trait object which would act like an component
@@ -18,6 +19,7 @@ impl Actor for MainScene {
     fn new() -> Box<Actor> {
         Box::new(MainScene {
             eye: Vector3::new(-3.0, 3.0, -3.0),
+            last_event: None,
         })
     }
 
@@ -38,7 +40,6 @@ impl Actor for MainScene {
 
     fn update(&mut self, _go: &mut GameObject, world: &mut World) {
         // Handle Events
-        let mut last_event = None;
         {
             let target = Vector3::new(0.0, 0.0, 0.0);
             let front = (self.eye - target).normalize();
@@ -47,7 +48,7 @@ impl Actor for MainScene {
             let mut reset = false;
 
             for evt in world.events().iter() {
-                last_event = Some(evt.clone());
+                self.last_event = Some(evt.clone());
                 match evt {
                     &AppEvent::KeyDown(ref key) => {
                         match key.code.as_str() {
@@ -96,7 +97,7 @@ impl Actor for MainScene {
         imgui::pivot((1.0, 0.0));
         imgui::label(
             Native(1.0, 0.0) + Pixel(-8.0, 8.0),
-            &format!("last event: {:?}", last_event),
+            &format!("last event: {:?}", self.last_event),
         );
     }
 }

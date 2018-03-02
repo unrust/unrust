@@ -99,6 +99,12 @@ impl Actor for MainScene {
             Native(1.0, 0.0) + Pixel(-8.0, 8.0),
             &format!("last event: {:?}", self.last_event),
         );
+
+        imgui::pivot((0.0, 1.0));
+        imgui::label(
+            Native(0.0, 1.0) + Pixel(8.0, -8.0),
+            "Vending Machine by Don Carson\nhttps://poly.google.com/view/0CX6wj64Swu",
+        );
     }
 }
 

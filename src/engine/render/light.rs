@@ -106,6 +106,20 @@ impl From<Point> for Light {
     }
 }
 
+impl Default for Point {
+    fn default() -> Point {
+        Point {
+            position: Vector3::new(0.0, 0.0, 0.0),
+            ambient: Vector3::new(0.05, 0.05, 0.05),
+            diffuse: Vector3::new(0.8, 0.8, 0.8),
+            specular: Vector3::new(1.0, 1.0, 1.0),
+            constant: 1.0,
+            linear: 0.022,
+            quadratic: 0.0019,
+        }
+    }
+}
+
 impl Point {
     fn bind(&self, lightname: &str, prog: &ShaderProgram) {
         // We must have at least one direction light.

@@ -160,19 +160,14 @@ impl Actor for MainScene {
 
         for p in point_light_positions.into_iter() {
             let go = world.new_game_object();
-            go.borrow_mut().add_component(Light::new(Point {
-                position: p,
-                ambient: Vector3::new(0.05, 0.05, 0.05),
-                diffuse: Vector3::new(0.8, 0.8, 0.8),
-                specular: Vector3::new(1.0, 1.0, 1.0),
-                constant: 1.0,
-                linear: 0.022,
-                quadratic: 0.0019,
-            }));
+            let mut point_light = Point::default();
+            point_light.position = p;
+            go.borrow_mut().add_component(Light::new(point_light));
 
             self.point_lights.push(go.clone());
         }
 
+        // Add the physics object
         {
             let rigid_bodies = self.rigid_bodies();
 
@@ -202,7 +197,7 @@ impl Actor for MainScene {
             let up = Vector3::y();
 
             let mut reset = false;
-            let mut addbox = false;
+            let mut addbox = false;            
 
             for evt in world.events().iter() {
                 self.last_event = Some(evt.clone());

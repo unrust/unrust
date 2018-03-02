@@ -3,7 +3,8 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use webgl::{ShaderKind as WebGLShaderKind, WebGLProgram, WebGLRenderingContext,
             WebGLUniformLocation};
-use engine::asset::{Asset, AssetError, AssetSystem, FileFuture, LoadableAsset, Resource};
+use engine::asset::{Asset, AssetResult, AssetSystem, FileFuture, LoadableAsset,
+                    Resource};
 use engine::render::shader::{ShaderFs, ShaderVs};
 use engine::render::uniforms::*;
 
@@ -65,7 +66,7 @@ pub struct ShaderProgram {
 }
 
 impl ShaderProgram {
-    pub fn bind(&self, gl: &WebGLRenderingContext) -> Result<(), AssetError> {
+    pub fn bind(&self, gl: &WebGLRenderingContext) -> AssetResult<()> {
         self.prepare(gl)?;
 
         let gl_state = self.gl_state.borrow();
@@ -78,7 +79,7 @@ impl ShaderProgram {
         Ok(())
     }
 
-    fn prepare(&self, gl: &WebGLRenderingContext) -> Result<(), AssetError> {
+    fn prepare(&self, gl: &WebGLRenderingContext) -> AssetResult<()> {
         if self.gl_state.borrow().is_some() {
             return Ok(());
         }

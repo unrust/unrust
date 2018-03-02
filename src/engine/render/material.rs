@@ -1,4 +1,4 @@
-use engine::asset::{Asset, AssetError};
+use engine::asset::{Asset, AssetResult};
 use engine::render::{ShaderProgram, Texture};
 
 use std::rc::Rc;
@@ -70,9 +70,9 @@ ctx.prepare_cache_tex(&tex, |ctx, unit| {
         self.params.insert(name.to_string(), t.into());
     }
 
-    pub fn bind<F>(&self, mut f: F) -> Result<(), AssetError>
+    pub fn bind<F>(&self, mut f: F) -> AssetResult<()>
     where
-        F: FnMut(&Rc<Texture>) -> Result<u32, AssetError>,
+        F: FnMut(&Rc<Texture>) -> AssetResult<u32>,
     {
         for (name, param) in self.params.iter() {
             match param {

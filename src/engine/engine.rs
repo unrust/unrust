@@ -9,7 +9,7 @@ use engine::core::{Component, ComponentBased, GameObject};
 use engine::render::Camera;
 use engine::render::{Directional, Light};
 use engine::render::{Material, Mesh, MeshBuffer, MeshSurface, ShaderProgram, Texture};
-use engine::asset::{AssetError, AssetSystem};
+use engine::asset::{AssetError, AssetResult, AssetSystem};
 use std::default::Default;
 
 use super::imgui;
@@ -75,10 +75,10 @@ impl_cacher!(mesh_buffer, MeshBuffer);
 const MAX_TEXTURE_UNITS: u32 = 8;
 
 impl EngineContext {
-    pub fn prepare_cache<T, F>(&mut self, new_p: &Rc<T>, bind: F) -> Result<(), AssetError>
+    pub fn prepare_cache<T, F>(&mut self, new_p: &Rc<T>, bind: F) -> AssetResult<()>
     where
         T: EngineCacher,
-        F: FnOnce(&mut EngineContext) -> Result<(), AssetError>,
+        F: FnOnce(&mut EngineContext) -> AssetResult<()>,
     {
         if self.need_cache(new_p) {
             bind(self)?;
@@ -100,13 +100,9 @@ impl EngineContext {
         None
     }
 
-    pub fn prepare_cache_tex<F>(
-        &mut self,
-        new_tex: &Rc<Texture>,
-        bind_func: F,
-    ) -> Result<u32, AssetError>
+    pub fn prepare_cache_tex<F>(&mut self, new_tex: &Rc<Texture>, bind_func: F) -> AssetResult<u32>
     where
-        F: FnOnce(&mut EngineContext, u32) -> Result<(), AssetError>,
+        F: FnOnce(&mut EngineContext, u32) -> AssetResult<()>,
     {
         let found = self.need_cache_tex(new_tex);
         if let Some(t) = found {
@@ -201,11 +197,7 @@ where
         self.gui_context.borrow_mut().reset();
     }
 
-    fn setup_material(
-        &self,
-        ctx: &mut EngineContext,
-        material: &Material,
-    ) -> Result<(), AssetError> {
+    fn setup_material(&self, ctx: &mut EngineContext, material: &Material) -> AssetResult<()> {
         ctx.prepare_cache(&material.program, |ctx| {
             material.program.bind(&self.gl)?;
             ctx.switch_prog += 1;

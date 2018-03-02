@@ -5,7 +5,7 @@ use std::cell::{Ref, RefCell};
 use futures::{Async, Future};
 
 use engine::asset::loader;
-use engine::asset::AssetError;
+use engine::asset::{AssetError, AssetResult};
 
 impl<T> Debug for ResourceKind<T>
 where
@@ -57,7 +57,7 @@ impl<T: Debug + loader::Loadable> Resource<T> {
         Resource(RefCell::new(ResourceKind::Data(f)))
     }
 
-    pub fn try_into(&self) -> Result<T, AssetError> {
+    pub fn try_into(&self) -> AssetResult<T> {
         match &mut *self.0.borrow_mut() {
             &mut ResourceKind::Future(ref mut f) => {
                 return match f.poll() {
@@ -76,7 +76,7 @@ impl<T: Debug + loader::Loadable> Resource<T> {
         }
     }
 
-    pub fn try_borrow(&self) -> Result<Ref<T>, AssetError> {
+    pub fn try_borrow(&self) -> AssetResult<Ref<T>> {
         let mut data = None;
 
         if let &mut ResourceKind::Future(ref mut f) = &mut *self.0.borrow_mut() {

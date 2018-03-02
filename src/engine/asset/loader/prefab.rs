@@ -1,5 +1,5 @@
 use engine::asset::loader::{Loadable, Loader};
-use engine::asset::{Asset, AssetError, AssetSystem, File, FileFuture, Resource};
+use engine::asset::{Asset, AssetError, AssetResult, AssetSystem, File, FileFuture, Resource};
 use engine::render::{Material, Mesh, MeshBuffer, MeshData};
 use engine::core::Component;
 use std::sync::Arc;
@@ -170,7 +170,7 @@ impl Loadable for Prefab {
 }
 
 impl Loader<Prefab> for PrefabLoader {
-    fn load<A: AssetSystem>(_asys: A, mut _file: Box<File>) -> Result<Prefab, AssetError> {
+    fn load<A: AssetSystem>(_asys: A, mut _file: Box<File>) -> AssetResult<Prefab> {
         unimplemented!()
     }
 }

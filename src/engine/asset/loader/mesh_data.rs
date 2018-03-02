@@ -1,5 +1,5 @@
 use engine::asset::loader::{Loadable, Loader};
-use engine::asset::{AssetError, File};
+use engine::asset::{AssetError, AssetResult, File};
 use engine::render::MeshData;
 
 use obj;
@@ -8,7 +8,7 @@ use std::io::BufReader;
 
 pub struct MeshDataLoader {}
 impl Loader<MeshData> for MeshDataLoader {
-    fn load<A>(_asys: A, mut file: Box<File>) -> Result<MeshData, AssetError> {
+    fn load<A>(_asys: A, mut file: Box<File>) -> AssetResult<MeshData> {
         let bytes = file.read_binary()
             .map_err(|_| AssetError::InvalidFormat(file.name()))?;
         let mut r = BufReader::new(bytes.as_slice());

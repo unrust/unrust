@@ -25,7 +25,9 @@ pub enum AssetError {
     FileIoError(fs::FileIoError),
 }
 
-type PrefabHandler = Box<FnBox(Result<loader::Prefab, AssetError>)>;
+pub type AssetResult<T> = Result<T, AssetError>;
+
+type PrefabHandler = Box<FnBox(AssetResult<loader::Prefab>)>;
 
 pub trait AssetSystem {
     fn new() -> Self

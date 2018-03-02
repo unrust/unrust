@@ -3,7 +3,7 @@ use image::RgbaImage;
 
 use std::cell::RefCell;
 use std::rc::Rc;
-use engine::asset::{Asset, AssetError, AssetSystem, FileFuture, LoadableAsset, Resource};
+use engine::asset::{Asset, AssetResult, AssetSystem, FileFuture, LoadableAsset, Resource};
 
 #[derive(Debug)]
 pub enum TextureFiltering {
@@ -65,7 +65,7 @@ impl Texture {
         })
     }
 
-    pub fn bind(&self, gl: &WebGLRenderingContext, unit: u32) -> Result<(), AssetError> {
+    pub fn bind(&self, gl: &WebGLRenderingContext, unit: u32) -> AssetResult<()> {
         self.prepare(gl)?;
 
         let state_option = self.gl_state.borrow();
@@ -77,7 +77,7 @@ impl Texture {
         Ok(())
     }
 
-    pub fn prepare(&self, gl: &WebGLRenderingContext) -> Result<(), AssetError> {
+    pub fn prepare(&self, gl: &WebGLRenderingContext) -> AssetResult<()> {
         if self.gl_state.borrow().is_some() {
             return Ok(());
         }
@@ -104,7 +104,7 @@ fn texture_bind_buffer(
     gl: &WebGLRenderingContext,
     texfilter: &TextureFiltering,
     kind: &TextureKind,
-) -> Result<TextureGLState, AssetError> {
+) -> AssetResult<TextureGLState> {
     let tex = gl.create_texture();
 
     gl.active_texture(0);

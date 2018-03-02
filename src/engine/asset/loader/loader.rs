@@ -1,11 +1,11 @@
-use engine::asset::{AssetError, AssetSystem, File, FileFuture};
+use engine::asset::{AssetError, AssetSystem, File, FileFuture, AssetResult};
 use futures::prelude::*;
 
 pub trait Loader<U>
 where
     U: Loadable,
 {
-    fn load<A>(asys: A, f: Box<File>) -> Result<U, AssetError>
+    fn load<A>(asys: A, f: Box<File>) -> AssetResult<U>
     where
         A: AssetSystem + Clone;
 }
@@ -16,7 +16,7 @@ where
 {
     type Loader;
 
-    fn load<A: AssetSystem + Clone>(asys: A, f: Box<File>) -> Result<Self, AssetError> {
+    fn load<A: AssetSystem + Clone>(asys: A, f: Box<File>) -> AssetResult<Self> {
         Self::Loader::load(asys, f)
     }
 

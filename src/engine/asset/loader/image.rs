@@ -1,5 +1,5 @@
 use engine::asset::loader::{Loadable, Loader};
-use engine::asset::{AssetError, AssetSystem, File};
+use engine::asset::{AssetError, AssetResult, AssetSystem, File};
 use image::RgbaImage;
 use image;
 
@@ -10,7 +10,7 @@ impl Loadable for RgbaImage {
 }
 
 impl Loader<RgbaImage> for ImageLoader {
-    fn load<A>(_asys: A, mut file: Box<File>) -> Result<RgbaImage, AssetError>
+    fn load<A>(_asys: A, mut file: Box<File>) -> AssetResult<RgbaImage>
     where
         A: AssetSystem + Clone,
     {

@@ -129,7 +129,7 @@ impl World {
         for (go, c) in new_actors.into_iter() {
             let actor = c.try_as::<Box<Actor>>().unwrap();
 
-            (*actor).borrow_mut().start(&mut go.borrow_mut(), self);
+            (*actor).borrow_mut().start_rc(go, self);
         }
     }
 
@@ -150,7 +150,7 @@ impl World {
             if let Some(go) = wgo.upgrade() {
                 let actor = c.try_as::<Box<Actor>>().unwrap();
 
-                (*actor).borrow_mut().update(&mut go.borrow_mut(), self);
+                (*actor).borrow_mut().update_rc(go, self);
             }
         }
 
@@ -227,11 +227,19 @@ impl World {
 }
 
 pub trait Actor {
+    // Called before first update call
+    fn start_rc(&mut self, go: Handle<GameObject>, world: &mut World) {
+        self.start(&mut go.borrow_mut(), world)
+    }
+
+    // Called before first update call, with GameObject itself
     fn start(&mut self, &mut GameObject, &mut World) {}
 
-    fn update(&mut self, &mut GameObject, &mut World) {}
+    fn update_rc(&mut self, go: Handle<GameObject>, world: &mut World) {
+        self.update(&mut go.borrow_mut(), world)
+    }
 
-    fn render(&mut self, &mut GameObject, &mut World) {}
+    fn update(&mut self, &mut GameObject, &mut World) {}
 
     fn new() -> Box<Actor>
     where

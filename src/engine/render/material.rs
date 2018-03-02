@@ -1,4 +1,4 @@
-use engine::asset::Asset;
+use engine::asset::{Asset, AssetError};
 use engine::render::{ShaderProgram, Texture};
 
 use std::rc::Rc;
@@ -54,11 +54,49 @@ impl Material {
         };
     }
 
+    /*
+ctx.prepare_cache_tex(&tex, |ctx, unit| {
+                        // Binding texture
+                        tex.bind(&self.gl, unit)?;
+
+                        ctx.switch_tex += 1;
+                        Ok(())
+                    })?
+                    */
     pub fn set<T>(&mut self, name: &str, t: T)
     where
         T: Into<MaterialParam>,
     {
         self.params.insert(name.to_string(), t.into());
+    }
+
+    pub fn bind<F>(&self, mut f: F) -> Result<(), AssetError>
+    where
+        F: FnMut(&Rc<Texture>) -> Result<u32, AssetError>,
+    {
+        for (name, param) in self.params.iter() {
+            match param {
+                &MaterialParam::Texture(ref tex) => {
+                    let new_unit = f(&tex)?;
+                    self.program.set(&name, new_unit as i32);
+                }
+
+                &MaterialParam::Float(f) => {
+                    self.program.set(&name, f);
+                }
+                &MaterialParam::Vec2(v) => {
+                    self.program.set(&name, v);
+                }
+                &MaterialParam::Vec3(v) => {
+                    self.program.set(&name, v);
+                }
+                &MaterialParam::Vec4(v) => {
+                    self.program.set(&name, v);
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 

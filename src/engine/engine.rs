@@ -8,8 +8,7 @@ use std::sync::Arc;
 use engine::core::{Component, ComponentBased, GameObject};
 use engine::render::Camera;
 use engine::render::{Directional, Light};
-use engine::render::{Material, MaterialParam, Mesh, MeshBuffer, MeshSurface, ShaderProgram,
-                     Texture};
+use engine::render::{Material, Mesh, MeshBuffer, MeshSurface, ShaderProgram, Texture};
 use engine::asset::{AssetError, AssetSystem};
 use std::default::Default;
 
@@ -73,6 +72,8 @@ trait EngineCacher {
 impl_cacher!(prog, ShaderProgram);
 impl_cacher!(mesh_buffer, MeshBuffer);
 
+const MAX_TEXTURE_UNITS: u32 = 8;
+
 impl EngineContext {
     pub fn prepare_cache<T, F>(&mut self, new_p: &Rc<T>, bind: F) -> Result<(), AssetError>
     where
@@ -102,38 +103,34 @@ impl EngineContext {
     pub fn prepare_cache_tex<F>(
         &mut self,
         new_tex: &Rc<Texture>,
-        bind: F,
+        bind_func: F,
     ) -> Result<u32, AssetError>
     where
         F: FnOnce(&mut EngineContext, u32) -> Result<(), AssetError>,
     {
         let found = self.need_cache_tex(new_tex);
-
-        if found.is_none() {
-            let mut unit = self.textures.len() as u32;
-
-            // find the empty slots.
-            if unit >= 8 {
-                let opt_pos = self.textures
-                    .iter()
-                    .position(|&(_, ref t)| t.upgrade().is_none());
-
-                unit = match opt_pos {
-                    Some(pos) => self.textures.remove(pos).unwrap().0,
-                    None => self.textures.pop_front().unwrap().0,
-                }
-            }
-
-            return match bind(self, unit) {
-                Ok(()) => {
-                    self.textures.push_back((unit, Rc::downgrade(new_tex)));
-                    Ok(unit)
-                }
-                Err(s) => Err(s),
-            };
+        if let Some(t) = found {
+            return Ok(t);
         }
 
-        Ok(found.unwrap())
+        let mut unit = self.textures.len() as u32;
+
+        // find the empty slots.
+        if unit >= MAX_TEXTURE_UNITS {
+            let opt_pos = self.textures
+                .iter()
+                .position(|&(_, ref t)| t.upgrade().is_none());
+
+            unit = match opt_pos {
+                Some(pos) => self.textures.remove(pos).unwrap().0,
+                None => self.textures.pop_front().unwrap().0,
+            }
+        }
+
+        bind_func(self, unit).map(|_| {
+            self.textures.push_back((unit, Rc::downgrade(new_tex)));
+            unit
+        })
     }
 
     fn need_cache<T>(&mut self, new_p: &Rc<T>) -> bool
@@ -186,6 +183,7 @@ where
         } else {
             self.gl.clear_color(0.0, 0.0, 0.0, 1.0);
         }
+
         if option.clear_color {
             self.gl.clear(BufferBit::Color);
         }
@@ -216,34 +214,15 @@ where
 
         let prog = ctx.prog.upgrade().unwrap();
 
-        for (name, param) in material.params.iter() {
-            match param {
-                &MaterialParam::Texture(ref tex) => {
-                    let new_unit = ctx.prepare_cache_tex(&tex, |ctx, unit| {
-                        // Binding texture
-                        tex.bind(&self.gl, unit)?;
+        material.bind(|tex| {
+            ctx.prepare_cache_tex(tex, |ctx, unit| {
+                // Binding texture
+                tex.bind(&self.gl, unit)?;
 
-                        ctx.switch_tex += 1;
-                        Ok(())
-                    })?;
-
-                    prog.set(&name, new_unit as i32);
-                }
-
-                &MaterialParam::Float(f) => {
-                    prog.set(&name, f);
-                }
-                &MaterialParam::Vec2(v) => {
-                    prog.set(&name, v);
-                }
-                &MaterialParam::Vec3(v) => {
-                    prog.set(&name, v);
-                }
-                &MaterialParam::Vec4(v) => {
-                    prog.set(&name, v);
-                }
-            }
-        }
+                ctx.switch_tex += 1;
+                Ok(())
+            })
+        })?;
 
         self.setup_light(ctx, &prog);
 
@@ -300,10 +279,9 @@ where
                 Ok(())
             });
 
-            self.setup_camera(ctx, cmd.model_m, camera);
-
             match r {
                 Ok(_) => {
+                    self.setup_camera(ctx, cmd.model_m, camera);
                     prog.commit(gl);
                     cmd.surface.buffer.render(gl);
                     cmd.surface.buffer.unbind(gl);
@@ -330,19 +308,20 @@ where
         F: FnMut(Arc<Component>) -> bool,
     {
         for obj in self.objects.iter() {
-            if let Some(r) = obj.upgrade().map_or(None, |obj| {
-                if let Ok(o) = obj.try_borrow() {
-                    return o.find_component::<T>().map(|(_, c)| c);
-                }
+            let result = obj.upgrade().and_then(|obj| {
+                obj.try_borrow()
+                    .ok()
+                    .and_then(|o| o.find_component::<T>().map(|(_, c)| c))
+            });
 
-                None
-            }) {
-                if !func(r) {
+            if let Some(com) = result {
+                if !func(com) {
                     return;
                 }
             }
         }
     }
+
     fn find_all_components<T>(&self) -> Vec<Arc<Component>>
     where
         T: 'static + ComponentBased,
@@ -371,14 +350,10 @@ where
 
     fn prepare_ctx(&self, ctx: &mut EngineContext) {
         // prepare main light.
-        ctx.main_light = Some(self.find_component::<Light>().unwrap_or({
-            Component::new(Light::Directional(Directional {
-                direction: Vector3::new(0.5, -1.0, 1.0).normalize(),
-                ambient: Vector3::new(0.2, 0.2, 0.2),
-                diffuse: Vector3::new(0.5, 0.5, 0.5),
-                specular: Vector3::new(1.0, 1.0, 1.0),
-            }))
-        }));
+        ctx.main_light = Some(
+            self.find_component::<Light>()
+                .unwrap_or({ Component::new(Light::new(Directional::default())) }),
+        );
 
         ctx.point_lights = self.find_all_components::<Light>()
                 .into_iter()
@@ -393,6 +368,23 @@ where
                 .collect();
     }
 
+    fn gather_render_commands(&self, object: &GameObject, commands: &mut Vec<RenderCommand>) {
+        if !object.active {
+            return;
+        }
+
+        let result = object.find_component::<Mesh>();
+
+        if let Some((mesh, _)) = result {
+            for surface in mesh.surfaces.iter() {
+                commands.push(RenderCommand {
+                    surface: surface.clone(),
+                    model_m: compute_model_m(&*object),
+                })
+            }
+        }
+    }
+
     pub fn render_pass(&self, camera: &Camera, clear_option: ClearOption) {
         let objects = &self.objects;
 
@@ -402,11 +394,14 @@ where
             rt.bind_frame_buffer(&self.gl);
         }
 
-        if let Some(((x, y), (w, h))) = camera.rect {
-            self.gl.viewport(x, y, w, h);
-        } else {
-            self.gl
-                .viewport(0, 0, self.screen_size.0, self.screen_size.1);
+        match camera.rect {
+            Some(((x, y), (w, h))) => {
+                self.gl.viewport(x, y, w, h);
+            }
+            None => {
+                self.gl
+                    .viewport(0, 0, self.screen_size.0, self.screen_size.1);
+            }
         }
 
         self.clear(clear_option);
@@ -414,21 +409,12 @@ where
         self.prepare_ctx(&mut ctx);
 
         let mut commands = Vec::new();
+
+        // gather commands
         for obj in objects.iter() {
             obj.upgrade().map(|obj| {
                 if let Ok(object) = obj.try_borrow() {
-                    if object.active {
-                        let result = object.find_component::<Mesh>();
-
-                        if let Some((mesh, _)) = result {
-                            for surface in mesh.surfaces.iter() {
-                                commands.push(RenderCommand {
-                                    surface: surface.clone(),
-                                    model_m: compute_model_m(&*object),
-                                })
-                            }
-                        }
-                    }
+                    self.gather_render_commands(&object, &mut commands)
                 }
             });
         }

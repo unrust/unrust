@@ -22,9 +22,15 @@ impl Mesh {
         }
     }
 
-    pub fn add_surface(&mut self, buffer: Rc<MeshBuffer>, material: Rc<Material>) {
-        self.surfaces
-            .push(Rc::new(MeshSurface { buffer, material }));
+    pub fn add_surface<U, T>(&mut self, buffer: U, material: T)
+    where
+        U: Into<Rc<MeshBuffer>>,
+        T: Into<Rc<Material>>,
+    {
+        self.surfaces.push(Rc::new(MeshSurface {
+            buffer: buffer.into(),
+            material: material.into(),
+        }));
     }
 
     /// bounds return (vmin, vmax)

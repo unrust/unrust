@@ -1,6 +1,6 @@
 extern crate unrust;
 
-use unrust::world::{Actor, Handle, World, WorldBuilder};
+use unrust::world::{Actor, World, WorldBuilder};
 use unrust::engine::{Directional, GameObject, Light, Material, Mesh};
 use unrust::world::events::*;
 use unrust::math::*;
@@ -8,10 +8,7 @@ use unrust::math::*;
 // GUI
 use unrust::imgui;
 
-use std::rc::Rc;
-
 pub struct MainScene {
-    cube: Handle<GameObject>,
     eye: Vector3<f32>,
 }
 
@@ -20,7 +17,6 @@ pub struct MainScene {
 impl Actor for MainScene {
     fn new() -> Box<Actor> {
         Box::new(MainScene {
-            cube: Default::default(),
             eye: Vector3::new(-3.0, 3.0, -3.0),
         })
     }
@@ -29,40 +25,18 @@ impl Actor for MainScene {
         // add direction light to scene.
         {
             let go = world.new_game_object();
-
-            go.borrow_mut().add_component(Light::new(Directional {
-                direction: Vector3::new(0.5, -1.0, 1.0).normalize(),
-                ambient: Vector3::new(0.2, 0.2, 0.2),
-                diffuse: Vector3::new(0.5, 0.5, 0.5),
-                specular: Vector3::new(1.0, 1.0, 1.0),
-            }));
+            go.borrow_mut()
+                .add_component(Light::new(Directional::default()));
         }
 
         // Added a cube in the scene
         {
             let go = world.new_game_object();
-
-            let db = &mut world.asset_system();
-
-            let mut material = Material::new(db.new_program("phong"));
-            material.set("uMaterial.diffuse", db.new_texture("tex_a.png"));
-            material.set("uMaterial.shininess", 32.0);
-
-            let mut mesh = Mesh::new();
-            mesh.add_surface(db.new_mesh_buffer("cube"), Rc::new(material));
-            go.borrow_mut().add_component(mesh);
-
-            self.cube = go;
+            go.borrow_mut().add_component(Cube::new());
         }
     }
 
     fn update(&mut self, _go: &mut GameObject, world: &mut World) {
-        // Rotate Cube
-        self.cube
-            .borrow_mut()
-            .transform
-            .append_rotation_mut(&UnitQuaternion::new(Vector3::new(0.01, 0.02, 0.005)));
-
         // Handle Events
         let mut last_event = None;
         {
@@ -124,6 +98,31 @@ impl Actor for MainScene {
             Native(1.0, 0.0) + Pixel(-8.0, 8.0),
             &format!("last event: {:?}", last_event),
         );
+    }
+}
+
+pub struct Cube {}
+
+impl Actor for Cube {
+    fn new() -> Box<Actor> {
+        Box::new(Cube {})
+    }
+
+    fn start(&mut self, go: &mut GameObject, world: &mut World) {
+        let db = &mut world.asset_system();
+
+        let mut material = Material::new(db.new_program("phong"));
+        material.set("uMaterial.diffuse", db.new_texture("tex_a.png"));
+        material.set("uMaterial.shininess", 32.0);
+
+        let mut mesh = Mesh::new();
+        mesh.add_surface(db.new_mesh_buffer("cube"), material);
+        go.add_component(mesh);
+    }
+
+    fn update(&mut self, go: &mut GameObject, _world: &mut World) {
+        go.transform
+            .append_rotation_mut(&UnitQuaternion::new(Vector3::new(0.01, 0.02, 0.005)));
     }
 }
 

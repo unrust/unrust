@@ -112,15 +112,19 @@ impl World {
 
             n.clear_changed();
         }
-
-        // TODO recursive calling its children
     }
 
     fn active_starting_actors(&mut self) {
         // Collect dirty actors
         let mut new_actors = Vec::new();
 
-        self.collect_new_actors(&mut new_actors, &self.root_go.upgrade().unwrap());
+        let mut new_list = Vec::new();
+        new_list.append(&mut self.list);
+
+        for go in new_list.iter_mut() {
+            self.collect_new_actors(&mut new_actors, go);
+        }
+        self.list.append(&mut new_list);
 
         for (go, c) in new_actors.into_iter() {
             let actor = c.try_as::<Box<Actor>>().unwrap();

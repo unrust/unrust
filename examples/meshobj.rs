@@ -91,7 +91,7 @@ impl Actor for MainScene {
         imgui::pivot((1.0, 1.0));
         imgui::label(
             Native(1.0, 1.0) - Pixel(8.0, 8.0),
-            "[Esc]  : reload all (include assets)",
+            "[WASD] : control camera\n[Esc]  : reload all (include assets)",
         );
 
         imgui::pivot((1.0, 0.0));

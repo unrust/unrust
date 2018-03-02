@@ -93,7 +93,7 @@ impl Actor for MainScene {
         imgui::pivot((1.0, 1.0));
         imgui::label(
             Native(1.0, 1.0) - Pixel(8.0, 8.0),
-            "F1 to turn framebuffer on/off.\n[Esc]  : reload all (include assets)",
+            "[WASD] : control camera\nF1 to turn framebuffer on/off.\n[Esc]  : reload all (include assets)",
         );
 
         imgui::pivot((1.0, 0.0));

@@ -21,11 +21,11 @@ The target `wasm32-unknown-unknown` is currently only on the nightly builds as o
 cargo install cargo-web # installs web sub command
 rustup override set nightly
 rustup target install wasm32-unknown-unknown
-cargo web start --target wasm32-unknown-unknown --release
+cargo web start --example boxes --release
 ```
 
 ### As desktop app (native-opengl)
 ```
 rustup override set nightly
-cargo run --release
+cargo run --example boxes --release
 ```

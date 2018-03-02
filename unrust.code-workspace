@@ -7,8 +7,5 @@
 	"settings": {
 		// "rust.target": "wasm32-unknown-unknown",
 		"editor.formatOnSave": true,
-		// Specify to run analysis as if running `cargo check --lib`. Use `null` to auto-detect.
-		"rust.build_lib": true,
-		"rust.build_bin": "unrust",
 	}
 }

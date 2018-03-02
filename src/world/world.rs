@@ -12,6 +12,7 @@ use engine::imgui;
 
 use uni_app::{App, AppConfig, AppEvent, FPS};
 use std::mem;
+use std::default::Default;
 
 pub type Handle<T> = Rc<RefCell<T>>;
 type WeakHandle<T> = rc::Weak<RefCell<T>>;
@@ -224,6 +225,15 @@ impl World {
 
     pub fn remove_game_object(&mut self, go: &Handle<GameObject>) {
         self.list.retain(|ref x| !Rc::ptr_eq(&x, go));
+    }
+}
+
+#[derive(Default)]
+struct EmptyActor {}
+
+impl Actor for EmptyActor {
+    fn new() -> Box<Actor> {
+        Box::new(EmptyActor::default())
     }
 }
 

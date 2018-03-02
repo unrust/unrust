@@ -1,9 +1,8 @@
 use na::*;
 use std::rc::Rc;
-use std::cell::{Ref, RefCell};
+use std::cell::{Ref, RefCell, RefMut};
 use std::sync::Arc;
 use std::any::{Any, TypeId};
-//use std::marker::PhantomData;
 
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
@@ -127,6 +126,21 @@ impl GameObject {
             Some(c) => {
                 let com: &Component = c.as_ref();
                 Some((com.try_as::<T>().unwrap().borrow(), c.clone()))
+            }
+            _ => None,
+        }
+    }
+
+    pub fn find_component_mut<T>(&self) -> Option<(RefMut<T>, Arc<Component>)>
+    where
+        T: 'static,
+    {
+        let typeid = TypeId::of::<T>();
+
+        match self.components.iter().find(|c| c.typeid() == typeid) {
+            Some(c) => {
+                let com: &Component = c.as_ref();
+                Some((com.try_as::<T>().unwrap().borrow_mut(), c.clone()))
             }
             _ => None,
         }

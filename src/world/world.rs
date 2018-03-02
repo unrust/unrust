@@ -221,6 +221,10 @@ impl World {
 
         go
     }
+
+    pub fn remove_game_object(&mut self, go: &Handle<GameObject>) {
+        self.list.retain(|ref x| !Rc::ptr_eq(&x, go));
+    }
 }
 
 pub trait Actor {

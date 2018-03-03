@@ -155,25 +155,25 @@ impl App {
     }
 }
 
+pub fn now() -> f64 {
+    let v = js! { return performance.now(); };
+    return v.try_into().unwrap();
+}
+
 impl FPS {
     pub fn new() -> FPS {
         let fps = FPS {
             counter: 0,
-            last: FPS::now(),
+            last: now(),
             fps: 0,
         };
 
         fps
     }
 
-    fn now() -> f64 {
-        let v = js! { return performance.now(); };
-        return v.try_into().unwrap();
-    }
-
     pub fn step(&mut self) {
         self.counter += 1;
-        let curr = FPS::now();
+        let curr = now();
         if curr - self.last > 1000.0 {
             self.last = curr;
             self.fps = self.counter;

@@ -10,7 +10,7 @@ use engine::{AssetSystem, Camera, ClearOption, Component, ComponentBased, Engine
 
 use engine::imgui;
 
-use uni_app::{App, AppConfig, AppEvent, FPS};
+use uni_app::{now, App, AppConfig, AppEvent, FPS};
 use std::mem;
 use std::default::Default;
 
@@ -93,6 +93,10 @@ impl World {
 
     pub fn engine(&self) -> &AppEngine {
         &self.engine
+    }
+
+    pub fn now() -> f64 {
+        now()
     }
 
     fn collect_new_actors(

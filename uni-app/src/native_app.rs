@@ -134,24 +134,24 @@ impl App {
     }
 }
 
+pub fn now() -> f64 {
+    return time::precise_time_s();
+}
+
 impl FPS {
     pub fn new() -> FPS {
         let fps = FPS {
             counter: 0,
-            last: FPS::now(),
+            last: now(),
             fps: 0,
         };
 
         fps
     }
 
-    fn now() -> f64 {
-        return time::precise_time_s();
-    }
-
     pub fn step(&mut self) {
         self.counter += 1;
-        let curr = FPS::now();
+        let curr = now();
         if curr - self.last > 1.0 {
             self.last = curr;
             self.fps = self.counter;

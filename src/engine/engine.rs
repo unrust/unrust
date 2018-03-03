@@ -146,6 +146,7 @@ impl EngineContext {
 struct RenderCommand {
     pub surface: Rc<MeshSurface>,
     pub model_m: Matrix4<f32>,
+    pub cam_distance: f32,
 }
 
 #[derive(Default)]
@@ -153,6 +154,17 @@ struct RenderQueueState {
     depth_write: bool,
     depth_test: bool,
     commands: Vec<RenderCommand>,
+}
+
+impl RenderQueueState {
+    fn sort_by_cam_distance(&mut self) {
+        self.commands.sort_unstable_by(|a, b| {
+            let adist: f32 = a.cam_distance;
+            let bdist: f32 = b.cam_distance;
+
+            bdist.partial_cmp(&adist).unwrap()
+        });
+    }
 }
 
 #[derive(Default)]
@@ -303,11 +315,7 @@ where
             gl.disable(Flag::DepthTest as i32);
         }
 
-        if q.depth_write {
-            gl.depth_mask(true);
-        } else {
-            gl.depth_mask(false);
-        }
+        gl.depth_mask(q.depth_write);
 
         for cmd in q.commands.iter() {
             if let Err(err) = self.setup_material(ctx, &*cmd.surface.material) {
@@ -407,7 +415,12 @@ where
                 .collect();
     }
 
-    fn gather_render_commands(&self, object: &GameObject, render_q: &mut RenderQueueList) {
+    fn gather_render_commands(
+        &self,
+        object: &GameObject,
+        cam_pos: &Vector3<f32>,
+        render_q: &mut RenderQueueList,
+    ) {
         if !object.active {
             return;
         }
@@ -418,9 +431,12 @@ where
             for surface in mesh.surfaces.iter() {
                 let q = render_q.get_mut(&surface.material.render_queue).unwrap();
 
+                let cam_dist = (cam_pos - object.transform.translation.vector).norm_squared();
+
                 q.commands.push(RenderCommand {
                     surface: surface.clone(),
                     model_m: compute_model_m(&*object),
+                    cam_distance: cam_dist,
                 })
             }
         }
@@ -455,10 +471,16 @@ where
         for obj in objects.iter() {
             obj.upgrade().map(|obj| {
                 if let Ok(object) = obj.try_borrow() {
-                    self.gather_render_commands(&object, &mut render_q)
+                    self.gather_render_commands(&object, &camera.eye(), &mut render_q)
                 }
             });
         }
+
+        // Sort the transparent queue
+        render_q
+            .get_mut(&RenderQueue::Transparent)
+            .unwrap()
+            .sort_by_cam_distance();
 
         for (_, q) in render_q.iter() {
             self.render_commands(&mut ctx, &q, camera);

@@ -161,6 +161,28 @@ impl GLContext {
     pub fn link_program(&self, program: &WebGLProgram) {
         unsafe {
             gl::LinkProgram(program.0);
+            // Get the link status
+            let mut status = gl::FALSE as gl::types::GLint;
+            gl::GetProgramiv(program.0, gl::LINK_STATUS, &mut status);
+
+            // Fail on error
+            if status != (gl::TRUE as gl::types::GLint) {
+                let mut len = 0;
+                gl::GetProgramiv(program.0, gl::INFO_LOG_LENGTH, &mut len);
+                let mut buf = Vec::with_capacity(len as usize);
+                buf.set_len((len as usize) - 1); // subtract 1 to skip the trailing null character
+                gl::GetProgramInfoLog(
+                    program.0,
+                    len,
+                    ptr::null_mut(),
+                    buf.as_mut_ptr() as *mut gl::types::GLchar,
+                );
+
+                match String::from_utf8(buf) {
+                    Ok(s) => panic!(s),
+                    Err(_) => panic!("Link program fail, reason unknown"),
+                }
+            }
         }
         check_gl_error("link_program");
     }

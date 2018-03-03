@@ -67,7 +67,7 @@ impl GLContext {
     }
 
     pub fn print<T: Into<String>>(msg: T) {
-        print!("{}", s.into());
+        print!("{}", msg.into());
     }
 
     pub fn create_buffer(&self) -> WebGLBuffer {
@@ -517,6 +517,12 @@ impl GLContext {
     pub fn unbind_texture(&self) {
         unsafe {
             gl::BindTexture(gl::TEXTURE_2D, 0);
+        }
+    }
+
+    pub fn blend_equation(&self, eq: BlendEquation) {
+        unsafe {
+            gl::BlendEquation(eq as _);
         }
     }
 

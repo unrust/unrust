@@ -91,7 +91,7 @@ impl App {
     }
 
     pub fn print<T: Into<String>>(msg: T) {
-        print!("{}", s.into());
+        print!("{}", msg.into());
     }
 
     pub fn window(&self) -> &glutin::GlWindow {

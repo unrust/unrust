@@ -529,6 +529,14 @@ impl GLContext {
         }
     }
 
+    pub fn blend_equation(&self, eq: BlendEquation) {
+        self.log("blend_equation");
+        js!{
+            var ctx = Module.gl.get(@{&self.reference});
+            ctx.blendEquation(@{eq as u32});
+        }
+    }
+
     pub fn blend_func(&self, b1: BlendMode, b2: BlendMode) {
         self.log("blend_func");
         js!{

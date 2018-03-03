@@ -10,7 +10,7 @@ use engine::{AssetSystem, Camera, ClearOption, Component, ComponentBased, Engine
 
 use engine::imgui;
 
-use uni_app::{App, AppConfig, AppEvent, FPS};
+use uni_app::{now, App, AppConfig, AppEvent, FPS};
 use std::default::Default;
 
 pub type Handle<T> = Rc<RefCell<T>>;
@@ -101,6 +101,10 @@ impl<'a> WorldBuilder<'a> {
 impl World {
     pub fn root(&self) -> Ref<GameObject> {
         self.main_tree.root()
+    }
+
+    pub fn now() -> f64 {
+        now()
     }
 
     pub fn engine(&self) -> &AppEngine {

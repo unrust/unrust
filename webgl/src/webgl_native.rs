@@ -221,7 +221,7 @@ impl GLContext {
         let c_name = CString::new(name).unwrap();
         unsafe {
             let location = gl::GetUniformLocation(program.0 as _, c_name.as_ptr());
-            check_gl_error("get_uniform_location");
+            check_gl_error(&format!("get_uniform_location {}", name));
             if location == -1 {
                 return None;
             }

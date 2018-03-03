@@ -313,7 +313,7 @@ impl GLContext {
         self.log("enable");
         js! {
             var ctx = Module.gl.get(@{&self.reference});
-            ctx.enable(@{flag as i32})
+            ctx.enable(@{flag as i32});
         };
     }
 
@@ -321,7 +321,7 @@ impl GLContext {
         self.log("disable");
         js! {
             var ctx = Module.gl.get(@{&self.reference});
-            ctx.disable(@{flag as i32})
+            ctx.disable(@{flag as i32});
         };
     }
 
@@ -329,8 +329,17 @@ impl GLContext {
         self.log("cull_face");
         js! {
             var ctx = Module.gl.get(@{&self.reference});
-            ctx.cullFace(@{flag as i32})
+            ctx.cullFace(@{flag as i32});
         };
+    }
+
+    pub fn depth_mask(&self, b: bool) {
+        self.log("depth_mask");
+
+        js! {
+            var ctx = Module.gl.get(@{&self.reference});
+            ctx.depthMask(@{b});
+        }
     }
 
     pub fn clear(&self, bit: BufferBit) {

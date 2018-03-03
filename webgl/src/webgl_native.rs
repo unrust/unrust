@@ -58,7 +58,10 @@ impl GLContext {
     pub fn new() -> GLContext {
         //  unsafe { gl::Enable(gl::DEPTH_TEST) };
         println!("opengl {}", get_string(gl::VERSION));
-        println!("shading language {}",get_string(gl::SHADING_LANGUAGE_VERSION));
+        println!(
+            "shading language {}",
+            get_string(gl::SHADING_LANGUAGE_VERSION)
+        );
         println!("vendor {}", get_string(gl::VENDOR));
         GLContext { reference: 0 }
     }
@@ -264,6 +267,13 @@ impl GLContext {
     pub fn cull_face(&self, flag: Culling) {
         unsafe {
             gl::CullFace(flag as _);
+        }
+        check_gl_error("cullface");
+    }
+
+    pub fn depth_mask(&self, b: bool) {
+        unsafe {
+            gl::DepthMask(b as _);
         }
         check_gl_error("cullface");
     }

@@ -2,14 +2,17 @@ use webgl::*;
 use na::*;
 use std::rc::{Rc, Weak};
 use std::cell::RefCell;
-use std::collections::{HashMap, VecDeque};
+use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::sync::Arc;
+use std::ops::{Deref, DerefMut};
 
 use engine::core::{Component, ComponentBased, GameObject};
 use engine::render::Camera;
 use engine::render::{Directional, Light};
 use engine::render::{Material, Mesh, MeshBuffer, MeshSurface, ShaderProgram, Texture};
+use engine::render::RenderQueue;
 use engine::asset::{AssetError, AssetResult, AssetSystem};
+
 use std::default::Default;
 
 use super::imgui;
@@ -145,6 +148,48 @@ struct RenderCommand {
     pub model_m: Matrix4<f32>,
 }
 
+#[derive(Default)]
+struct RenderQueueState {
+    depth_write: bool,
+    depth_test: bool,
+    commands: Vec<RenderCommand>,
+}
+
+#[derive(Default)]
+struct RenderQueueList(BTreeMap<RenderQueue, RenderQueueState>);
+
+impl RenderQueueList {
+    pub fn new() -> RenderQueueList {
+        let mut qlist = RenderQueueList::default();
+
+        let mut state = RenderQueueState::default();
+        state.depth_write = true;
+        state.depth_test = true;
+        qlist.insert(RenderQueue::Opaque, state);
+
+        let mut state = RenderQueueState::default();
+        state.depth_write = false;
+        state.depth_test = true;
+        qlist.insert(RenderQueue::Transparent, state);
+
+        qlist
+    }
+}
+
+impl Deref for RenderQueueList {
+    type Target = BTreeMap<RenderQueue, RenderQueueState>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for RenderQueueList {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 fn compute_model_m(object: &GameObject) -> Matrix4<f32> {
     // Setup Matrices
     let modelm = object.transform.to_homogeneous();
@@ -174,6 +219,9 @@ where
     A: AssetSystem,
 {
     pub fn clear(&self, option: ClearOption) {
+        // make sure all reset all state
+        self.gl.depth_mask(true);
+
         if let Some(col) = option.color {
             self.gl.clear_color(col.0, col.1, col.2, col.3);
         } else {
@@ -246,15 +294,22 @@ where
         }
     }
 
-    fn render_commands(
-        &self,
-        ctx: &mut EngineContext,
-        commands: Vec<RenderCommand>,
-        camera: &Camera,
-    ) {
+    fn render_commands(&self, ctx: &mut EngineContext, q: &RenderQueueState, camera: &Camera) {
         let gl = &self.gl;
 
-        for cmd in commands {
+        if q.depth_test {
+            gl.enable(Flag::DepthTest as i32);
+        } else {
+            gl.disable(Flag::DepthTest as i32);
+        }
+
+        if q.depth_write {
+            gl.depth_mask(true);
+        } else {
+            gl.depth_mask(false);
+        }
+
+        for cmd in q.commands.iter() {
             if let Err(err) = self.setup_material(ctx, &*cmd.surface.material) {
                 if let AssetError::NotReady = err {
                     continue;
@@ -285,14 +340,6 @@ where
             }
         }
     }
-
-    pub fn begin(&mut self) {
-        imgui::begin();
-
-        self.asset_system_mut().step();
-    }
-
-    pub fn end(&mut self) {}
 
     fn map_component<T, F>(&self, mut func: F)
     where
@@ -360,7 +407,7 @@ where
                 .collect();
     }
 
-    fn gather_render_commands(&self, object: &GameObject, commands: &mut Vec<RenderCommand>) {
+    fn gather_render_commands(&self, object: &GameObject, render_q: &mut RenderQueueList) {
         if !object.active {
             return;
         }
@@ -369,7 +416,9 @@ where
 
         if let Some((mesh, _)) = result {
             for surface in mesh.surfaces.iter() {
-                commands.push(RenderCommand {
+                let q = render_q.get_mut(&surface.material.render_queue).unwrap();
+
+                q.commands.push(RenderCommand {
                     surface: surface.clone(),
                     model_m: compute_model_m(&*object),
                 })
@@ -400,18 +449,20 @@ where
 
         self.prepare_ctx(&mut ctx);
 
-        let mut commands = Vec::new();
+        let mut render_q = RenderQueueList::new();
 
         // gather commands
         for obj in objects.iter() {
             obj.upgrade().map(|obj| {
                 if let Ok(object) = obj.try_borrow() {
-                    self.gather_render_commands(&object, &mut commands)
+                    self.gather_render_commands(&object, &mut render_q)
                 }
             });
         }
 
-        self.render_commands(&mut ctx, commands, camera);
+        for (_, q) in render_q.iter() {
+            self.render_commands(&mut ctx, &q, camera);
+        }
 
         if let Some(ref rt) = camera.render_texture {
             rt.unbind_frame_buffer(&self.gl);
@@ -467,6 +518,14 @@ where
             screen_size: size,
         }
     }
+
+    pub fn begin(&mut self) {
+        imgui::begin();
+
+        self.asset_system_mut().step();
+    }
+
+    pub fn end(&mut self) {}
 }
 
 impl<A: AssetSystem> IEngine for Engine<A> {

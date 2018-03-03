@@ -1,6 +1,6 @@
 use engine::asset::loader::{Loadable, Loader};
 use engine::asset::{Asset, AssetError, AssetResult, AssetSystem, File, FileFuture, Resource};
-use engine::render::{Material, Mesh, MeshBuffer, MeshData};
+use engine::render::{Material, Mesh, MeshBuffer, MeshData, RenderQueue};
 use engine::core::Component;
 use std::sync::Arc;
 use std::rc::Rc;
@@ -87,6 +87,10 @@ impl PrefabLoader {
                 material.set("uMaterial.specular", specular);
                 material.set("uMaterial.shininess", shininess);
                 material.set("uMaterial.transparent", transparent);
+
+                if transparent < 1.0 {
+                    material.render_queue = RenderQueue::Transparent;
+                }
 
                 mesh.add_surface(
                     MeshBuffer::new_from_resource(Resource::new(mesh_data)),

@@ -1,5 +1,5 @@
 use engine::asset::{Asset, AssetResult};
-use engine::render::{ShaderProgram, Texture};
+use engine::render::{RenderQueue, ShaderProgram, Texture};
 
 use std::rc::Rc;
 use std::collections::HashMap;
@@ -44,11 +44,13 @@ impl From<Vector4<f32>> for MaterialParam {
 pub struct Material {
     pub program: Rc<ShaderProgram>,
     pub params: HashMap<String, MaterialParam>,
+    pub render_queue: RenderQueue,
 }
 
 impl Material {
     pub fn new(program: Rc<ShaderProgram>) -> Material {
         return Material {
+            render_queue: RenderQueue::Opaque,
             program: program,
             params: HashMap::new(),
         };

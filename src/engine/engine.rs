@@ -231,7 +231,7 @@ where
     A: AssetSystem,
 {
     pub fn new_scene_tree(&self) -> Rc<SceneTree> {
-        Rc::new(SceneTree::new())
+        SceneTree::new()
     }
 
     pub fn clear(&self, option: ClearOption) {
@@ -531,7 +531,7 @@ where
         // Set the view port
         gl.viewport(0, 0, size.0, size.1);
 
-        let gui_tree = Rc::new(SceneTree::new());
+        let gui_tree = SceneTree::new();
 
         Engine {
             gl: gl,
@@ -558,7 +558,7 @@ where
 
 impl<A: AssetSystem> IEngine for Engine<A> {
     fn new_game_object(&mut self, parent: &GameObject) -> Rc<RefCell<GameObject>> {
-        let go = Rc::new(RefCell::new(GameObject::new(parent.tree())));
+        let go = parent.tree().new_node(parent);
 
         self.objects.push(Rc::downgrade(&go));
         go

@@ -110,7 +110,7 @@ impl Actor for Crt {
     fn new() -> Box<Actor> {
         Box::new(Crt {
             rt: Rc::new(RenderTexture::new(1024, 1024)),
-            cube: Default::default(),
+            cube: GameObject::empty(),
         })
     }
 

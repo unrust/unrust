@@ -2,7 +2,7 @@ use std::rc::Rc;
 use std::rc;
 use std::cell::{Ref, RefCell};
 use std::sync::Arc;
-use std::collections::BTreeSet;
+use std::sync;
 
 use world::app_fs::AppEngine;
 use engine::{AssetSystem, Camera, ClearOption, Component, ComponentBased, Engine, GameObject,
@@ -15,21 +15,22 @@ use std::default::Default;
 
 pub type Handle<T> = Rc<RefCell<T>>;
 type WeakHandle<T> = rc::Weak<RefCell<T>>;
+type ActorPair = (WeakHandle<GameObject>, sync::Weak<Component>);
 
 pub struct World {
-    list: Vec<Handle<GameObject>>,
     engine: AppEngine,
     main_tree: Rc<SceneTree>,
 
     app: Option<App>,
     fps: FPS,
 
-    // we store a strong reference here
-    actors: Vec<(WeakHandle<GameObject>, Arc<Component>)>,
-    actor_ids: BTreeSet<u64>,
+    actors: Vec<ActorPair>,
+    new_actors: Rc<RefCell<Vec<ActorPair>>>,
 
     shown_stats: bool,
     events: Rc<RefCell<Vec<AppEvent>>>,
+
+    golist: Vec<Handle<GameObject>>,
 }
 
 pub struct WorldBuilder<'a> {
@@ -66,19 +67,32 @@ impl<'a> WorldBuilder<'a> {
         let main_tree = engine.new_scene_tree();
 
         let mut w = World {
-            list: Vec::new(),
             engine,
             app: Some(app),
             main_tree,
-            actors: Vec::new(),
-            actor_ids: BTreeSet::new(),
+            actors: Default::default(),
+            new_actors: Default::default(),
             shown_stats: self.shown_stats.unwrap_or(false),
             fps: FPS::new(),
             events: events,
+            golist: Vec::new(),
         };
 
         // Add a default camera
         w.engine.main_camera = Some(Rc::new(RefCell::new(Camera::new())));
+
+        w.main_tree.add_watcher({
+            let actors = w.new_actors.clone();
+
+            move |ref go, ref c: &Arc<Component>| {
+                // filter
+                if c.try_as::<Box<Actor>>().is_some() {
+                    actors
+                        .borrow_mut()
+                        .push((Rc::downgrade(go), Arc::downgrade(c)));
+                }
+            }
+        });
 
         w
     }
@@ -93,44 +107,19 @@ impl World {
         &self.engine
     }
 
-    fn collect_new_actors(
-        &mut self,
-        new_actors: &mut Vec<(Handle<GameObject>, Arc<Component>)>,
-        node: &Handle<GameObject>,
-    ) {
-        let mut n = node.borrow_mut();
-        if n.changed() {
-            if let Some((_, c)) = n.find_component::<Box<Actor>>() {
-                let id = c.id();
-
-                if !self.actor_ids.contains(&id) {
-                    self.actors.push((Rc::downgrade(node), c.clone()));
-                    self.actor_ids.insert(id);
-                    new_actors.push((node.clone(), c.clone()));
-                }
-            }
-
-            n.clear_changed();
-        }
-    }
-
     fn active_starting_actors(&mut self) {
-        // Collect dirty actors
-        let mut new_actors = Vec::new();
+        let mut starting = Vec::new();
+        starting.append(&mut self.new_actors.borrow_mut());
 
-        let mut new_list = Vec::new();
-        new_list.append(&mut self.list);
-
-        for go in new_list.iter_mut() {
-            self.collect_new_actors(&mut new_actors, go);
-        }
-        self.list.append(&mut new_list);
-
-        for (go, c) in new_actors.into_iter() {
-            let actor = c.try_as::<Box<Actor>>().unwrap();
+        for &(ref wgo, ref c) in starting.iter() {
+            let com = c.upgrade().unwrap().clone();
+            let actor = com.try_as::<Box<Actor>>().unwrap();
+            let go = wgo.upgrade().unwrap();
 
             (*actor).borrow_mut().start_rc(go, self);
         }
+
+        self.actors.append(&mut starting);
     }
 
     fn step(&mut self) {
@@ -146,6 +135,7 @@ impl World {
         let mut actor_components = Vec::new();
         {
             let actors = &mut self.actors;
+
             for &(ref wgo, ref c) in actors.iter() {
                 if let Some(go) = wgo.upgrade() {
                     actor_components.push((go.clone(), c.clone()));
@@ -154,20 +144,15 @@ impl World {
         }
 
         for (go, c) in actor_components.into_iter() {
-            let actor = c.try_as::<Box<Actor>>().unwrap();
+            let com = c.upgrade().unwrap().clone();
+            let actor = com.try_as::<Box<Actor>>().unwrap();
+
             (*actor).borrow_mut().update_rc(go, self);
         }
 
-        let actor_ids = &mut self.actor_ids;
         let actors = &mut self.actors;
         // move back and remove all unused components
-        actors.retain(|&(_, ref c)| {
-            if Arc::strong_count(c) > 1 {
-                return true;
-            }
-            actor_ids.remove(&c.id());
-            false
-        });
+        actors.retain(|&(_, ref c)| c.upgrade().is_some());
 
         use engine::imgui::Metric::*;
 
@@ -182,7 +167,7 @@ impl World {
                     self.fps.fps,
                     self.engine().objects.len(),
                     self.actors.len(),
-                    self.list.len(),
+                    self.main_tree.len(),
                 ),
             );
         }
@@ -197,10 +182,8 @@ impl World {
     }
 
     pub fn reset(&mut self) {
-        self.list.clear();
         self.actors.clear();
-        self.actor_ids.clear();
-
+        self.golist.clear();
         self.engine.asset_system_mut().reset();
     }
 
@@ -222,13 +205,12 @@ impl World {
 
     pub fn new_game_object(&mut self) -> Handle<GameObject> {
         let go = self.engine.new_game_object(&self.main_tree.root());
-        self.list.push(go.clone());
-
+        self.golist.push(go.clone());
         go
     }
 
     pub fn remove_game_object(&mut self, go: &Handle<GameObject>) {
-        self.list.retain(|ref x| !Rc::ptr_eq(&x, go));
+        self.golist.retain(|ref x| !Rc::ptr_eq(&x, go));
     }
 }
 

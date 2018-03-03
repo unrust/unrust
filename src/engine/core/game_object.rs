@@ -1,8 +1,8 @@
 use std::rc::Rc;
+use std::rc;
 use std::cell::{Ref, RefCell, RefMut};
 use std::sync::Arc;
 use std::any::{Any, TypeId};
-use std::rc;
 use na::{Isometry3, Vector3};
 use super::scene_tree::SceneTree;
 
@@ -77,17 +77,9 @@ pub struct GameObject {
     pub scale: Vector3<f32>,
     pub active: bool,
 
+    node_id: u64,
     tree: rc::Weak<SceneTree>,
-
     components: Vec<Arc<Component>>,
-    // A dirty flag indicated it component changed
-    dirty: bool,
-}
-
-impl Default for GameObject {
-    fn default() -> GameObject {
-        GameObject::new(Default::default())
-    }
 }
 
 pub trait IntoComponentPtr {
@@ -109,20 +101,51 @@ impl IntoComponentPtr for Arc<Component> {
     }
 }
 
-impl GameObject {
-    pub fn new(tree: rc::Weak<SceneTree>) -> GameObject {
+pub struct GameObjectUtil {}
+
+impl GameObjectUtil {
+    pub fn make(node_id: u64, tree: rc::Weak<SceneTree>) -> GameObject {
         GameObject {
             transform: Isometry3::identity(),
             scale: Vector3::new(1.0, 1.0, 1.0),
             tree: tree,
             active: true,
-            dirty: false,
+            node_id: node_id,
             components: vec![],
         }
     }
 
-    pub fn tree(&self) -> rc::Weak<SceneTree> {
-        self.tree.clone()
+    pub fn set_tree(node_id: u64, go: &mut GameObject, tree: rc::Weak<SceneTree>) {
+        go.tree = tree;
+        go.node_id = node_id;
+    }
+
+    pub fn node_id(go: &GameObject) -> u64 {
+        go.node_id
+    }
+}
+
+impl Drop for GameObject {
+    fn drop(&mut self) {
+        self.tree.upgrade().map(|x| x.remove_node(self.node_id));
+    }
+}
+
+impl GameObject {
+    // Create an empty GameObject which cannot cannot be added in SceneRoot
+    pub fn empty() -> Rc<RefCell<GameObject>> {
+        Rc::new(RefCell::new(GameObject {
+            transform: Isometry3::identity(),
+            scale: Vector3::new(1.0, 1.0, 1.0),
+            tree: rc::Weak::new(),
+            active: true,
+            node_id: 0,
+            components: vec![],
+        }))
+    }
+
+    pub fn tree(&self) -> Rc<SceneTree> {
+        self.tree.upgrade().unwrap()
     }
 
     pub fn find_component<T>(&self) -> Option<(Ref<T>, Arc<Component>)>
@@ -161,16 +184,18 @@ impl GameObject {
     {
         let p: Arc<Component> = c.into_component_ptr();
         self.components.push(p.clone());
-        self.dirty = true;
+
+        self.tree().notifiy_component_add(self.node_id, p.clone());
 
         p
     }
 
-    pub fn changed(&self) -> bool {
-        self.dirty
-    }
+    //Tree Operations
 
-    pub fn clear_changed(&mut self) {
-        self.dirty = false
+    pub fn add_child(&self, child: &GameObject) -> Rc<RefCell<GameObject>> {
+        // TODO do we need to support cross tree node?
+        debug_assert!(Rc::ptr_eq(&self.tree(), &child.tree()));
+
+        self.tree().add_child(self.node_id, child.node_id)
     }
 }

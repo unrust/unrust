@@ -75,7 +75,7 @@ impl App {
         let context = glutin::ContextBuilder::new()
             .with_vsync(config.vsync)
             .with_gl(GlRequest::GlThenGles {
-                opengl_version: (3, 1),
+                opengl_version: (3, 2),
                 opengles_version: (2, 0),
             });
         let gl_window = glutin::GlWindow::new(window, context, &events_loop).unwrap();

@@ -4,7 +4,7 @@ use std::cell::{Ref, RefCell, RefMut};
 use std::sync::Arc;
 use std::any::{Any, TypeId};
 use na::{Isometry3, Vector3};
-use super::scene_tree::SceneTree;
+use super::scene_tree::{ComponentEvent, SceneTree};
 
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
@@ -127,7 +127,10 @@ impl GameObjectUtil {
 
 impl Drop for GameObject {
     fn drop(&mut self) {
-        self.tree.upgrade().map(|x| x.remove_node(self.node_id));
+        self.tree.upgrade().map(|x| {
+            self.clear_components();
+            x.remove_node(self.node_id)
+        });
     }
 }
 
@@ -185,17 +188,44 @@ impl GameObject {
         let p: Arc<Component> = c.into_component_ptr();
         self.components.push(p.clone());
 
-        self.tree().notifiy_component_add(self.node_id, p.clone());
+        self.tree()
+            .notifiy_component(ComponentEvent::Add, self.node_id, p.clone());
 
         p
     }
 
-    //Tree Operations
+    pub fn remove_component(&mut self, c: Arc<Component>) {
+        self.components.retain(|cc| !Arc::ptr_eq(&cc, &c));
 
+        self.tree()
+            .notifiy_component(ComponentEvent::Remove, self.node_id, c.clone());
+    }
+
+    pub fn clear_components(&mut self) {
+        let mut coms = Vec::new();
+        coms.append(&mut self.components);
+
+        for c in coms.into_iter() {
+            self.tree()
+                .notifiy_component(ComponentEvent::Remove, self.node_id, c.clone());
+        }
+    }
+
+    //Tree Operations
     pub fn add_child(&self, child: &GameObject) -> Rc<RefCell<GameObject>> {
+        assert!(child.node_id != 0);
+
         // TODO do we need to support cross tree node?
         debug_assert!(Rc::ptr_eq(&self.tree(), &child.tree()));
 
         self.tree().add_child(self.node_id, child.node_id)
+    }
+
+    pub fn parent(&self) -> Option<Rc<RefCell<GameObject>>> {
+        self.tree().get_parent(self.node_id)
+    }
+
+    pub fn childen(&self) -> Vec<Rc<RefCell<GameObject>>> {
+        self.tree().get_childen(self.node_id)
     }
 }

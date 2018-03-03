@@ -1,12 +1,12 @@
 use std::rc::Rc;
 use std::rc;
-use std::cell::{Ref, RefCell};
+use std::cell::{Ref, RefCell, RefMut};
 use std::sync::Arc;
 use std::sync;
 
 use world::app_fs::AppEngine;
-use engine::{AssetSystem, Camera, ClearOption, Component, ComponentBased, Engine, GameObject,
-             IEngine, SceneTree};
+use engine::{AssetSystem, Camera, ClearOption, Component, ComponentBased, ComponentEvent, Engine,
+             GameObject, IEngine, SceneTree};
 
 use engine::imgui;
 
@@ -84,12 +84,30 @@ impl<'a> WorldBuilder<'a> {
         w.main_tree.add_watcher({
             let actors = w.new_actors.clone();
 
-            move |ref go, ref c: &Arc<Component>| {
-                // filter
-                if c.try_as::<Box<Actor>>().is_some() {
-                    actors
-                        .borrow_mut()
-                        .push((Rc::downgrade(go), Arc::downgrade(c)));
+            move |changed, ref go, ref c: &Arc<Component>| {
+                match changed {
+                    ComponentEvent::Add => {
+                        // filter
+                        if c.try_as::<Box<Actor>>().is_some() {
+                            actors
+                                .borrow_mut()
+                                .push((Rc::downgrade(go), Arc::downgrade(c)));
+                        }
+                    }
+
+                    ComponentEvent::Remove => {
+                        // filter
+                        if c.try_as::<Box<Actor>>().is_some() {
+                            actors.borrow_mut().retain(|&(_, ref cc)| {
+                                let ccp = cc.upgrade();
+                                if ccp.is_none() {
+                                    return true;
+                                }
+
+                                !Arc::ptr_eq(ccp.as_ref().unwrap(), &c)
+                            });
+                        }
+                    }
                 }
             }
         });
@@ -101,6 +119,10 @@ impl<'a> WorldBuilder<'a> {
 impl World {
     pub fn root(&self) -> Ref<GameObject> {
         self.main_tree.root()
+    }
+
+    pub fn root_mut(&self) -> RefMut<GameObject> {
+        self.main_tree.root_mut()
     }
 
     pub fn now() -> f64 {
@@ -189,6 +211,7 @@ impl World {
         self.actors.clear();
         self.golist.clear();
         self.engine.asset_system_mut().reset();
+        self.main_tree.root_mut().clear_components();
     }
 
     pub fn event_loop(mut self) {

@@ -1,6 +1,6 @@
 use engine::core::{Component, GameObject};
 use std::rc::{Rc, Weak};
-use std::cell::{Cell, Ref, RefCell};
+use std::cell::{Cell, Ref, RefCell, RefMut};
 use super::internal::GameObjectUtil;
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -11,19 +11,26 @@ struct Node {
     go: Weak<RefCell<GameObject>>,
 }
 
+#[derive(Copy, Clone, Debug)]
+pub enum ComponentEvent {
+    Add,
+    Remove,
+}
+
 pub struct SceneTree {
     root: Rc<RefCell<GameObject>>,
     nodes: RefCell<BTreeMap<u64, Node>>,
     curr_id: Cell<u64>,
     weak_self: RefCell<Weak<SceneTree>>,
 
-    component_watcher: RefCell<Vec<Box<FnMut(&Rc<RefCell<GameObject>>, &Arc<Component>)>>>,
+    component_watcher:
+        RefCell<Vec<Box<FnMut(ComponentEvent, &Rc<RefCell<GameObject>>, &Arc<Component>)>>>,
 }
 
 impl SceneTree {
     pub fn add_watcher<F>(&self, f: F)
     where
-        F: FnMut(&Rc<RefCell<GameObject>>, &Arc<Component>) + 'static,
+        F: FnMut(ComponentEvent, &Rc<RefCell<GameObject>>, &Arc<Component>) + 'static,
     {
         self.component_watcher.borrow_mut().push(Box::new(f));
     }
@@ -58,6 +65,10 @@ impl SceneTree {
 
     pub fn root(&self) -> Ref<GameObject> {
         self.root.borrow()
+    }
+
+    pub fn root_mut(&self) -> RefMut<GameObject> {
+        self.root.borrow_mut()
     }
 
     pub fn new_node(&self, parent_go: &GameObject) -> Rc<RefCell<GameObject>> {
@@ -158,14 +169,14 @@ impl SceneTree {
         self.nodes.borrow().len()
     }
 
-    pub fn notifiy_component_add(&self, node_id: u64, c: Arc<Component>) {
+    pub fn notifiy_component(&self, evt: ComponentEvent, node_id: u64, c: Arc<Component>) {
         let go = { self.nodes.borrow().get(&node_id).unwrap().go.clone() };
 
         let mut watchers = self.component_watcher.borrow_mut();
 
         for w in watchers.iter_mut() {
             go.upgrade().map(|go| {
-                w(&go, &c);
+                w(evt, &go, &c);
             });
         }
     }

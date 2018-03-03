@@ -197,7 +197,7 @@ impl Actor for MainScene {
             let up = Vector3::y();
 
             let mut reset = false;
-            let mut addbox = false;            
+            let mut addbox = false;
 
             for evt in world.events().iter() {
                 self.last_event = Some(evt.clone());
@@ -227,7 +227,8 @@ impl Actor for MainScene {
                 // Because reset will remove all objects in the world,
                 // included this Actor itself
                 // so will need to add it back.
-                world.root().add_component(MainScene::new());
+                let scene = world.new_game_object();
+                scene.borrow_mut().add_component(MainScene::new());
             }
         }
 
@@ -326,13 +327,15 @@ impl Actor for PlaneActor {
 }
 
 pub fn main() {
-    let world = WorldBuilder::new("Boxes with physics demo")
+    let mut world = WorldBuilder::new("Boxes with physics demo")
         .with_size((800, 600))
         .with_stats(true)
         .build();
 
-    // Add the main scene as component of the root game object
-    world.root().add_component(MainScene::new());
+    // Add the main scene as component of scene game object
+    let scene = world.new_game_object();
+    scene.borrow_mut().add_component(MainScene::new());
+    drop(scene);
 
     world.event_loop();
 }

@@ -21,7 +21,7 @@ use std::sync::{Arc, Mutex};
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use engine::core::GameObject;
+use engine::core::{GameObject, SceneTree};
 use engine::IEngine;
 use engine::render::Texture;
 use std::collections::HashMap;
@@ -155,14 +155,17 @@ pub fn image(pos: Metric, size: Metric, tex: Rc<Texture>) {
 
 type WidgetGoMap = HashMap<u32, (Arc<widgets::Widget>, Rc<RefCell<GameObject>>)>;
 
-#[derive(Default)]
 pub struct Context {
     go: WidgetGoMap,
+    tree: Rc<SceneTree>,
 }
 
 impl Context {
-    pub fn new() -> Context {
-        Context { go: HashMap::new() }
+    pub fn new(tree: Rc<SceneTree>) -> Context {
+        Context {
+            go: HashMap::new(),
+            tree,
+        }
     }
 
     pub fn reset(&mut self) {
@@ -190,18 +193,19 @@ pub fn pre_render(engine: &mut IEngine) {
     let (sw, sh) = engine.screen_size();
 
     {
-        let hm = &mut ctx_mut.go;
         for w in inner.render_list.iter() {
-            match hm.get_mut(&w.id()) {
-                None => {
-                    hm.insert(w.id(), (w.clone(), w.bind((sw, sh), engine)));
-                }
-                Some(&mut (ref oldw, _)) => {
-                    if **oldw != **w {
-                        hm.insert(w.id(), (w.clone(), w.bind((sw, sh), engine)));
-                    }
+            let mut do_insert = {
+                let hm = &ctx_mut.go;
+                match hm.get(&w.id()) {
+                    None => true,
+                    Some(&(ref oldw, _)) => **oldw != **w,
                 }
             };
+
+            if do_insert {
+                let widget = w.bind((sw, sh), &ctx_mut.tree.root(), engine);
+                ctx_mut.go.insert(w.id(), (w.clone(), widget));
+            }
         }
     }
 

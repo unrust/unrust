@@ -1,8 +1,10 @@
-use na::*;
 use std::rc::Rc;
 use std::cell::{Ref, RefCell, RefMut};
 use std::sync::Arc;
 use std::any::{Any, TypeId};
+use std::rc;
+use na::{Isometry3, Vector3};
+use super::scene_tree::SceneTree;
 
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
@@ -75,6 +77,8 @@ pub struct GameObject {
     pub scale: Vector3<f32>,
     pub active: bool,
 
+    tree: rc::Weak<SceneTree>,
+
     components: Vec<Arc<Component>>,
     // A dirty flag indicated it component changed
     dirty: bool,
@@ -82,7 +86,7 @@ pub struct GameObject {
 
 impl Default for GameObject {
     fn default() -> GameObject {
-        GameObject::new()
+        GameObject::new(Default::default())
     }
 }
 
@@ -106,14 +110,19 @@ impl IntoComponentPtr for Arc<Component> {
 }
 
 impl GameObject {
-    pub fn new() -> GameObject {
+    pub fn new(tree: rc::Weak<SceneTree>) -> GameObject {
         GameObject {
             transform: Isometry3::identity(),
             scale: Vector3::new(1.0, 1.0, 1.0),
+            tree: tree,
             active: true,
             dirty: false,
             components: vec![],
         }
+    }
+
+    pub fn tree(&self) -> rc::Weak<SceneTree> {
+        self.tree.clone()
     }
 
     pub fn find_component<T>(&self) -> Option<(Ref<T>, Arc<Component>)>

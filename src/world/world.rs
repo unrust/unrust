@@ -1,12 +1,12 @@
 use std::rc::Rc;
 use std::rc;
-use std::cell::{Ref, RefCell, RefMut};
+use std::cell::{Ref, RefCell};
 use std::sync::Arc;
 use std::collections::BTreeSet;
 
 use world::app_fs::AppEngine;
 use engine::{AssetSystem, Camera, ClearOption, Component, ComponentBased, Engine, GameObject,
-             IEngine};
+             IEngine, SceneTree};
 
 use engine::imgui;
 
@@ -19,9 +19,10 @@ type WeakHandle<T> = rc::Weak<RefCell<T>>;
 pub struct World {
     list: Vec<Handle<GameObject>>,
     engine: AppEngine,
+    main_tree: Rc<SceneTree>,
+
     app: Option<App>,
     fps: FPS,
-    root_go: rc::Weak<RefCell<GameObject>>,
 
     // we store a strong reference here
     actors: Vec<(WeakHandle<GameObject>, Arc<Component>)>,
@@ -62,21 +63,19 @@ impl<'a> WorldBuilder<'a> {
         let app = App::new(config);
         let engine = Engine::new(app.canvas(), size);
         let events = app.events.clone();
+        let main_tree = engine.new_scene_tree();
 
         let mut w = World {
             list: Vec::new(),
             engine,
             app: Some(app),
-            root_go: rc::Weak::new(),
+            main_tree,
             actors: Vec::new(),
             actor_ids: BTreeSet::new(),
             shown_stats: self.shown_stats.unwrap_or(false),
             fps: FPS::new(),
             events: events,
         };
-
-        // add a root game object
-        w.root_go = Rc::downgrade(&w.new_game_object());
 
         // Add a default camera
         w.engine.main_camera = Some(Rc::new(RefCell::new(Camera::new())));
@@ -86,8 +85,8 @@ impl<'a> WorldBuilder<'a> {
 }
 
 impl World {
-    pub fn root(&self) -> RefMut<GameObject> {
-        self.list[0].borrow_mut()
+    pub fn root(&self) -> Ref<GameObject> {
+        self.main_tree.root()
     }
 
     pub fn engine(&self) -> &AppEngine {
@@ -144,26 +143,31 @@ impl World {
 
         self.active_starting_actors();
 
-        let mut currents = Vec::new();
-        currents.append(&mut self.actors);
-
-        for &(ref wgo, ref c) in currents.iter() {
-            if let Some(go) = wgo.upgrade() {
-                let actor = c.try_as::<Box<Actor>>().unwrap();
-
-                (*actor).borrow_mut().update_rc(go, self);
+        let mut actor_components = Vec::new();
+        {
+            let actors = &mut self.actors;
+            for &(ref wgo, ref c) in actors.iter() {
+                if let Some(go) = wgo.upgrade() {
+                    actor_components.push((go.clone(), c.clone()));
+                }
             }
         }
 
+        for (go, c) in actor_components.into_iter() {
+            let actor = c.try_as::<Box<Actor>>().unwrap();
+            (*actor).borrow_mut().update_rc(go, self);
+        }
+
+        let actor_ids = &mut self.actor_ids;
+        let actors = &mut self.actors;
         // move back and remove all unused components
-        currents.retain(|&(_, ref c)| {
+        actors.retain(|&(_, ref c)| {
             if Arc::strong_count(c) > 1 {
                 return true;
             }
-            self.actor_ids.remove(&c.id());
+            actor_ids.remove(&c.id());
             false
         });
-        self.actors.append(&mut currents);
 
         use engine::imgui::Metric::*;
 
@@ -174,10 +178,11 @@ impl World {
             imgui::label(
                 Native(0.0, 0.0) + Pixel(8.0, 8.0),
                 &format!(
-                    "fps: {} nobj: {} r:{}",
+                    "fps: {} nobj: {} actors:{} lists:{}",
                     self.fps.fps,
                     self.engine().objects.len(),
                     self.actors.len(),
+                    self.list.len(),
                 ),
             );
         }
@@ -193,10 +198,10 @@ impl World {
 
     pub fn reset(&mut self) {
         self.list.clear();
-        self.engine.asset_system_mut().reset();
+        self.actors.clear();
+        self.actor_ids.clear();
 
-        // add back root object
-        self.root_go = Rc::downgrade(&self.new_game_object());
+        self.engine.asset_system_mut().reset();
     }
 
     pub fn event_loop(mut self) {
@@ -216,7 +221,7 @@ impl World {
     }
 
     pub fn new_game_object(&mut self) -> Handle<GameObject> {
-        let go = self.engine.new_gameobject();
+        let go = self.engine.new_game_object(&self.main_tree.root());
         self.list.push(go.clone());
 
         go

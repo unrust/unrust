@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::sync::Arc;
 use std::ops::{Deref, DerefMut};
 
-use engine::core::{Component, ComponentBased, GameObject};
+use engine::core::{Component, ComponentBased, GameObject, SceneTree};
 use engine::render::Camera;
 use engine::render::{Directional, Light};
 use engine::render::{Material, Mesh, MeshBuffer, MeshSurface, ShaderProgram, Texture};
@@ -18,7 +18,7 @@ use std::default::Default;
 use super::imgui;
 
 pub trait IEngine {
-    fn new_gameobject(&mut self) -> Rc<RefCell<GameObject>>;
+    fn new_game_object(&mut self, parent: &GameObject) -> Rc<RefCell<GameObject>>;
 
     fn asset_system<'a>(&'a self) -> &'a AssetSystem;
 
@@ -230,6 +230,10 @@ impl<A> Engine<A>
 where
     A: AssetSystem,
 {
+    pub fn new_scene_tree(&self) -> Rc<SceneTree> {
+        Rc::new(SceneTree::new())
+    }
+
     pub fn clear(&self, option: ClearOption) {
         // make sure all reset all state
         self.gl.depth_mask(true);
@@ -500,9 +504,6 @@ where
             // We dont have a main camera here, just clean the screen.
             self.clear(clear_option);
         }
-
-        // drop all gameobjects if there are no other references
-        self.objects.retain(|obj| obj.upgrade().is_some());
     }
 
     pub fn new(webgl_ctx: WebGLContext, size: (u32, u32)) -> Engine<A> {
@@ -530,13 +531,15 @@ where
         // Set the view port
         gl.viewport(0, 0, size.0, size.1);
 
+        let gui_tree = Rc::new(SceneTree::new());
+
         Engine {
             gl: gl,
             main_camera: None,
             objects: vec![],
             program_cache: RefCell::new(HashMap::new()),
             asset_system: Box::new(A::new()),
-            gui_context: Rc::new(RefCell::new(imgui::Context::new())),
+            gui_context: Rc::new(RefCell::new(imgui::Context::new(gui_tree))),
             screen_size: size,
         }
     }
@@ -547,12 +550,15 @@ where
         self.asset_system_mut().step();
     }
 
-    pub fn end(&mut self) {}
+    pub fn end(&mut self) {
+        // drop all gameobjects if there are no other references
+        self.objects.retain(|obj| obj.upgrade().is_some());
+    }
 }
 
 impl<A: AssetSystem> IEngine for Engine<A> {
-    fn new_gameobject(&mut self) -> Rc<RefCell<GameObject>> {
-        let go = Rc::new(RefCell::new(GameObject::new()));
+    fn new_game_object(&mut self, parent: &GameObject) -> Rc<RefCell<GameObject>> {
+        let go = Rc::new(RefCell::new(GameObject::new(parent.tree())));
 
         self.objects.push(Rc::downgrade(&go));
         go

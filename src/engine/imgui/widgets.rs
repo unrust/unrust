@@ -17,7 +17,12 @@ use na::{Translation3, Vector3};
 
 pub trait Widget: Debug {
     fn id(&self) -> u32;
-    fn bind(&self, ssize: (u32, u32), engine: &mut IEngine) -> Rc<RefCell<GameObject>>;
+    fn bind(
+        &self,
+        ssize: (u32, u32),
+        parent: &GameObject,
+        engine: &mut IEngine,
+    ) -> Rc<RefCell<GameObject>>;
 
     fn is_same(&self, other: &Widget) -> bool;
     fn as_any(&self) -> &Any;
@@ -205,8 +210,13 @@ impl Widget for Label {
         self.id
     }
 
-    fn bind(&self, ssize: (u32, u32), engine: &mut IEngine) -> Rc<RefCell<GameObject>> {
-        let go = engine.new_gameobject();
+    fn bind(
+        &self,
+        ssize: (u32, u32),
+        parent: &GameObject,
+        engine: &mut IEngine,
+    ) -> Rc<RefCell<GameObject>> {
+        let go = engine.new_game_object(parent);
         let db = engine.asset_system();
 
         {
@@ -283,8 +293,13 @@ impl Widget for Image {
         self.id
     }
 
-    fn bind(&self, ssize: (u32, u32), engine: &mut IEngine) -> Rc<RefCell<GameObject>> {
-        let go = engine.new_gameobject();
+    fn bind(
+        &self,
+        ssize: (u32, u32),
+        parent: &GameObject,
+        engine: &mut IEngine,
+    ) -> Rc<RefCell<GameObject>> {
+        let go = engine.new_game_object(parent);
         let db = engine.asset_system();
 
         {

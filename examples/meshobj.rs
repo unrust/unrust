@@ -41,8 +41,6 @@ impl Actor for MainScene {
     fn update(&mut self, _go: &mut GameObject, world: &mut World) {
         // Handle Events
         {
-            let target = Vector3::new(0.0, 0.0, 0.0);
-            let front = (self.eye - target).normalize();
             let up = Vector3::y();
 
             let mut reset = false;

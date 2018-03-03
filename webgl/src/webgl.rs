@@ -545,6 +545,13 @@ impl GLContext {
         }
     }
 
+    pub fn blend_color(&self, r: f32, g: f32, b: f32, a: f32) {
+        js!{
+            var ctx = Module.gl.get(@{&self.reference});
+            ctx.blendColor(@{r}, @{g}, @{b}, @{a});
+        }
+    }
+
     pub fn uniform_matrix_4fv(&self, location: &WebGLUniformLocation, value: &[[f32; 4]; 4]) {
         self.log("uniform_matrix_4fv");
         use std::mem;

@@ -532,6 +532,12 @@ impl GLContext {
         }
     }
 
+    pub fn blend_color(&self, r: f32, g: f32, b: f32, a: f32) {
+        unsafe {
+            gl::BlendColor(r, g, b, a);
+        }
+    }
+
     pub fn uniform_matrix_4fv(&self, location: &WebGLUniformLocation, value: &[[f32; 4]; 4]) {
         unsafe {
             gl::UniformMatrix4fv(*location.deref() as i32, 1, false as _, &value[0] as _);

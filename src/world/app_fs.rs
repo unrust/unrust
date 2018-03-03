@@ -3,7 +3,6 @@ use uni_app::fs;
 
 use futures::{Async, Future};
 use futures::future;
-use std::mem;
 
 // unrust engine support different file system.
 #[derive(Default)]
@@ -20,7 +19,7 @@ impl Future for AppFileReader {
             return Ok(Async::NotReady);
         }
 
-        if let Some(f) = mem::replace(&mut self.0, None) {
+        if let Some(f) = self.0.take() {
             return Ok(Async::Ready(Box::new(f)));
         }
 

@@ -27,6 +27,12 @@ enum ResourceKind<T: Debug> {
 }
 
 impl<T: Debug> ResourceKind<T> {
+    fn replace(&mut self, other: ResourceKind<T>) -> ResourceKind<T> {
+        mem::replace(self, other)
+    }
+}
+
+impl<T: Debug> ResourceKind<T> {
     fn try_into_data(self) -> Option<T> {
         match self {
             ResourceKind::Data(d) => Some(d),
@@ -68,7 +74,7 @@ impl<T: Debug + loader::Loadable> Resource<T> {
             }
 
             img @ &mut ResourceKind::Data(_) => {
-                let r = mem::replace(img, ResourceKind::Consumed);
+                let r = img.replace(ResourceKind::Consumed);
                 Ok(r.try_into_data().unwrap())
             }
 
@@ -91,7 +97,7 @@ impl<T: Debug + loader::Loadable> Resource<T> {
 
         if let Some(i) = data {
             let kind: &mut ResourceKind<T> = &mut self.0.borrow_mut();
-            mem::replace(kind, ResourceKind::Data(i));
+            kind.replace(ResourceKind::Data(i));
         }
 
         let b0 = self.0.borrow();

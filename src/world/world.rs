@@ -11,7 +11,6 @@ use engine::{AssetSystem, Camera, ClearOption, Component, ComponentBased, Engine
 use engine::imgui;
 
 use uni_app::{App, AppConfig, AppEvent, FPS};
-use std::mem;
 use std::default::Default;
 
 pub type Handle<T> = Rc<RefCell<T>>;
@@ -201,7 +200,7 @@ impl World {
     }
 
     pub fn event_loop(mut self) {
-        let app = mem::replace(&mut self.app, None).unwrap();
+        let app = self.app.take().unwrap();
 
         app.run(move |_app: &mut App| {
             self.engine.begin();

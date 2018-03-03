@@ -54,8 +54,8 @@ impl Actor for MainScene {
                         match key.code.as_str() {
                             "KeyA" => self.eye = Rotation3::new(up * -0.02) * self.eye,
                             "KeyD" => self.eye = Rotation3::new(up * 0.02) * self.eye,
-                            "KeyW" => self.eye -= front * 2.0,
-                            "KeyS" => self.eye += front * 2.0,
+                            "KeyW" => self.eye *= 0.98,
+                            "KeyS" => self.eye *= 1.02,
                             "Escape" => reset = true,
                             _ => (),
                         };

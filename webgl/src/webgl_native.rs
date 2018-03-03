@@ -66,8 +66,8 @@ impl GLContext {
         GLContext { reference: 0 }
     }
 
-    pub fn print(s: &str) {
-        print!("{}", s);
+    pub fn print<T: Into<String>>(msg: T) {
+        print!("{}", s.into());
     }
 
     pub fn create_buffer(&self) -> WebGLBuffer {

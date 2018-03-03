@@ -90,6 +90,10 @@ impl App {
         }
     }
 
+    pub fn print<T: Into<String>>(msg: T) {
+        print!("{}", s.into());
+    }
+
     pub fn window(&self) -> &glutin::GlWindow {
         &self.window
     }

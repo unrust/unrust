@@ -16,9 +16,10 @@ impl Loader<RgbaImage> for ImageLoader {
     {
         let buf = file.read_binary()
             .map_err(|_| AssetError::ReadBufferFail(file.name()))?;
-        let img = image::load_from_memory(&buf).map_err(|_| AssetError::InvalidFormat {
+        let img = image::load_from_memory(&buf).map_err(|e| AssetError::InvalidFormat {
             path: file.name(),
             len: buf.len(),
+            reason: format!("{:?}", e),
         })?;
         Ok(img.to_rgba())
     }

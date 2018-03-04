@@ -22,7 +22,11 @@ use image::ImageBuffer;
 pub enum AssetError {
     NotReady,
     ReadBufferFail(String),
-    InvalidFormat { path: String, len: usize },
+    InvalidFormat {
+        path: String,
+        len: usize,
+        reason: String,
+    },
     FileIoError(fs::FileIoError),
 }
 

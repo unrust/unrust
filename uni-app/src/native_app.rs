@@ -77,7 +77,9 @@ impl App {
             .with_gl(GlRequest::GlThenGles {
                 opengl_version: (3, 2),
                 opengles_version: (2, 0),
-            });
+            })
+            .with_gl_profile(GlProfile::Core);
+
         let gl_window = glutin::GlWindow::new(window, context, &events_loop).unwrap();
 
         unsafe {
@@ -93,6 +95,10 @@ impl App {
     pub fn print<T: Into<String>>(msg: T) {
         print!("{}", msg.into());
     }
+
+    pub fn hidpi_factor(&self) -> f32 {
+        return self.window.hidpi_factor();
+    }    
 
     pub fn window(&self) -> &glutin::GlWindow {
         &self.window
@@ -113,6 +119,7 @@ impl App {
     {
         use glutin::*;
         let mut running = true;
+
         while running {
             {
                 let (window, events_loop, events) =
@@ -128,6 +135,10 @@ impl App {
                     };
                     translate_event(event).map(|evt| events.borrow_mut().push(evt));
                 });
+            }
+
+            if !running {
+                break;
             }
 
             callback(&mut self);

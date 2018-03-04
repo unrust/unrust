@@ -153,5 +153,6 @@ pub fn translate_keycode(c: VirtualKeyCode) -> &'static str {
         WebSearch => "",
         WebStop => "",
         Yen => "",
+        Caret => "Caret",
     }
 }

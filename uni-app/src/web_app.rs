@@ -78,6 +78,10 @@ impl App {
         js!{ console.log(@{msg.into()})};
     }
 
+    pub fn hidpi_factor(&self) -> f32 {
+        return 1.0;
+    }
+
     pub fn canvas(&self) -> &CanvasElement {
         &self.window
     }

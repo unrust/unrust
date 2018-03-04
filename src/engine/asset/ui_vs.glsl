@@ -1,3 +1,8 @@
+#ifndef GL_ES
+#define attribute in
+#define varying out
+#endif
+
 attribute vec3 aVertexPosition;
 attribute vec2 aTextureCoord;
 varying vec2 vTextureCoord;

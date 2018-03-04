@@ -62,7 +62,9 @@ impl<'a> WorldBuilder<'a> {
         let size = self.size.unwrap_or((800, 600));
         let config = AppConfig::new(self.title, size);
         let app = App::new(config);
-        let engine = Engine::new(app.canvas(), size);
+
+        let hid = app.hidpi_factor();
+        let engine = Engine::new(app.canvas(), ( ((size.0 as f32) * hid) as u32, ((size.1 as f32) * hid) as u32));
         let events = app.events.clone();
         let main_tree = engine.new_scene_tree();
 

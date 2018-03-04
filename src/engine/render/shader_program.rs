@@ -3,10 +3,11 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use webgl::{ShaderKind as WebGLShaderKind, WebGLProgram, WebGLRenderingContext,
             WebGLUniformLocation};
-use engine::asset::{Asset, AssetResult, AssetSystem, FileFuture, LoadableAsset,
-                    Resource};
+use engine::asset::{Asset, AssetResult, AssetSystem, FileFuture, LoadableAsset, Resource};
 use engine::render::shader::{ShaderFs, ShaderVs};
 use engine::render::uniforms::*;
+
+use uni_app;
 
 impl Asset for ShaderProgram {
     type Resource = (Resource<ShaderVs>, Resource<ShaderFs>);
@@ -87,7 +88,7 @@ impl ShaderProgram {
         let vs = self.vs_shader.try_borrow()?;
         let fs = self.fs_shader.try_borrow()?;
 
-        let state = Some(ShaderProgramGLState::new(gl, &vs.code, &fs.code));
+        let state = Some(ShaderProgramGLState::new(gl, &vs, &fs));
         *self.gl_state.borrow_mut() = state;
 
         Ok(())
@@ -168,25 +169,31 @@ impl ShaderProgram {
 }
 
 impl ShaderProgramGLState {
-    pub fn new(gl: &WebGLRenderingContext, vs_code: &str, ps_code: &str) -> ShaderProgramGLState {
+    pub fn new(
+        gl: &WebGLRenderingContext,
+        vs_unit: &ShaderVs,
+        fs_unit: &ShaderFs,
+    ) -> ShaderProgramGLState {
         /*================ Shaders ====================*/
 
         // Create a vertex shader object
         let vert_shader = gl.create_shader(WebGLShaderKind::Vertex);
 
         // Attach vertex shader source code
-        gl.shader_source(&vert_shader, vs_code);
+        gl.shader_source(&vert_shader, &vs_unit.code);
 
         // Compile the vertex shader
+        uni_app::App::print(format!("Compiling shader file : {}\n", vs_unit.filename));
         gl.compile_shader(&vert_shader);
 
         // Create fragment shader object
         let frag_shader = gl.create_shader(WebGLShaderKind::Fragment);
 
         // Attach fragment shader source code
-        gl.shader_source(&frag_shader, ps_code);
+        gl.shader_source(&frag_shader, &fs_unit.code);
 
         // Compile the fragmentt shader
+        uni_app::App::print(format!("Compiling shader file : {}\n", fs_unit.filename));
         gl.compile_shader(&frag_shader);
 
         // Create a shader program object to store

@@ -38,6 +38,7 @@ impl ShaderKindProvider for ShaderKindFs {
 #[derive(Debug)]
 pub struct Shader<T: ShaderKindProvider> {
     pub code: String,
+    pub filename: String,
     unit: parser::TranslationUnit,
     phantom: PhantomData<*const T>,
 }
@@ -60,13 +61,13 @@ where
     pub fn new(filename: &str, s: &str) -> Shader<T> {
         let s = match T::kind() {
             ShaderKind::Vertex => if !webgl::IS_GL_ES {
-                "#version 130\n".to_string() + s
+                "#version 150\n".to_string() + s
             } else {
                 s.to_string()
             },
 
             ShaderKind::Fragment => if !webgl::IS_GL_ES {
-                "#version 130\n".to_string() + s
+                "#version 150\n".to_string() + s
             } else {
                 ("precision highp float;\n").to_string() + s
             },
@@ -82,6 +83,7 @@ where
 
         Shader {
             unit: unit,
+            filename: filename.to_string(),
             code: s.to_string(),
             phantom: PhantomData,
         }

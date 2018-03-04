@@ -2,6 +2,7 @@
 #define varying in
 #define gl_FragColor FragColor
 out vec4 FragColor;
+#define texture2D texture
 #endif
 
 #define UNI_POINT_LIGHTS 4

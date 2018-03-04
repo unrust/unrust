@@ -3,8 +3,8 @@ use std::rc;
 use std::cell::{Ref, RefCell, RefMut};
 use std::sync::Arc;
 use std::any::{Any, TypeId};
-use na::{Isometry3, Matrix4, Vector3};
-use super::scene_tree::{ComponentEvent, SceneTree};
+use na::{Isometry3, Matrix4};
+use super::scene_tree::{ComponentEvent, NodeTransform, SceneTree};
 
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
@@ -122,25 +122,18 @@ impl Drop for GameObject {
 }
 
 pub struct Transform {
-    local_transform: Isometry3<f32>,
-    local_scale: Vector3<f32>,
     node_id: u64,
     tree: rc::Weak<SceneTree>,
 }
 
 impl Transform {
     fn new(node_id: u64, tree: rc::Weak<SceneTree>) -> Transform {
-        Transform {
-            local_transform: Isometry3::identity(),
-            local_scale: Vector3::new(1.0, 1.0, 1.0),
-            node_id,
-            tree,
-        }
+        Transform { node_id, tree }
     }
 
     pub fn as_local_matrix(&self) -> Matrix4<f32> {
-        let modelm = self.local_transform.to_homogeneous();
-        modelm * Matrix4::new_nonuniform_scaling(&self.local_scale)
+        let tree = self.tree.upgrade().unwrap();
+        tree.get_local_matrix(self.node_id)
     }
 
     pub fn as_global_matrix(&self) -> Matrix4<f32> {
@@ -148,31 +141,37 @@ impl Transform {
     }
 
     fn parent_global_matrix(&self) -> Matrix4<f32> {
-        let parent = self.tree.upgrade().unwrap().get_parent(self.node_id);
-        parent.map_or(Matrix4::identity(), |p| {
-            p.borrow().transform.as_global_matrix()
-        })
-    }
+        let tree = self.tree.upgrade().unwrap();
+        let parent_id = tree.get_parent_id(self.node_id);
 
-    fn parent_global(&self) -> Isometry3<f32> {
-        let parent = self.tree.upgrade().unwrap().get_parent(self.node_id);
-        parent.map_or(Isometry3::identity(), |p| p.borrow().transform.global())
+        tree.get_global_matrix(parent_id)
     }
 
     pub fn global(&self) -> Isometry3<f32> {
-        self.parent_global() * self.local_transform
+        let tree = self.tree.upgrade().unwrap();
+        tree.get_global_transform(self.node_id).transform
+    }
+
+    pub fn parent_global(&self) -> NodeTransform {
+        let tree = self.tree.upgrade().unwrap();
+        tree.get_global_transform(self.node_id)
     }
 
     pub fn set_global(&mut self, trans: Isometry3<f32>) {
-        self.set_local(self.parent_global().inverse() * trans);
+        self.set_local(self.parent_global().transform.inverse() * trans);
     }
 
     pub fn local(&self) -> Isometry3<f32> {
-        return self.local_transform;
+        let tree = self.tree.upgrade().unwrap();
+        let local = tree.get_local_transform(self.node_id);
+        return local.transform;
     }
 
     pub fn set_local(&mut self, trans: Isometry3<f32>) {
-        self.local_transform = trans;
+        let tree = self.tree.upgrade().unwrap();
+        let mut local = tree.get_local_transform(self.node_id);
+        local.transform = trans;
+        tree.set_local_transform(self.node_id, local);
     }
 }
 

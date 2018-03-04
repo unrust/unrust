@@ -33,23 +33,8 @@ impl Actor for MainScene {
         }
 
         // Added an cemter cube in the scene
-        let center = world.new_game_object();
-        center.borrow_mut().add_component(Cube::new());
-
-        for i in 0..5 {
-            let cube = world.new_game_object();
-            let mut cube_mut = cube.borrow_mut();
-
-            cube_mut.add_component(Cube::new());
-            center.borrow_mut().add_child(&cube_mut);
-
-            let r = 10.0;
-            let rad = ((i as f32) / 5.0) * 2.0 * consts::PI;
-
-            let mut gtran = cube_mut.transform.global();
-            gtran.translation.vector = Vector3::new(rad.sin() * r, rad.cos() * r, 0.0);
-            cube_mut.transform.set_global(gtran);
-        }
+        let cube = world.new_game_object();
+        cube.borrow_mut().add_component(Cube::new());
     }
 
     fn update(&mut self, _go: &mut GameObject, world: &mut World) {
@@ -117,23 +102,57 @@ impl Actor for MainScene {
     }
 }
 
-pub struct Cube {}
+pub struct Cube {
+    level: u32,
+    radius: f32,
+}
 
 impl Actor for Cube {
     fn new() -> Box<Actor> {
-        Box::new(Cube {})
+        Box::new(Cube {
+            level: 0,
+            radius: 10.0,
+        })
     }
 
     fn start(&mut self, go: &mut GameObject, world: &mut World) {
-        let db = &mut world.asset_system();
+        {
+            let db = &mut world.asset_system();
 
-        let mut material = Material::new(db.new_program("phong"));
-        material.set("uMaterial.diffuse", db.new_texture("tex_a.png"));
-        material.set("uMaterial.shininess", 32.0);
+            let mut material = Material::new(db.new_program("phong"));
+            let s: &str = match self.level % 3 {
+                0 => "tex_a.png",
+                1 => "tex_b.png",
+                _ => "tex_r.png",
+            };
 
-        let mut mesh = Mesh::new();
-        mesh.add_surface(db.new_mesh_buffer("cube"), material);
-        go.add_component(mesh);
+            material.set("uMaterial.diffuse", db.new_texture(s));
+            material.set("uMaterial.shininess", 32.0);
+
+            let mut mesh = Mesh::new();
+            mesh.add_surface(db.new_mesh_buffer("cube"), material);
+            go.add_component(mesh);
+        }
+
+        if self.level < 2 {
+            for i in 0..5 {
+                let cube = world.new_game_object();
+                let mut cube_mut = cube.borrow_mut();
+
+                cube_mut.add_component(Cube::new_actor(Cube {
+                    level: self.level + 1,
+                    radius: self.radius * 0.5,
+                }));
+                go.add_child(&cube_mut);
+
+                let r = self.radius;
+                let rad = ((i as f32) / 5.0) * 2.0 * consts::PI;
+
+                let mut gtran = cube_mut.transform.local();
+                gtran.translation.vector = Vector3::new(rad.sin() * r, rad.cos() * r, 0.0);
+                cube_mut.transform.set_local(gtran);
+            }
+        }
     }
 
     fn update(&mut self, go: &mut GameObject, _world: &mut World) {

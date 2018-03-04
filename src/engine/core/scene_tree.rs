@@ -4,11 +4,28 @@ use std::cell::{Cell, Ref, RefCell, RefMut};
 use super::internal::GameObjectUtil;
 use std::collections::BTreeMap;
 use std::sync::Arc;
+use na::{Isometry3, Matrix4, Vector3};
+
+#[derive(Copy, Clone)]
+pub struct NodeTransform {
+    pub transform: Isometry3<f32>,
+    pub scale: Vector3<f32>,
+}
+
+impl NodeTransform {
+    fn new() -> NodeTransform {
+        NodeTransform {
+            transform: Isometry3::identity(),
+            scale: Vector3::new(1.0, 1.0, 1.0),
+        }
+    }
+}
 
 struct Node {
     parent: u64,
     children: Vec<u64>,
     go: Weak<RefCell<GameObject>>,
+    transform: NodeTransform,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -52,6 +69,7 @@ impl SceneTree {
                 parent: 0,
                 children: Vec::new(),
                 go: Rc::downgrade(&root),
+                transform: NodeTransform::new(),
             },
         );
 
@@ -95,6 +113,7 @@ impl SceneTree {
                 parent: parent_id,
                 children: Vec::new(),
                 go: Rc::downgrade(&go),
+                transform: NodeTransform::new(),
             },
         );
 
@@ -141,6 +160,51 @@ impl SceneTree {
         parent_node.go.upgrade().unwrap_or(self.root.clone())
     }
 
+    pub fn set_local_transform(&self, node_id: u64, t: NodeTransform) {
+        let mut nodes = self.nodes.borrow_mut();
+        nodes.get_mut(&node_id).unwrap().transform = t;
+    }
+
+    pub fn get_local_transform(&self, node_id: u64) -> NodeTransform {
+        let nodes = self.nodes.borrow();
+        nodes.get(&node_id).unwrap().transform
+    }
+
+    pub fn get_local_matrix(&self, node_id: u64) -> Matrix4<f32> {
+        let local = self.get_local_transform(node_id);
+        let modelm = local.transform.to_homogeneous();
+        modelm * Matrix4::new_nonuniform_scaling(&local.scale)
+    }
+
+    pub fn get_global_matrix(&self, node_id: u64) -> Matrix4<f32> {
+        let local_m = self.get_local_matrix(node_id);
+
+        if node_id == 0 {
+            local_m
+        } else {
+            self.get_global_matrix(self.get_parent_id(node_id)) * local_m
+        }
+    }
+
+    pub fn get_global_transform(&self, node_id: u64) -> NodeTransform {
+        let local = self.get_local_transform(node_id);
+        if node_id == 0 {
+            return local;
+        }
+
+        let parent_id = self.get_parent_id(node_id);
+        let parent = self.get_global_transform(parent_id);
+
+        NodeTransform {
+            transform: parent.transform * local.transform,
+            scale: Vector3::new(
+                parent.scale.x * local.scale.x,
+                parent.scale.y * local.scale.y,
+                parent.scale.z * local.scale.z,
+            ),
+        }
+    }
+
     pub fn get_parent(&self, node_id: u64) -> Option<Rc<RefCell<GameObject>>> {
         if node_id == 0 {
             return None;
@@ -152,6 +216,11 @@ impl SceneTree {
         let wgo = nodes.get(&parent_id).unwrap().go.clone();
 
         wgo.upgrade().map(|go| go.clone())
+    }
+
+    pub fn get_parent_id(&self, node_id: u64) -> u64 {
+        let nodes = self.nodes.borrow();
+        nodes.get(&node_id).unwrap().parent
     }
 
     pub fn get_childen(&self, node_id: u64) -> Vec<Rc<RefCell<GameObject>>> {

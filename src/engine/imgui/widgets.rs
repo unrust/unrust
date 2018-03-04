@@ -229,12 +229,14 @@ impl Widget for Label {
 
             mesh.add_surface(MeshBuffer::new(meshdata), Rc::new(material));
 
-            gomut.transform.append_translation_mut(&compute_translate(
+            let mut gtran = gomut.transform.global();
+            gtran.append_translation_mut(&compute_translate(
                 &self.pos,
                 &self.pivot,
                 &ssize,
                 mesh.bounds().unwrap(),
             ));
+            gomut.transform.set_global(gtran);
 
             gomut.add_component(mesh);
         }
@@ -312,12 +314,14 @@ impl Widget for Image {
 
             mesh.add_surface(MeshBuffer::new(meshdata), Rc::new(material));
 
-            gomut.transform.append_translation_mut(&compute_translate(
+            let mut gtrans = gomut.transform.global();
+            gtrans.append_translation_mut(&compute_translate(
                 &self.pos,
                 &self.pivot,
                 &ssize,
                 mesh.bounds().unwrap(),
             ));
+            gomut.transform.set_global(gtrans);
 
             gomut.add_component(mesh);
         }

@@ -4,6 +4,7 @@ use unrust::world::{Actor, World, WorldBuilder};
 use unrust::engine::{Directional, GameObject, Light, Material, Mesh};
 use unrust::world::events::*;
 use unrust::math::*;
+use std::f32::consts;
 
 // GUI
 use unrust::imgui;
@@ -18,7 +19,7 @@ pub struct MainScene {
 impl Actor for MainScene {
     fn new() -> Box<Actor> {
         Box::new(MainScene {
-            eye: Vector3::new(-15.0, 15.0, -15.0),
+            eye: Vector3::new(13.0, 26.0, -34.0),
             last_event: None,
         })
     }
@@ -35,14 +36,19 @@ impl Actor for MainScene {
         let center = world.new_game_object();
         center.borrow_mut().add_component(Cube::new());
 
-        for _ in 0..5 {
+        for i in 0..5 {
             let cube = world.new_game_object();
             let mut cube_mut = cube.borrow_mut();
 
             cube_mut.add_component(Cube::new());
             center.borrow_mut().add_child(&cube_mut);
 
-            cube_mut.transform.translation.vector = Vector3::new(0.0, 10.0, 0.0);
+            let r = 10.0;
+            let rad = ((i as f32) / 5.0) * 2.0 * consts::PI;
+
+            let mut gtran = cube_mut.transform.global();
+            gtran.translation.vector = Vector3::new(rad.sin() * r, rad.cos() * r, 0.0);
+            cube_mut.transform.set_global(gtran);
         }
     }
 
@@ -131,8 +137,9 @@ impl Actor for Cube {
     }
 
     fn update(&mut self, go: &mut GameObject, _world: &mut World) {
-        go.transform
-            .append_rotation_wrt_center_mut(&UnitQuaternion::new(Vector3::new(0.01, 0.0, 0.0)));
+        let mut ltran = go.transform.local();
+        ltran.append_rotation_wrt_center_mut(&UnitQuaternion::new(Vector3::new(0.01, 0.0, 0.0)));
+        go.transform.set_local(ltran);
     }
 }
 

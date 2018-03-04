@@ -203,9 +203,7 @@ impl DerefMut for RenderQueueList {
 }
 
 fn compute_model_m(object: &GameObject) -> Matrix4<f32> {
-    // Setup Matrices
-    let modelm = object.transform.to_homogeneous();
-    modelm * Matrix4::new_nonuniform_scaling(&object.scale)
+    object.transform.as_global_matrix()
 }
 
 pub struct ClearOption {
@@ -435,7 +433,8 @@ where
             for surface in mesh.surfaces.iter() {
                 let q = render_q.get_mut(&surface.material.render_queue).unwrap();
 
-                let cam_dist = (cam_pos - object.transform.translation.vector).norm_squared();
+                let cam_dist =
+                    (cam_pos - object.transform.global().translation.vector).norm_squared();
 
                 q.commands.push(RenderCommand {
                     surface: surface.clone(),

@@ -293,7 +293,7 @@ impl Actor for CubeActor {
             phy.phy_transform()
         };
 
-        go.transform = new_trans;
+        go.transform.set_global(new_trans);
     }
 }
 
@@ -322,7 +322,7 @@ impl Actor for PlaneActor {
             phy.phy_transform()
         };
 
-        go.transform = new_trans;
+        go.transform.set_global(new_trans);
     }
 }
 

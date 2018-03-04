@@ -19,7 +19,7 @@ pub enum RenderQueue {
 pub use self::camera::Camera;
 pub use self::shader::{ShaderFs, ShaderKind, ShaderVs};
 pub use self::shader_program::ShaderProgram;
-pub use self::texture::{Texture, TextureFiltering};
+pub use self::texture::{Texture, TextureAsset, TextureFiltering};
 pub use self::mesh::{Mesh, MeshSurface};
 pub use self::mesh_buffer::{MeshBuffer, MeshData};
 pub use self::material::{Material, MaterialParam};

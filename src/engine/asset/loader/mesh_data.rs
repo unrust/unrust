@@ -10,7 +10,7 @@ pub struct MeshDataLoader {}
 impl Loader<MeshData> for MeshDataLoader {
     fn load<A>(_asys: A, mut file: Box<File>) -> AssetResult<MeshData> {
         let bytes = file.read_binary()
-            .map_err(|_| AssetError::InvalidFormat(file.name()))?;
+            .map_err(|_| AssetError::ReadBufferFail(file.name()))?;
         let mut r = BufReader::new(bytes.as_slice());
 
         let m = obj::Obj::<SimplePolygon>::load_buf(&mut r);

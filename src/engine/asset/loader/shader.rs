@@ -10,8 +10,11 @@ pub struct ShaderFSLoader {}
 impl Loader<ShaderVs> for ShaderVSLoader {
     fn load<A>(_asys: A, mut file: Box<File>) -> AssetResult<ShaderVs> {
         let buf = file.read_binary()
-            .map_err(|_| AssetError::InvalidFormat(file.name()))?;
-        let vs = str::from_utf8(&buf).map_err(|_| AssetError::InvalidFormat(file.name()))?;
+            .map_err(|_| AssetError::ReadBufferFail(file.name()))?;
+        let vs = str::from_utf8(&buf).map_err(|_| AssetError::InvalidFormat {
+            path: file.name(),
+            len: buf.len(),
+        })?;
         Ok(ShaderVs::new(&file.name(), vs))
     }
 }
@@ -19,8 +22,11 @@ impl Loader<ShaderVs> for ShaderVSLoader {
 impl Loader<ShaderFs> for ShaderFSLoader {
     fn load<A>(_asys: A, mut file: Box<File>) -> AssetResult<ShaderFs> {
         let buf = file.read_binary()
-            .map_err(|_| AssetError::InvalidFormat(file.name()))?;
-        let fs = str::from_utf8(&buf).map_err(|_| AssetError::InvalidFormat(file.name()))?;
+            .map_err(|_| AssetError::ReadBufferFail(file.name()))?;
+        let fs = str::from_utf8(&buf).map_err(|_| AssetError::InvalidFormat {
+            path: file.name(),
+            len: buf.len(),
+        })?;
 
         Ok(ShaderFs::new(&file.name(), fs))
     }

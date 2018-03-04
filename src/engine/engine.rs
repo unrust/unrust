@@ -328,7 +328,7 @@ where
                     continue;
                 }
 
-                panic!(format!("Failed to load mesh, reason {:?}", err));
+                panic!(format!("Failed to load material, reason {:?}", err));
             }
 
             let prog = ctx.prog.upgrade().unwrap();

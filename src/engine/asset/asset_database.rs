@@ -21,7 +21,8 @@ use image::ImageBuffer;
 #[derive(Debug)]
 pub enum AssetError {
     NotReady,
-    InvalidFormat(String),
+    ReadBufferFail(String),
+    InvalidFormat { path: String, len: usize },
     FileIoError(fs::FileIoError),
 }
 

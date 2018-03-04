@@ -4,6 +4,7 @@ use image::RgbaImage;
 use std::cell::RefCell;
 use std::rc::Rc;
 use engine::asset::{Asset, AssetResult, AssetSystem, FileFuture, LoadableAsset, Resource};
+use std::path::Path;
 
 #[derive(Debug)]
 pub enum TextureFiltering {
@@ -14,6 +15,7 @@ pub enum TextureFiltering {
 #[derive(Debug)]
 enum TextureKind {
     Image(Resource<RgbaImage>),
+    CubeMap([Resource<RgbaImage>; 6]),
     RenderTexture { size: (u32, u32) },
 }
 
@@ -24,15 +26,34 @@ pub struct Texture {
     kind: TextureKind,
 }
 
-impl Asset for Texture {
-    type Resource = Resource<RgbaImage>;
+pub enum TextureAsset {
+    Single(Resource<RgbaImage>),
+    Cube([Resource<RgbaImage>; 6]),
+}
 
-    fn new_from_resource(res: Self::Resource) -> Rc<Self> {
-        Rc::new(Texture {
-            filtering: TextureFiltering::Linear,
-            gl_state: RefCell::new(None),
-            kind: TextureKind::Image(res),
-        })
+impl From<RgbaImage> for TextureAsset {
+    fn from(img: RgbaImage) -> TextureAsset {
+        TextureAsset::Single(Resource::new(img))
+    }
+}
+
+impl Asset for Texture {
+    type Resource = TextureAsset;
+
+    fn new_from_resource(r: Self::Resource) -> Rc<Self> {
+        return match r {
+            TextureAsset::Single(res) => Rc::new(Texture {
+                filtering: TextureFiltering::Linear,
+                gl_state: RefCell::new(None),
+                kind: TextureKind::Image(res),
+            }),
+
+            TextureAsset::Cube(res) => Rc::new(Texture {
+                filtering: TextureFiltering::Linear,
+                gl_state: RefCell::new(None),
+                kind: TextureKind::CubeMap(res),
+            }),
+        };
     }
 }
 
@@ -41,10 +62,50 @@ impl LoadableAsset for Texture {
         asys: &T,
         mut files: Vec<FileFuture>,
     ) -> Self::Resource {
-        Self::load_resource::<RgbaImage, T>(asys.clone(), files.remove(0))
+        if files.len() == 6 {
+            TextureAsset::Cube([
+                Self::load_resource::<RgbaImage, T>(asys.clone(), files.remove(0)),
+                Self::load_resource::<RgbaImage, T>(asys.clone(), files.remove(0)),
+                Self::load_resource::<RgbaImage, T>(asys.clone(), files.remove(0)),
+                Self::load_resource::<RgbaImage, T>(asys.clone(), files.remove(0)),
+                Self::load_resource::<RgbaImage, T>(asys.clone(), files.remove(0)),
+                Self::load_resource::<RgbaImage, T>(asys.clone(), files.remove(0)),
+            ])
+        } else {
+            TextureAsset::Single(Self::load_resource::<RgbaImage, T>(
+                asys.clone(),
+                files.remove(0),
+            ))
+        }
     }
 
     fn gather<T: AssetSystem>(asys: &T, fname: &str) -> Vec<FileFuture> {
+        let path = Path::new(fname);
+        let ext = path.extension();
+        let stem = path.file_stem();
+        let parent = path.parent();
+        let parent = parent.map_or("".to_string(), |p| p.to_str().unwrap().to_string() + "/");
+
+        if ext.is_none() || stem.is_none() {
+            return vec![asys.new_file(fname)];
+        }
+
+        let ext = ext.unwrap().to_str().unwrap();
+        let stem = stem.unwrap().to_str().unwrap();
+        let tag = "_cubemap";
+
+        if stem.to_lowercase().ends_with(tag) {
+            let f = (&stem[..stem.len() - tag.len()]).to_string();
+            return vec![
+                asys.new_file(&format!("{}{}_back.{}", &parent, &f, ext)),
+                asys.new_file(&format!("{}{}_front.{}", &parent, &f, ext)),
+                asys.new_file(&format!("{}{}_bottom.{}", &parent, &f, ext)),
+                asys.new_file(&format!("{}{}_left.{}", &parent, &f, ext)),
+                asys.new_file(&format!("{}{}_right.{}", &parent, &f, ext)),
+                asys.new_file(&format!("{}{}_top.{}", &parent, &f, ext)),
+            ];
+        }
+
         vec![asys.new_file(fname)]
     }
 }
@@ -122,6 +183,25 @@ fn texture_bind_buffer(
                 PixelFormat::Rgba,           // format
                 DataType::U8,                // type
                 &*img,                       // data
+            );
+        }
+        &TextureKind::CubeMap(ref tex) => {
+            let img0 = tex[0].try_into()?;
+            let _img1 = tex[1].try_into()?;
+            let _img2 = tex[2].try_into()?;
+
+            let _img3 = tex[3].try_into()?;
+            let _img4 = tex[4].try_into()?;
+            let _img5 = tex[5].try_into()?;
+
+            gl.tex_image2d(
+                TextureBindPoint::Texture2d, // target
+                0,                           // level
+                img0.width() as u16,         // width
+                img0.height() as u16,        // height
+                PixelFormat::Rgba,           // format
+                DataType::U8,                // type
+                &*img0,                      // data
             );
         }
 

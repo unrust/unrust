@@ -66,8 +66,8 @@ impl GLContext {
         GLContext { reference: 0 }
     }
 
-    pub fn print(s: &str) {
-        print!("{}", s);
+    pub fn print<T: Into<String>>(msg: T) {
+        print!("{}", msg.into());
     }
 
     pub fn create_buffer(&self) -> WebGLBuffer {
@@ -161,6 +161,28 @@ impl GLContext {
     pub fn link_program(&self, program: &WebGLProgram) {
         unsafe {
             gl::LinkProgram(program.0);
+            // Get the link status
+            let mut status = gl::FALSE as gl::types::GLint;
+            gl::GetProgramiv(program.0, gl::LINK_STATUS, &mut status);
+
+            // Fail on error
+            if status != (gl::TRUE as gl::types::GLint) {
+                let mut len = 0;
+                gl::GetProgramiv(program.0, gl::INFO_LOG_LENGTH, &mut len);
+                let mut buf = Vec::with_capacity(len as usize);
+                buf.set_len((len as usize) - 1); // subtract 1 to skip the trailing null character
+                gl::GetProgramInfoLog(
+                    program.0,
+                    len,
+                    ptr::null_mut(),
+                    buf.as_mut_ptr() as *mut gl::types::GLchar,
+                );
+
+                match String::from_utf8(buf) {
+                    Ok(s) => panic!(s),
+                    Err(_) => panic!("Link program fail, reason unknown"),
+                }
+            }
         }
         check_gl_error("link_program");
     }
@@ -199,7 +221,7 @@ impl GLContext {
         let c_name = CString::new(name).unwrap();
         unsafe {
             let location = gl::GetUniformLocation(program.0 as _, c_name.as_ptr());
-            check_gl_error("get_uniform_location");
+            check_gl_error(&format!("get_uniform_location {}", name));
             if location == -1 {
                 return None;
             }
@@ -498,9 +520,21 @@ impl GLContext {
         }
     }
 
+    pub fn blend_equation(&self, eq: BlendEquation) {
+        unsafe {
+            gl::BlendEquation(eq as _);
+        }
+    }
+
     pub fn blend_func(&self, b1: BlendMode, b2: BlendMode) {
         unsafe {
             gl::BlendFunc(b1 as _, b2 as _);
+        }
+    }
+
+    pub fn blend_color(&self, r: f32, g: f32, b: f32, a: f32) {
+        unsafe {
+            gl::BlendColor(r, g, b, a);
         }
     }
 

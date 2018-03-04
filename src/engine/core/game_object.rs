@@ -154,7 +154,8 @@ impl Transform {
 
     pub fn parent_global(&self) -> NodeTransform {
         let tree = self.tree.upgrade().unwrap();
-        tree.get_global_transform(self.node_id)
+        let parent_id = tree.get_parent_id(self.node_id);
+        tree.get_global_transform(parent_id)
     }
 
     pub fn set_global(&mut self, trans: Isometry3<f32>) {

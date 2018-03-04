@@ -189,9 +189,10 @@ impl GLContext {
             ctx.compileShader(shader);
 
             var compiled = ctx.getShaderParameter(shader, 0x8B81);
-            console.log("Shader compiled successfully:", compiled);
-            var compilationLog = ctx.getShaderInfoLog(shader);
-            console.log("Shader compiler log:",compilationLog);
+            if (!compiled ) {
+                console.log("ERROR in shader compilation:");
+                console.log( ctx.getShaderInfoLog(shader));
+            }
         };
     }
 
@@ -213,6 +214,11 @@ impl GLContext {
             var ctx = Module.gl.get(@{&self.reference});
             var h = Module.gl.get(@{program.deref()});
             ctx.linkProgram(h.prog);
+            var result=ctx.getProgramParameter(h.prog, ctx.LINK_STATUS);
+            if (! result) {
+                console.log("ERROR while linking program :");
+                console.log(ctx.getProgramInfoLog(h.prog));
+            }
         };
     }
 
@@ -523,11 +529,26 @@ impl GLContext {
         }
     }
 
+    pub fn blend_equation(&self, eq: BlendEquation) {
+        self.log("blend_equation");
+        js!{
+            var ctx = Module.gl.get(@{&self.reference});
+            ctx.blendEquation(@{eq as u32});
+        }
+    }
+
     pub fn blend_func(&self, b1: BlendMode, b2: BlendMode) {
         self.log("blend_func");
         js!{
             var ctx = Module.gl.get(@{&self.reference});
             ctx.blendFunc(@{b1 as u32},@{b2 as u32})
+        }
+    }
+
+    pub fn blend_color(&self, r: f32, g: f32, b: f32, a: f32) {
+        js!{
+            var ctx = Module.gl.get(@{&self.reference});
+            ctx.blendColor(@{r}, @{g}, @{b}, @{a});
         }
     }
 

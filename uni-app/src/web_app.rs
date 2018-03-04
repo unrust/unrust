@@ -74,6 +74,10 @@ impl App {
         }
     }
 
+    pub fn print<T: Into<String>>(msg: T) {
+        js!{ console.log(@{msg.into()})};
+    }
+
     pub fn canvas(&self) -> &CanvasElement {
         &self.window
     }

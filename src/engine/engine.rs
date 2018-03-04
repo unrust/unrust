@@ -27,6 +27,8 @@ pub trait IEngine {
     fn gui_context(&mut self) -> Rc<RefCell<imgui::Context>>;
 
     fn screen_size(&self) -> (u32, u32);
+
+    fn hidpi_factor(&self) -> f32;
 }
 
 pub struct Engine<A>
@@ -40,6 +42,7 @@ where
     pub program_cache: RefCell<HashMap<&'static str, Rc<ShaderProgram>>>,
     pub asset_system: Box<A>,
     pub screen_size: (u32, u32),
+    pub hidpi: f32,
 
     pub gui_context: Rc<RefCell<imgui::Context>>,
 }
@@ -505,7 +508,7 @@ where
         }
     }
 
-    pub fn new(webgl_ctx: WebGLContext, size: (u32, u32)) -> Engine<A> {
+    pub fn new(webgl_ctx: WebGLContext, size: (u32, u32), hidpi: f32) -> Engine<A> {
         let gl = WebGLRenderingContext::new(webgl_ctx);
 
         /*=========Drawing the triangle===========*/
@@ -540,6 +543,7 @@ where
             asset_system: Box::new(A::new()),
             gui_context: Rc::new(RefCell::new(imgui::Context::new(gui_tree))),
             screen_size: size,
+            hidpi: hidpi,
         }
     }
 
@@ -577,5 +581,9 @@ impl<A: AssetSystem> IEngine for Engine<A> {
 
     fn screen_size(&self) -> (u32, u32) {
         self.screen_size
+    }
+
+    fn hidpi_factor(&self) -> f32 {
+        self.hidpi
     }
 }

@@ -63,8 +63,15 @@ impl<'a> WorldBuilder<'a> {
         let config = AppConfig::new(self.title, size);
         let app = App::new(config);
 
-        let hid = app.hidpi_factor();
-        let engine = Engine::new(app.canvas(), ( ((size.0 as f32) * hid) as u32, ((size.1 as f32) * hid) as u32));
+        let hidpi = app.hidpi_factor();
+        let engine = Engine::new(
+            app.canvas(),
+            (
+                ((size.0 as f32) * hidpi) as u32,
+                ((size.1 as f32) * hidpi) as u32,
+            ),
+            hidpi,
+        );
         let events = app.events.clone();
         let main_tree = engine.new_scene_tree();
 

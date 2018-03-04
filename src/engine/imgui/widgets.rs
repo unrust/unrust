@@ -34,7 +34,7 @@ impl PartialEq for Widget {
     }
 }
 
-fn make_text_mesh_data(s: &str, size: (u32, u32)) -> MeshData {
+fn make_text_mesh_data(s: &str, size: (u32, u32), hidpi: f32) -> MeshData {
     let mut vertices = vec![];
     let mut uvs = vec![];
     let mut indices = vec![];
@@ -45,8 +45,8 @@ fn make_text_mesh_data(s: &str, size: (u32, u32)) -> MeshData {
     let mut i = 0;
     let nrow = 128 / 8;
 
-    let gw = ((8 as f32) / size.0 as f32) * 2.0;
-    let gh = ((8 as f32) / size.1 as f32) * 2.0;
+    let gw = ((8 as f32) / size.0 as f32) * 2.0 * hidpi;
+    let gh = ((8 as f32) / size.1 as f32) * 2.0 * hidpi;
     let mut base_y = 0.0;
 
     let lines: Vec<&str> = s.split('\n').collect();
@@ -143,12 +143,12 @@ fn make_quad_mesh_data(size: (f32, f32)) -> MeshData {
     }
 }
 
-fn compute_size_to_ndc(size: &Metric, ssize: &(u32, u32)) -> (f32, f32) {
+fn compute_size_to_ndc(size: &Metric, ssize: &(u32, u32), hidpi: f32) -> (f32, f32) {
     let (x, y) = match size {
         &Metric::Native(px, py) => (px * 2.0, py * 2.0),
-        &Metric::Pixel(px, py) => to_pixel_pos(px, py, ssize),
+        &Metric::Pixel(px, py) => to_pixel_pos(px, py, ssize, hidpi),
         &Metric::Mixed((ax, ay), (bx, by)) => {
-            let vp = to_pixel_pos(bx, by, ssize);
+            let vp = to_pixel_pos(bx, by, ssize, hidpi);
             (ax * 2.0 + vp.0, ay * 2.0 + vp.1)
         }
     };
@@ -160,6 +160,7 @@ fn compute_translate(
     pos: &Metric,
     pivot: &Metric,
     ssize: &(u32, u32),
+    hidpi: f32,
     bounds: (Vector3<f32>, Vector3<f32>),
 ) -> Translation3<f32> {
     let w = bounds.1.x - bounds.0.x;
@@ -167,9 +168,9 @@ fn compute_translate(
 
     let (x, y) = match pos {
         &Metric::Native(px, py) => (px * 2.0, py * 2.0),
-        &Metric::Pixel(px, py) => to_pixel_pos(px, py, ssize),
+        &Metric::Pixel(px, py) => to_pixel_pos(px, py, ssize, hidpi),
         &Metric::Mixed((ax, ay), (bx, by)) => {
-            let vp = to_pixel_pos(bx, by, ssize);
+            let vp = to_pixel_pos(bx, by, ssize, hidpi);
             (ax * 2.0 + vp.0, ay * 2.0 + vp.1)
         }
     };
@@ -182,8 +183,11 @@ fn compute_translate(
     Translation3::new(x - 1.0 - offsetx, y * -1.0 + 1.0 + offsety, 0.0)
 }
 
-fn to_pixel_pos(px: f32, py: f32, ssize: &(u32, u32)) -> (f32, f32) {
-    (((px * 2.0) / (ssize.0 as f32), (py * 2.0) / (ssize.1 as f32)))
+fn to_pixel_pos(px: f32, py: f32, ssize: &(u32, u32), hidpi: f32) -> (f32, f32) {
+    ((
+        (px * 2.0 * hidpi) / (ssize.0 as f32),
+        (py * 2.0 * hidpi) / (ssize.1 as f32),
+    ))
 }
 
 #[derive(Debug, PartialEq)]
@@ -218,10 +222,11 @@ impl Widget for Label {
     ) -> Rc<RefCell<GameObject>> {
         let go = engine.new_game_object(parent);
         let db = engine.asset_system();
+        let hidpi = engine.hidpi_factor();
 
         {
             let mut gomut = go.borrow_mut();
-            let meshdata = make_text_mesh_data(&self.s, ssize);
+            let meshdata = make_text_mesh_data(&self.s, ssize, hidpi);
 
             let mut mesh = Mesh::new();
             let mut material = Material::new(db.new_program("default_ui"));
@@ -234,6 +239,7 @@ impl Widget for Label {
                 &self.pos,
                 &self.pivot,
                 &ssize,
+                hidpi,
                 mesh.bounds().unwrap(),
             ));
             gomut.transform.set_global(gtran);
@@ -305,8 +311,9 @@ impl Widget for Image {
         let db = engine.asset_system();
 
         {
+            let hidpi = engine.hidpi_factor();
             let mut gomut = go.borrow_mut();
-            let meshdata = make_quad_mesh_data(compute_size_to_ndc(&self.size, &ssize));
+            let meshdata = make_quad_mesh_data(compute_size_to_ndc(&self.size, &ssize, hidpi));
 
             let mut mesh = Mesh::new();
             let mut material = Material::new(db.new_program("default_ui"));
@@ -319,6 +326,7 @@ impl Widget for Image {
                 &self.pos,
                 &self.pivot,
                 &ssize,
+                hidpi,
                 mesh.bounds().unwrap(),
             ));
             gomut.transform.set_global(gtrans);

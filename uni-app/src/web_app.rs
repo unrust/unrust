@@ -160,7 +160,7 @@ impl App {
 }
 
 pub fn now() -> f64 {
-    let v = js! { return performance.now(); };
+    let v = js! { return performance.now()/1000.0; };
     return v.try_into().unwrap();
 }
 

@@ -27,6 +27,5 @@ cargo web start --example boxes --release
 ### As desktop app (native-opengl)
 ```
 rustup override set nightly
-rustup target install wasm32-unknown-unknown
 cargo run --example boxes --release
 ```

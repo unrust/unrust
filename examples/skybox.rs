@@ -42,6 +42,7 @@ impl Actor for MainScene {
         // Handle Events
         {
             let up = Vector3::y();
+            let left = up.cross(&self.eye).normalize();
 
             let mut reset = false;
 
@@ -50,10 +51,10 @@ impl Actor for MainScene {
                 match evt {
                     &AppEvent::KeyDown(ref key) => {
                         match key.code.as_str() {
-                            "KeyA" => self.eye = Rotation3::new(up * -0.02) * self.eye,
-                            "KeyD" => self.eye = Rotation3::new(up * 0.02) * self.eye,
-                            "KeyW" => self.eye = Rotation3::new(Vector3::x() * -0.02) * self.eye,
-                            "KeyS" => self.eye = Rotation3::new(Vector3::x() * 0.02) * self.eye,
+                            "KeyA" => self.eye = Rotation3::new(up * 0.02) * self.eye,
+                            "KeyD" => self.eye = Rotation3::new(up * -0.02) * self.eye,
+                            "KeyW" => self.eye = Rotation3::new(left * 0.02) * self.eye,
+                            "KeyS" => self.eye = Rotation3::new(left * -0.02) * self.eye,
                             "Escape" => reset = true,
                             _ => (),
                         };

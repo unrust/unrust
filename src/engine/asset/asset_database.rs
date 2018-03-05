@@ -2,7 +2,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use engine::asset::{CubeMesh, PlaneMesh, Quad};
+use engine::asset::{CubeMesh, PlaneMesh, QuadMesh, SkyboxMesh};
 use engine::asset::default_font_bitmap::DEFAULT_FONT_DATA;
 use engine::asset::fs;
 use engine::asset::loader;
@@ -235,7 +235,8 @@ where
             let mut hm = self.mesh_buffers.borrow_mut();
             hm.insert("cube".into(), MeshBuffer::new(CubeMesh::new()));
             hm.insert("plane".into(), MeshBuffer::new(PlaneMesh::new()));
-            hm.insert("screen_quad".into(), MeshBuffer::new(Quad::new()));
+            hm.insert("screen_quad".into(), MeshBuffer::new(QuadMesh::new()));
+            hm.insert("skybox".into(), MeshBuffer::new(SkyboxMesh::new()));
         }
 
         {

@@ -112,9 +112,3 @@ pub enum AppEvent {
     KeyUp(KeyUpEvent),
     Resized((u32, u32)),
 }
-
-pub struct FPS {
-    counter: u32,
-    last: f64,
-    pub fps: u32,
-}

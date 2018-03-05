@@ -506,18 +506,40 @@ impl GLContext {
         unsafe {
             gl::ActiveTexture(gl::TEXTURE0 + active);
         }
+
+        check_gl_error("unbind_texture");
     }
 
     pub fn bind_texture(&self, texture: &WebGLTexture) {
         unsafe {
             gl::BindTexture(gl::TEXTURE_2D, texture.0);
         }
+
+        check_gl_error("bind_texture");
     }
 
     pub fn unbind_texture(&self) {
         unsafe {
             gl::BindTexture(gl::TEXTURE_2D, 0);
         }
+
+        check_gl_error("unbind_texture");
+    }
+
+    pub fn bind_texture_cube(&self, texture: &WebGLTexture) {
+        unsafe {
+            gl::BindTexture(gl::TEXTURE_CUBE_MAP, texture.0);
+        }
+
+        check_gl_error("bind_texture_cube");
+    }
+
+    pub fn unbind_texture_cube(&self) {
+        unsafe {
+            gl::BindTexture(gl::TEXTURE_CUBE_MAP, 0);
+        }
+
+        check_gl_error("unbind_texture_cube");
     }
 
     pub fn blend_equation(&self, eq: BlendEquation) {
@@ -586,16 +608,18 @@ impl GLContext {
         }
     }
 
-    pub fn tex_parameteri(&self, pname: TextureParameter, param: i32) {
+    pub fn tex_parameteri(&self, kind: TextureKind, pname: TextureParameter, param: i32) {
         unsafe {
-            gl::TexParameteri(gl::TEXTURE_2D, pname as _, param);
+            gl::TexParameteri(kind as _, pname as _, param);
         }
+        check_gl_error("tex_parameteri");
     }
 
-    pub fn tex_parameterfv(&self, pname: TextureParameter, param: f32) {
+    pub fn tex_parameterfv(&self, kind: TextureKind, pname: TextureParameter, param: f32) {
         unsafe {
-            gl::TexParameterfv(gl::TEXTURE_2D, pname as _, &param);
+            gl::TexParameterfv(kind as _, pname as _, &param);
         }
+        check_gl_error("tex_parameterfv");
     }
 
     pub fn create_vertex_array(&self) -> WebGLVertexArray {

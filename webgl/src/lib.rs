@@ -1,8 +1,8 @@
-#![allow(dead_code)]
-#![feature(nll)]
 #![recursion_limit = "512"]
 
-extern crate glenum;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
 
 #[cfg(not(target_arch = "wasm32"))]
 extern crate gl;
@@ -24,6 +24,8 @@ pub const IS_GL_ES: bool = false;
 
 #[cfg(target_arch = "wasm32")]
 pub const IS_GL_ES: bool = true;
+
+mod glenum;
 
 pub use glenum::*;
 pub use webgl::WebGLContext;

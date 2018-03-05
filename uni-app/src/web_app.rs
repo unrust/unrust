@@ -13,7 +13,6 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use AppEvent;
-use FPS;
 
 pub struct App {
     window: CanvasElement,
@@ -164,28 +163,8 @@ impl App {
 }
 
 pub fn now() -> f64 {
-    let v = js! { return performance.now()/1000.0; };
+    // perforamce now is in ms
+    // https://developer.mozilla.org/en-US/docs/Web/API/Performance/now
+    let v = js! { return performance.now() / 1000.0; };
     return v.try_into().unwrap();
-}
-
-impl FPS {
-    pub fn new() -> FPS {
-        let fps = FPS {
-            counter: 0,
-            last: now(),
-            fps: 0,
-        };
-
-        fps
-    }
-
-    pub fn step(&mut self) {
-        self.counter += 1;
-        let curr = now();
-        if curr - self.last > 1000.0 {
-            self.last = curr;
-            self.fps = self.counter;
-            self.counter = 0;
-        }
-    }
 }

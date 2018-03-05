@@ -289,8 +289,18 @@ where
     fn setup_camera(&self, ctx: &mut EngineContext, modelm: Matrix4<f32>, camera: &Camera) {
         let prog = ctx.prog.upgrade().unwrap();
         // setup_camera
+        let perspective = camera.perspective(self.screen_size);
+
         prog.set("uMVMatrix", camera.v * modelm);
-        prog.set("uPMatrix", camera.perspective(self.screen_size));
+        prog.set("uPMatrix", perspective);
+
+        let skybox_v = camera.v.fixed_slice::<U3, U3>(0, 0);
+        let mut skybox_v = skybox_v.fixed_resize::<U4, U4>(0.0);
+        skybox_v.data[15] = 1.0;
+
+        prog.set("uPVMatrix", perspective * camera.v);
+        prog.set("uPVSkyboxMatrix", perspective * skybox_v);
+
         prog.set("uNMatrix", modelm.try_inverse().unwrap().transpose());
         prog.set("uMMatrix", modelm);
         prog.set("uViewPos", camera.eye());

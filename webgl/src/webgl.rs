@@ -517,7 +517,7 @@ impl GLContext {
         js!{
             var ctx = Module.gl.get(@{&self.reference});
             var tex = Module.gl.get(@{&texture.0});
-            ctx.bindTexture(@{TextureBindPoint::Texture2d as u32 }, tex)
+            ctx.bindTexture(@{TextureKind::Texture2d as u32 }, tex)
         }
     }
 
@@ -525,7 +525,24 @@ impl GLContext {
         self.log("unbind_tex");
         js!{
             var ctx = Module.gl.get(@{&self.reference});
-            ctx.bindTexture(@{TextureBindPoint::Texture2d as u32 },null)
+            ctx.bindTexture(@{TextureKind::Texture2d as u32 },null)
+        }
+    }
+
+    pub fn bind_texture_cube(&self, texture: &WebGLTexture) {
+        self.log("bind_tex_cube");
+        js!{
+            var ctx = Module.gl.get(@{&self.reference});
+            var tex = Module.gl.get(@{&texture.0});
+            ctx.bindTexture(@{TextureKind::TextureCubeMap as u32 }, tex)
+        }
+    }
+
+    pub fn unbind_texture_cube(&self) {
+        self.log("unbind_tex_cube");
+        js!{
+            var ctx = Module.gl.get(@{&self.reference});
+            ctx.bindTexture(@{TextureKind::TextureCubeMap as u32 },null)
         }
     }
 
@@ -756,17 +773,17 @@ impl GLContext {
     //     )
     // }
 
-    pub fn tex_parameteri(&self, pname: TextureParameter, param: i32) {
+    pub fn tex_parameteri(&self, kind: TextureKind, pname: TextureParameter, param: i32) {
         js! {
             var ctx = Module.gl.get(@{self.reference});
-            return ctx.texParameteri(@{TextureBindPoint::Texture2d as u32},@{pname as u32},@{param})
+            return ctx.texParameteri(@{kind as u32},@{pname as u32},@{param})
         };
     }
 
-    pub fn tex_parameterfv(&self, pname: TextureParameter, param: f32) {
+    pub fn tex_parameterfv(&self, kind: TextureKind, pname: TextureParameter, param: f32) {
         js! {
             var ctx = Module.gl.get(@{self.reference});
-            return ctx.texParameterf(@{TextureBindPoint::Texture2d as u32},@{pname as u32},@{param})
+            return ctx.texParameterf(@{kind as u32},@{pname as u32},@{param})
         };
     }
 

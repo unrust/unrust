@@ -1,8 +1,8 @@
 use engine::render::MeshData;
 
-pub struct Quad {}
+pub struct QuadMesh {}
 
-impl Quad {
+impl QuadMesh {
     pub fn new() -> MeshData {
         let vertices: Vec<f32> = vec![
             -1.0, 1.0, 0.0,     // 0

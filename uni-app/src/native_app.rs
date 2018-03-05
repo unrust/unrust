@@ -9,7 +9,6 @@ use time;
 
 use AppConfig;
 use AppEvent;
-use FPS;
 
 use super::events;
 use self::native_keycode::translate_keycode;
@@ -98,7 +97,7 @@ impl App {
 
     pub fn hidpi_factor(&self) -> f32 {
         return self.window.hidpi_factor();
-    }    
+    }
 
     pub fn window(&self) -> &glutin::GlWindow {
         &self.window
@@ -150,30 +149,7 @@ impl App {
 }
 
 pub fn now() -> f64 {
+    // precise_time_s() is in second
+    // https://doc.rust-lang.org/time/time/fn.precise_time_s.html
     return time::precise_time_s();
-}
-
-impl FPS {
-    pub fn new() -> FPS {
-        let fps = FPS {
-            counter: 0,
-            last: now(),
-            fps: 0,
-        };
-
-        fps
-    }
-
-    pub fn step(&mut self) {
-        self.counter += 1;
-        let curr = now();
-        if curr - self.last > 1.0 {
-            self.last = curr;
-            self.fps = self.counter;
-            self.counter = 0;
-            println!("{}", self.fps)
-            //     let _content = document().query_selector("#fps");
-            //     js!( @{_content}.innerText = "fps : " + @{self.fps} );
-        }
-    }
 }

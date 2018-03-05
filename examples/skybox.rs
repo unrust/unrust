@@ -1,7 +1,7 @@
 extern crate unrust;
 
 use unrust::world::{Actor, World, WorldBuilder};
-use unrust::engine::{Directional, GameObject, Light, Material, Mesh};
+use unrust::engine::{Directional, GameObject, Light, Material, Mesh, RenderQueue};
 use unrust::world::events::*;
 use unrust::math::*;
 
@@ -18,7 +18,7 @@ pub struct MainScene {
 impl Actor for MainScene {
     fn new() -> Box<Actor> {
         Box::new(MainScene {
-            eye: Vector3::new(-3.0, 3.0, -3.0),
+            eye: Vector3::new(-3.0, 0.0, -3.0),
             last_event: None,
         })
     }
@@ -31,18 +31,16 @@ impl Actor for MainScene {
                 .add_component(Light::new(Directional::default()));
         }
 
-        // Added a cube in the scene
+        // Added a SkyBox in the scene
         {
             let go = world.new_game_object();
-            go.borrow_mut().add_component(Cube::new());
+            go.borrow_mut().add_component(SkyBox::new());
         }
     }
 
     fn update(&mut self, _go: &mut GameObject, world: &mut World) {
         // Handle Events
         {
-            let target = Vector3::new(0.0, 0.0, 0.0);
-            let front = (self.eye - target).normalize();
             let up = Vector3::y();
 
             let mut reset = false;
@@ -54,8 +52,8 @@ impl Actor for MainScene {
                         match key.code.as_str() {
                             "KeyA" => self.eye = Rotation3::new(up * -0.02) * self.eye,
                             "KeyD" => self.eye = Rotation3::new(up * 0.02) * self.eye,
-                            "KeyW" => self.eye -= front * 2.0,
-                            "KeyS" => self.eye += front * 2.0,
+                            "KeyW" => self.eye = Rotation3::new(Vector3::x() * -0.02) * self.eye,
+                            "KeyS" => self.eye = Rotation3::new(Vector3::x() * 0.02) * self.eye,
                             "Escape" => reset = true,
                             _ => (),
                         };
@@ -103,32 +101,23 @@ impl Actor for MainScene {
     }
 }
 
-pub struct Cube {}
+pub struct SkyBox {}
 
-impl Actor for Cube {
+impl Actor for SkyBox {
     fn new() -> Box<Actor> {
-        Box::new(Cube {})
+        Box::new(SkyBox {})
     }
 
     fn start(&mut self, go: &mut GameObject, world: &mut World) {
         let db = &mut world.asset_system();
 
-        let mut material = Material::new(db.new_program("phong"));
-        material.set(
-            "uMaterial.diffuse",
-            db.new_texture("skybox/sky_cubemap.png"),
-        );
-        material.set("uMaterial.shininess", 32.0);
+        let mut material = Material::new(db.new_program("skybox"));
+        material.set("uSkybox", db.new_texture("skybox/sky_cubemap.png"));
+        material.render_queue = RenderQueue::Transparent;
 
         let mut mesh = Mesh::new();
-        mesh.add_surface(db.new_mesh_buffer("cube"), material);
+        mesh.add_surface(db.new_mesh_buffer("skybox"), material);
         go.add_component(mesh);
-    }
-
-    fn update(&mut self, go: &mut GameObject, _world: &mut World) {
-        let mut gtran = go.transform.global();
-        gtran.append_rotation_mut(&UnitQuaternion::new(Vector3::new(0.01, 0.02, 0.005)));
-        go.transform.set_global(gtran);
     }
 }
 

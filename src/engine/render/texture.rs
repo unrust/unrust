@@ -1,4 +1,6 @@
 use webgl::*;
+use webgl;
+
 use image::RgbaImage;
 
 use std::cell::RefCell;
@@ -97,12 +99,12 @@ impl LoadableAsset for Texture {
         if stem.to_lowercase().ends_with(tag) {
             let f = (&stem[..stem.len() - tag.len()]).to_string();
             return vec![
-                asys.new_file(&format!("{}{}_back.{}", &parent, &f, ext)),
-                asys.new_file(&format!("{}{}_front.{}", &parent, &f, ext)),
-                asys.new_file(&format!("{}{}_bottom.{}", &parent, &f, ext)),
-                asys.new_file(&format!("{}{}_left.{}", &parent, &f, ext)),
                 asys.new_file(&format!("{}{}_right.{}", &parent, &f, ext)),
+                asys.new_file(&format!("{}{}_left.{}", &parent, &f, ext)),
                 asys.new_file(&format!("{}{}_top.{}", &parent, &f, ext)),
+                asys.new_file(&format!("{}{}_bottom.{}", &parent, &f, ext)),
+                asys.new_file(&format!("{}{}_front.{}", &parent, &f, ext)),
+                asys.new_file(&format!("{}{}_back.{}", &parent, &f, ext)),
             ];
         }
 
@@ -133,7 +135,10 @@ impl Texture {
         let state = state_option.as_ref().unwrap();
 
         gl.active_texture(unit);
-        gl.bind_texture(&state.tex);
+        match self.kind {
+            TextureKind::CubeMap(_) => gl.bind_texture_cube(&state.tex),
+            _ => gl.bind_texture(&state.tex),
+        }
 
         Ok(())
     }
@@ -161,19 +166,31 @@ fn bind_to_framebuffer(gl: &WebGLRenderingContext, tex: &WebGLTexture) {
     );
 }
 
+fn unbind_texture(gl: &WebGLRenderingContext, kind: &TextureKind) {
+    match kind {
+        &TextureKind::Image(_) | &TextureKind::RenderTexture { .. } => {
+            gl.unbind_texture();
+        }
+        &TextureKind::CubeMap(_) => {
+            gl.unbind_texture_cube();
+        }
+    }
+}
+
 fn texture_bind_buffer(
     gl: &WebGLRenderingContext,
     texfilter: &TextureFiltering,
     kind: &TextureKind,
 ) -> AssetResult<TextureGLState> {
-    let tex = gl.create_texture();
+    let mut gl_tex_kind: webgl::TextureKind = webgl::TextureKind::Texture2d;
 
-    gl.active_texture(0);
-    gl.bind_texture(&tex);
+    let tex = match kind {
+        &TextureKind::Image(ref img_res) => {
+            let img = img_res.try_into()?;
 
-    match kind {
-        &TextureKind::Image(ref tex) => {
-            let img = tex.try_into()?;
+            let tex = gl.create_texture();
+            gl.active_texture(0);
+            gl.bind_texture(&tex);
 
             gl.tex_image2d(
                 TextureBindPoint::Texture2d, // target
@@ -184,28 +201,50 @@ fn texture_bind_buffer(
                 DataType::U8,                // type
                 &*img,                       // data
             );
+
+            tex
         }
-        &TextureKind::CubeMap(ref tex) => {
-            let img0 = tex[0].try_borrow()?;
-            let _img1 = tex[1].try_borrow()?;
-            let _img2 = tex[2].try_borrow()?;
+        &TextureKind::CubeMap(ref img_res) => {
+            let mut imgs = Vec::new();
 
-            let _img3 = tex[3].try_borrow()?;
-            let _img4 = tex[4].try_borrow()?;
-            let _img5 = tex[5].try_borrow()?;
+            let bindpoints = [
+                TextureBindPoint::TextureCubeMapPositiveX,
+                TextureBindPoint::TextureCubeMapNegativeX,
+                TextureBindPoint::TextureCubeMapPositiveY,
+                TextureBindPoint::TextureCubeMapNegativeY,
+                TextureBindPoint::TextureCubeMapPositiveZ,
+                TextureBindPoint::TextureCubeMapNegativeZ,
+            ];
 
-            gl.tex_image2d(
-                TextureBindPoint::Texture2d, // target
-                0,                           // level
-                img0.width() as u16,         // width
-                img0.height() as u16,        // height
-                PixelFormat::Rgba,           // format
-                DataType::U8,                // type
-                &*img0,                      // data
-            );
+            for res in img_res.iter() {
+                imgs.push(res.try_borrow()?)
+            }
+
+            let tex = gl.create_texture();
+            gl.active_texture(0);
+            gl.bind_texture_cube(&tex);
+
+            for (i, img) in imgs.iter().enumerate() {
+                gl.tex_image2d(
+                    bindpoints[i],       // target
+                    0,                   // level
+                    img.width() as u16,  // width
+                    img.height() as u16, // height
+                    PixelFormat::Rgba,   // format
+                    DataType::U8,        // type
+                    &*img,               // data
+                );
+            }
+
+            gl_tex_kind = webgl::TextureKind::TextureCubeMap;
+
+            tex
         }
 
         &TextureKind::RenderTexture { size } => {
+            let tex = gl.create_texture();
+            gl.active_texture(0);
+            gl.bind_texture(&tex);
             gl.tex_image2d(
                 TextureBindPoint::Texture2d, // target
                 0,                           // level
@@ -215,30 +254,42 @@ fn texture_bind_buffer(
                 DataType::U8,                // type
                 &[],                         // data
             );
+
+            tex
         }
-    }
+    };
 
     let filtering: i32 = match texfilter {
         &TextureFiltering::Nearest => TextureMagFilter::Nearest as i32,
         _ => TextureMagFilter::Linear as i32,
     };
 
-    gl.tex_parameteri(TextureParameter::TextureMagFilter, filtering);
-    gl.tex_parameteri(TextureParameter::TextureMinFilter, filtering);
+    gl.tex_parameteri(gl_tex_kind, TextureParameter::TextureMagFilter, filtering);
+    gl.tex_parameteri(gl_tex_kind, TextureParameter::TextureMinFilter, filtering);
     gl.tex_parameteri(
+        gl_tex_kind,
         TextureParameter::TextureWrapS,
         TextureWrap::ClampToEdge as i32,
     );
     gl.tex_parameteri(
+        gl_tex_kind,
         TextureParameter::TextureWrapT,
         TextureWrap::ClampToEdge as i32,
     );
+
+    if let &TextureKind::CubeMap(..) = kind {
+        gl.tex_parameteri(
+            gl_tex_kind,
+            TextureParameter::TextureWrapR,
+            TextureWrap::ClampToEdge as i32,
+        );
+    }
 
     if let &TextureKind::RenderTexture { .. } = kind {
         bind_to_framebuffer(gl, &tex);
     }
 
-    gl.unbind_texture();
+    unbind_texture(gl, kind);
 
     Ok(TextureGLState { tex: tex })
 }

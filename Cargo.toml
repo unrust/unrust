@@ -24,7 +24,7 @@ features = ["nightly"]
 [dependencies.image]
 version = "*"
 default-features = false
-features = ["png_codec", "jpeg"]
+features = ["png_codec"]
 
 [replace]
 "rustc-serialize:0.3.24" = { path = "wasm-rustc-serialize" }

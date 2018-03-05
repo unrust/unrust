@@ -116,7 +116,7 @@ impl Actor for Cube {
         let mut material = Material::new(db.new_program("phong"));
         material.set(
             "uMaterial.diffuse",
-            db.new_texture("skybox/sky_cubemap.jpg"),
+            db.new_texture("skybox/sky_cubemap.png"),
         );
         material.set("uMaterial.shininess", 32.0);
 

@@ -186,13 +186,13 @@ fn texture_bind_buffer(
             );
         }
         &TextureKind::CubeMap(ref tex) => {
-            let img0 = tex[0].try_into()?;
-            let _img1 = tex[1].try_into()?;
-            let _img2 = tex[2].try_into()?;
+            let img0 = tex[0].try_borrow()?;
+            let _img1 = tex[1].try_borrow()?;
+            let _img2 = tex[2].try_borrow()?;
 
-            let _img3 = tex[3].try_into()?;
-            let _img4 = tex[4].try_into()?;
-            let _img5 = tex[5].try_into()?;
+            let _img3 = tex[3].try_borrow()?;
+            let _img4 = tex[4].try_borrow()?;
+            let _img5 = tex[5].try_borrow()?;
 
             gl.tex_image2d(
                 TextureBindPoint::Texture2d, // target

@@ -1,6 +1,7 @@
 use na::{Matrix4, Point3, Vector3};
 use std::rc::Rc;
 use engine::render::RenderTexture;
+use engine::core::ComponentBased;
 
 pub struct Camera {
     pub v: Matrix4<f32>,
@@ -12,6 +13,15 @@ pub struct Camera {
     eye: Point3<f32>,
     pub render_texture: Option<Rc<RenderTexture>>,
 }
+
+impl Default for Camera {
+    fn default() -> Camera {
+        let cam = Camera::new();
+        cam
+    }
+}
+
+impl ComponentBased for Camera {}
 
 impl Camera {
     pub fn lookat(&mut self, eye: &Point3<f32>, target: &Point3<f32>, up: &Vector3<f32>) {

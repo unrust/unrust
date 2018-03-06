@@ -1,7 +1,7 @@
 extern crate unrust;
 
 use unrust::world::{Actor, World, WorldBuilder};
-use unrust::engine::{Directional, GameObject, Light, Material, Mesh};
+use unrust::engine::{Camera, Directional, GameObject, Light, Material, Mesh};
 use unrust::world::events::*;
 use unrust::math::*;
 
@@ -24,6 +24,12 @@ impl Actor for MainScene {
     }
 
     fn start(&mut self, _go: &mut GameObject, world: &mut World) {
+        // add main camera to scene
+        {
+            let go = world.new_game_object();
+            go.borrow_mut().add_component(Camera::default());
+        }
+
         // add direction light to scene.
         {
             let go = world.new_game_object();
@@ -77,9 +83,8 @@ impl Actor for MainScene {
 
         // Update Camera
         {
-            let mut cam = world.current_camera().unwrap();
-
-            cam.lookat(
+            let cam = world.current_camera().unwrap();
+            cam.borrow_mut().lookat(
                 &Point3::from_coordinates(self.eye),
                 &Point3::new(0.0, 0.0, 0.0),
                 &Vector3::new(0.0, 1.0, 0.0),

@@ -38,13 +38,12 @@ where
     A: AssetSystem,
 {
     pub gl: WebGLRenderingContext,
-    pub main_camera: Option<Rc<RefCell<Camera>>>,
-
     pub objects: Vec<Weak<RefCell<GameObject>>>,
     pub program_cache: RefCell<HashMap<&'static str, Rc<ShaderProgram>>>,
     pub asset_system: Box<A>,
     pub screen_size: (u32, u32),
     pub hidpi: f32,
+    pub current_camera: RefCell<Option<Arc<Component>>>,
 
     pub gui_context: Rc<RefCell<imgui::Context>>,
 }
@@ -555,11 +554,24 @@ where
         }
     }
 
+    pub fn main_camera(&self) -> Option<Arc<Component>> {
+        let mut found = self.current_camera.borrow_mut();
+        if let None = *found {
+            *found = self.find_component::<Camera>();
+        }
+
+        if let Some(ref c) = *found {
+            return Some(c.clone());
+        }
+
+        None
+    }
+
     pub fn render(&mut self, clear_option: ClearOption) {
         imgui::pre_render(self);
 
-        if let Some(ref camera) = self.main_camera.as_ref() {
-            self.render_pass(&camera.borrow(), clear_option);
+        if let Some(ref camera) = self.main_camera() {
+            self.render_pass(&camera.try_as::<Camera>().unwrap().borrow(), clear_option);
         } else {
             // We dont have a main camera here, just clean the screen.
             self.clear(clear_option);
@@ -595,13 +607,13 @@ where
 
         Engine {
             gl: gl,
-            main_camera: None,
             objects: vec![],
             program_cache: RefCell::new(HashMap::new()),
             asset_system: Box::new(A::new()),
             gui_context: Rc::new(RefCell::new(imgui::Context::new(gui_tree))),
             screen_size: size,
             hidpi: hidpi,
+            current_camera: RefCell::new(None),
         }
     }
 
@@ -614,6 +626,14 @@ where
     pub fn end(&mut self) {
         // drop all gameobjects if there are no other references
         self.objects.retain(|obj| obj.upgrade().is_some());
+
+        // drop camera cache if it is only by holded by ourself
+        let mut cam_mut = self.current_camera.borrow_mut();
+        if let Some(ref c) = *cam_mut {
+            if Arc::strong_count(&c) == 1 {
+                cam_mut.take();
+            }
+        }
     }
 }
 

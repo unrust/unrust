@@ -3,6 +3,7 @@ use std::rc;
 use std::cell::{Ref, RefCell, RefMut};
 use std::sync::Arc;
 use std::sync;
+use std::ops::Deref;
 
 use world::app_fs::AppEngine;
 use engine::{AssetSystem, Camera, ClearOption, Component, ComponentBased, ComponentEvent, Engine,
@@ -103,7 +104,7 @@ impl<'a> WorldBuilder<'a> {
         let events = app.events.clone();
         let main_tree = engine.new_scene_tree();
 
-        let mut w = World {
+        let w = World {
             engine,
             app: Some(app),
             main_tree,
@@ -114,9 +115,6 @@ impl<'a> WorldBuilder<'a> {
             events: events,
             golist: Vec::new(),
         };
-
-        // Add a default camera
-        w.engine.main_camera = Some(Rc::new(RefCell::new(Camera::new())));
 
         w.main_tree.add_watcher({
             let actors = w.new_actors.clone();
@@ -145,6 +143,16 @@ impl<'a> WorldBuilder<'a> {
     }
 }
 
+pub struct CameraBorrow(Arc<Component>);
+
+impl Deref for CameraBorrow {
+    type Target = RefCell<Camera>;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.try_as::<Camera>().unwrap()
+    }
+}
+
 impl World {
     pub fn root(&self) -> Ref<GameObject> {
         self.main_tree.root()
@@ -162,12 +170,14 @@ impl World {
         &self.engine
     }
 
-    pub fn current_camera(&self) -> Option<RefMut<Camera>> {
-        if self.engine.main_camera.is_none() {
+    pub fn current_camera<'a>(&self) -> Option<CameraBorrow> {
+        if self.engine.main_camera().is_none() {
             return None;
         }
 
-        Some(self.engine.main_camera.as_ref().unwrap().borrow_mut())
+        let c = self.engine.main_camera().unwrap().clone();
+
+        return Some(CameraBorrow(c));
     }
 
     fn active_starting_actors(&mut self) {

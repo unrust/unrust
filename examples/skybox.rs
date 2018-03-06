@@ -18,7 +18,7 @@ pub struct MainScene {
 impl Actor for MainScene {
     fn new() -> Box<Actor> {
         Box::new(MainScene {
-            eye: Vector3::new(-3.0, 0.0, -3.0),
+            eye: Vector3::new(-9.0, 0.0, -9.0),
             last_event: None,
         })
     }
@@ -29,6 +29,12 @@ impl Actor for MainScene {
             let go = world.new_game_object();
             go.borrow_mut()
                 .add_component(Light::new(Directional::default()));
+        }
+
+        // Added a cube in the scene
+        {
+            let go = world.new_game_object();
+            go.borrow_mut().add_component(Cube::new());
         }
 
         // Added a SkyBox in the scene
@@ -114,11 +120,37 @@ impl Actor for SkyBox {
 
         let mut material = Material::new(db.new_program("skybox"));
         material.set("uSkybox", db.new_texture("skybox/sky_cubemap.png"));
-        material.render_queue = RenderQueue::Transparent;
+        material.render_queue = RenderQueue::Skybox;
 
         let mut mesh = Mesh::new();
         mesh.add_surface(db.new_mesh_buffer("skybox"), material);
         go.add_component(mesh);
+    }
+}
+
+pub struct Cube {}
+
+impl Actor for Cube {
+    fn new() -> Box<Actor> {
+        Box::new(Cube {})
+    }
+
+    fn start(&mut self, go: &mut GameObject, world: &mut World) {
+        let db = &mut world.asset_system();
+
+        let mut material = Material::new(db.new_program("phong"));
+        material.set("uMaterial.diffuse", db.new_texture("tex_a.png"));
+        material.set("uMaterial.shininess", 32.0);
+
+        let mut mesh = Mesh::new();
+        mesh.add_surface(db.new_mesh_buffer("cube"), material);
+        go.add_component(mesh);
+    }
+
+    fn update(&mut self, go: &mut GameObject, _world: &mut World) {
+        let mut gtran = go.transform.global();
+        gtran.append_rotation_mut(&UnitQuaternion::new(Vector3::new(0.01, 0.02, 0.005)));
+        go.transform.set_global(gtran);
     }
 }
 

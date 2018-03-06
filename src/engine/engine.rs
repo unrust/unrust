@@ -1,4 +1,6 @@
 use webgl::*;
+use webgl;
+
 use na::*;
 use std::rc::{Rc, Weak};
 use std::cell::RefCell;
@@ -152,10 +154,44 @@ struct RenderCommand {
     pub cam_distance: f32,
 }
 
+#[allow(dead_code)]
+enum DepthTest {
+    Never,
+    Less,
+    Equal,
+    LessEqual,
+    Greater,
+    NotEqual,
+    GreaterEqual,
+    Always,
+}
+
+impl Default for DepthTest {
+    fn default() -> DepthTest {
+        DepthTest::Less
+    }
+}
+
+impl DepthTest {
+    fn as_gl_state(&self) -> webgl::DepthTest {
+        match self {
+            &DepthTest::Never => webgl::DepthTest::Never,
+            &DepthTest::Always => webgl::DepthTest::Always,
+            &DepthTest::Less => webgl::DepthTest::Less,
+            &DepthTest::LessEqual => webgl::DepthTest::Lequal,
+            &DepthTest::Greater => webgl::DepthTest::Greater,
+            &DepthTest::NotEqual => webgl::DepthTest::Notequal,
+            &DepthTest::GreaterEqual => webgl::DepthTest::Gequal,
+            &DepthTest::Equal => webgl::DepthTest::Equal,
+        }
+    }
+}
+
 #[derive(Default)]
 struct RenderQueueState {
     depth_write: bool,
     depth_test: bool,
+    depth_func: DepthTest,
     commands: Vec<RenderCommand>,
 }
 
@@ -181,6 +217,12 @@ impl RenderQueueList {
         state.depth_write = true;
         state.depth_test = true;
         qlist.insert(RenderQueue::Opaque, state);
+
+        let mut state = RenderQueueState::default();
+        state.depth_write = false;
+        state.depth_test = true;
+        state.depth_func = DepthTest::LessEqual;
+        qlist.insert(RenderQueue::Skybox, state);
 
         let mut state = RenderQueueState::default();
         state.depth_write = false;
@@ -326,6 +368,7 @@ where
 
         if q.depth_test {
             gl.enable(Flag::DepthTest as i32);
+            gl.depth_func(q.depth_func.as_gl_state());
         } else {
             gl.disable(Flag::DepthTest as i32);
         }

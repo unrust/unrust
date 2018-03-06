@@ -11,5 +11,5 @@ varying vec3 vTexCoords;
 void main()
 {
     vTexCoords = aVertexPosition;
-    gl_Position = uPVSkyboxMatrix * vec4(aVertexPosition, 1.0);
+    gl_Position = (uPVSkyboxMatrix * vec4(aVertexPosition, 1.0)).xyww;
 }         

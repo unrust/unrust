@@ -13,7 +13,8 @@ mod mesh_buffer;
 #[derive(Hash, Eq, Ord, PartialOrd, PartialEq, Copy, Clone)]
 pub enum RenderQueue {
     Opaque = 1000,
-    Transparent = 2000,
+    Skybox = 2000,
+    Transparent = 3000,
 }
 
 pub use self::camera::Camera;

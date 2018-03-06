@@ -9,6 +9,13 @@ use common::*;
 use std::ptr;
 use std::str;
 
+pub type Reference = u32;
+
+#[derive(Debug, PartialEq)]
+pub struct GLContext {
+    pub reference: Reference,
+}
+
 pub fn check_gl_error(msg: &str) {
     unsafe {
         use gl;

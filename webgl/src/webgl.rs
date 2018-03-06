@@ -5,6 +5,14 @@ use stdweb::web::html_element::CanvasElement;
 use glenum::*;
 use common::*;
 
+pub type Reference = i32;
+
+#[derive(Debug, PartialEq)]
+pub struct GLContext {
+    pub reference: Reference,
+    is_webgl2: bool,
+}
+
 pub type WebGLContext<'a> = &'a CanvasElement;
 
 impl WebGLRenderingContext {
@@ -14,14 +22,6 @@ impl WebGLRenderingContext {
         }
     }
 }
-
-// impl WebGL2RenderingContext {
-//     pub fn new(canvas: &Element) -> WebGL2RenderingContext {
-//         WebGL2RenderingContext {
-//             common: GLContext::new(canvas, "webgl2"),
-//         }
-//     }
-// }
 
 // Using a "hidden feature" of stdweb to reduce the js serialized overhead
 extern "C" {
@@ -78,14 +78,18 @@ impl GLContext {
     pub fn new<'a>(canvas: &Element) -> GLContext {
         let gl = js!{
             var gl = (@{canvas}).getContext("webgl2");
+            var version = 2;
+
             if (!gl) {
                 gl = (@{canvas}).getContext("webgl");
+                version = 1;
             }
 
             // Create gl related objects
             if( !Module.gl) {
                 Module.gl = {};
                 Module.gl.counter = 1;
+                Module.gl.version = version;
 
                 Module.gl.matrix4x4 = new Float32Array([
                     1.0, 0,   0,   0,
@@ -117,8 +121,11 @@ impl GLContext {
             return Module.gl.add(gl);
         };
 
+        let version: u32 = js!( return Module.gl.version; ).try_into().unwrap();
+
         GLContext {
             reference: gl.try_into().unwrap(),
+            is_webgl2: version == 2,
         }
     }
 
@@ -783,6 +790,13 @@ impl GLContext {
     // }
 
     pub fn tex_parameteri(&self, kind: TextureKind, pname: TextureParameter, param: i32) {
+        // skip not supported flag in for webgl 1 context
+        if !self.is_webgl2 {
+            if let TextureParameter::TextureWrapR = pname {
+                return;
+            }
+        }
+
         js! {
             var ctx = Module.gl.get(@{self.reference});
             return ctx.texParameteri(@{kind as u32},@{pname as u32},@{param})

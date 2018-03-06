@@ -17,7 +17,7 @@ pub mod webgl;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[path = "webgl_native.rs"]
-pub mod webgl;
+mod webgl;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub const IS_GL_ES: bool = false;
@@ -33,16 +33,8 @@ pub use webgl::WebGLContext;
 pub mod common {
     use std::ops::Deref;
 
-    #[cfg(target_arch = "wasm32")]
-    type Reference = i32;
-
-    #[cfg(not(target_arch = "wasm32"))]
-    type Reference = u32;
-
-    #[derive(Debug, PartialEq)]
-    pub struct GLContext {
-        pub reference: Reference,
-    }
+    type Reference = super::webgl::Reference;
+    type GLContext = super::webgl::GLContext;
 
     #[derive(Debug)]
     pub struct WebGLRenderingContext {

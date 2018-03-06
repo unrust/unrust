@@ -1,8 +1,9 @@
 extern crate unrust;
 
 use unrust::world::{Actor, World, WorldBuilder};
-use unrust::engine::{Camera, Directional, GameObject, Light, Material, Mesh, RenderQueue};
+use unrust::engine::{Camera, Directional, GameObject, Light, Material, Mesh};
 use unrust::world::events::*;
+use unrust::actors::SkyBox;
 use unrust::math::*;
 
 // GUI
@@ -111,26 +112,6 @@ impl Actor for MainScene {
             Native(1.0, 0.0) + Pixel(-8.0, 8.0),
             &format!("last event: {:?}", self.last_event),
         );
-    }
-}
-
-pub struct SkyBox {}
-
-impl Actor for SkyBox {
-    fn new() -> Box<Actor> {
-        Box::new(SkyBox {})
-    }
-
-    fn start(&mut self, go: &mut GameObject, world: &mut World) {
-        let db = &mut world.asset_system();
-
-        let mut material = Material::new(db.new_program("skybox"));
-        material.set("uSkybox", db.new_texture("skybox/sky_cubemap.png"));
-        material.render_queue = RenderQueue::Skybox;
-
-        let mut mesh = Mesh::new();
-        mesh.add_surface(db.new_mesh_buffer("skybox"), material);
-        go.add_component(mesh);
     }
 }
 

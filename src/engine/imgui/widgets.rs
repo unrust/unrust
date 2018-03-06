@@ -6,7 +6,7 @@ use engine::render::Texture;
 use super::Metric;
 
 use std::fmt::Debug;
-use engine::render::{MeshBuffer, MeshData};
+use engine::render::{MeshBuffer, MeshData, RenderQueue};
 use engine::asset::Asset;
 
 use std::rc::Rc;
@@ -222,15 +222,16 @@ impl Widget for Label {
     ) -> Rc<RefCell<GameObject>> {
         let go = engine.new_game_object(parent);
         let db = engine.asset_system();
-        let hidpi = engine.hidpi_factor();
 
         {
+            let hidpi = engine.hidpi_factor();
             let mut gomut = go.borrow_mut();
             let meshdata = make_text_mesh_data(&self.s, ssize, hidpi);
 
             let mut mesh = Mesh::new();
             let mut material = Material::new(db.new_program("default_ui"));
             material.set("uDiffuse", db.new_texture("default_font_bitmap"));
+            material.render_queue = RenderQueue::UI;
 
             mesh.add_surface(MeshBuffer::new(meshdata), Rc::new(material));
 
@@ -318,6 +319,7 @@ impl Widget for Image {
             let mut mesh = Mesh::new();
             let mut material = Material::new(db.new_program("default_ui"));
             material.set("uDiffuse", self.texture.0.clone());
+            material.render_queue = RenderQueue::UI;
 
             mesh.add_surface(MeshBuffer::new(meshdata), Rc::new(material));
 

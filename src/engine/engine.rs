@@ -229,6 +229,11 @@ impl RenderQueueList {
         state.depth_test = true;
         qlist.insert(RenderQueue::Transparent, state);
 
+        let mut state = RenderQueueState::default();
+        state.depth_write = true;
+        state.depth_test = true;
+        qlist.insert(RenderQueue::UI, state);
+
         qlist
     }
 }

@@ -15,6 +15,7 @@ pub enum RenderQueue {
     Opaque = 1000,
     Skybox = 2000,
     Transparent = 3000,
+    UI = 5000,
 }
 
 pub use self::camera::Camera;

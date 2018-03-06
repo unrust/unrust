@@ -79,7 +79,7 @@ impl Actor for MainScene {
 
         // Update Camera
         {
-            let mut cam = world.engine().main_camera.as_ref().unwrap().borrow_mut();
+            let mut cam = world.current_camera().unwrap();
 
             cam.lookat(
                 &Point3::from_coordinates(self.eye),
@@ -133,7 +133,7 @@ impl Actor for MiniScreen {
 
         if self.crt {
             // Setup fb for camera
-            let mut cam = world.engine().main_camera.as_ref().unwrap().borrow_mut();
+            let mut cam = world.current_camera().unwrap();
             cam.render_texture = Some(self.rt.clone());
 
             // Setup proper viewport to render to the whole texture

@@ -122,26 +122,18 @@ impl<'a> WorldBuilder<'a> {
             let actors = w.new_actors.clone();
 
             move |changed, ref go, ref c: &Arc<Component>| {
-                match changed {
-                    ComponentEvent::Add => {
-                        // filter
-                        if c.try_as::<Box<Actor>>().is_some() {
+                if c.try_as::<Box<Actor>>().is_some() {
+                    match changed {
+                        ComponentEvent::Add => {
+                            // filter
                             actors
                                 .borrow_mut()
                                 .push((Rc::downgrade(go), Arc::downgrade(c)));
                         }
-                    }
 
-                    ComponentEvent::Remove => {
-                        // filter
-                        if c.try_as::<Box<Actor>>().is_some() {
+                        ComponentEvent::Remove => {
                             actors.borrow_mut().retain(|&(_, ref cc)| {
-                                let ccp = cc.upgrade();
-                                if ccp.is_none() {
-                                    return true;
-                                }
-
-                                !Arc::ptr_eq(ccp.as_ref().unwrap(), &c)
+                                cc.upgrade().map_or(true, |ref ccp| !Arc::ptr_eq(ccp, &c))
                             });
                         }
                     }
@@ -168,6 +160,14 @@ impl World {
 
     pub fn engine(&self) -> &AppEngine {
         &self.engine
+    }
+
+    pub fn current_camera(&self) -> Option<RefMut<Camera>> {
+        if self.engine.main_camera.is_none() {
+            return None;
+        }
+
+        Some(self.engine.main_camera.as_ref().unwrap().borrow_mut())
     }
 
     fn active_starting_actors(&mut self) {

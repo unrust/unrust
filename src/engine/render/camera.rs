@@ -26,7 +26,7 @@ impl Camera {
             aspect = w as f32 / h as f32;
         }
 
-        Matrix4::new_perspective(aspect, 3.1415 / 4.0, 0.01, 100.0)
+        Matrix4::new_perspective(aspect, 3.1415 / 4.0, 0.03, 1000.0)
     }
 
     pub fn new() -> Camera {

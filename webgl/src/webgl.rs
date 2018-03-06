@@ -348,6 +348,15 @@ impl GLContext {
         }
     }
 
+    pub fn depth_func(&self, d: DepthTest) {
+        self.log("depth_func");
+
+        js! {
+            var ctx = Module.gl.get(@{&self.reference});
+            ctx.depthFunc(@{d as i32});
+        }
+    }
+
     pub fn clear(&self, bit: BufferBit) {
         self.log("clear");
         js! {

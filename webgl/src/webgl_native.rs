@@ -297,7 +297,15 @@ impl GLContext {
         unsafe {
             gl::DepthMask(b as _);
         }
-        check_gl_error("cullface");
+        check_gl_error("depth_mask");
+    }
+
+    pub fn depth_func(&self, d: DepthTest) {
+        unsafe {
+            gl::DepthFunc(d as _);
+        }
+
+        check_gl_error("depth_func");
     }
 
     pub fn clear(&self, bit: BufferBit) {

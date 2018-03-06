@@ -88,10 +88,14 @@ impl File {
     }
 
     pub fn read_binary(&mut self) -> Result<Vec<u8>, IoError> {
-        let bs = self.buffer_state.borrow();
+        let mut bs = self.buffer_state.borrow_mut();
         match *bs {
             BufferState::Error(ref s) => Err(std::io::Error::new(ErrorKind::Other, s.clone())),
-            BufferState::Buffer(ref v) => Ok(v.clone()),
+            BufferState::Buffer(ref mut v) => Ok({
+                let mut r = Vec::new();
+                r.append(v);
+                r
+            }),
             _ => unreachable!(),
         }
     }

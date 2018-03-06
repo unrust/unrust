@@ -216,8 +216,13 @@ fn texture_bind_buffer(
                 TextureBindPoint::TextureCubeMapNegativeZ,
             ];
 
+            // Test if all resources are ready.
             for res in img_res.iter() {
-                imgs.push(res.try_borrow()?)
+                res.try_borrow()?;
+            }
+
+            for res in img_res.iter() {
+                imgs.push(res.try_into()?);
             }
 
             let tex = gl.create_texture();

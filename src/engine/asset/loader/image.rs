@@ -2,6 +2,7 @@ use engine::asset::loader::{Loadable, Loader};
 use engine::asset::{AssetError, AssetResult, AssetSystem, File};
 use image::RgbaImage;
 use image;
+use uni_app;
 
 pub struct ImageLoader {}
 
@@ -14,6 +15,8 @@ impl Loader<RgbaImage> for ImageLoader {
     where
         A: AssetSystem + Clone,
     {
+        let t = uni_app::now();
+
         let buf = file.read_binary()
             .map_err(|_| AssetError::ReadBufferFail(file.name()))?;
         let img = image::load_from_memory(&buf).map_err(|e| AssetError::InvalidFormat {
@@ -21,6 +24,14 @@ impl Loader<RgbaImage> for ImageLoader {
             len: buf.len(),
             reason: format!("{:?}", e),
         })?;
-        Ok(img.to_rgba())
+        let rgba = img.to_rgba();
+
+        uni_app::App::print(format!(
+            "image {} loading time : {}\n",
+            file.name(),
+            (uni_app::now() - t)
+        ));
+
+        Ok(rgba)
     }
 }

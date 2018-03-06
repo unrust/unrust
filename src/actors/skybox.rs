@@ -11,8 +11,8 @@ impl Actor for SkyBox {
     fn start(&mut self, go: &mut GameObject, world: &mut World) {
         let db = &mut world.asset_system();
 
-        let mut material = Material::new(db.new_program("skybox"));
-        material.set("uSkybox", db.new_texture("skybox/sky_cubemap.png"));
+        let mut material = Material::new(db.new_program("unrust/skybox"));
+        material.set("uSkybox", db.new_texture("unrust/skybox/sky_cubemap.png"));
         material.render_queue = RenderQueue::Skybox;
 
         let mut mesh = Mesh::new();

@@ -142,31 +142,29 @@ impl Loadable for Prefab {
         // TODO I don't know why it is needed !!
         let allmat = allmat.and_then(|r| r);
 
-        let final_future = {
-            allmat.and_then(move |(files, mut model)| {
-                let mut materials = HashMap::new();
+        let final_future = allmat.and_then(move |(files, mut model)| {
+            let mut materials = HashMap::new();
 
-                for mut f in files {
-                    let bytes = f.read_binary()?;
-                    let mtl = obj::Mtl::load(&mut BufReader::new(bytes.as_slice()));
-                    for m in mtl.materials {
-                        materials.insert(m.name.clone(), Cow::from(m));
-                    }
+            for mut f in files {
+                let bytes = f.read_binary()?;
+                let mtl = obj::Mtl::load(&mut BufReader::new(bytes.as_slice()));
+                for m in mtl.materials {
+                    materials.insert(m.name.clone(), Cow::from(m));
                 }
+            }
 
-                for object in &mut model.objects {
-                    for group in &mut object.groups {
-                        if let Some(ref mut mat) = group.material {
-                            if let Some(newmat) = materials.get(&mat.name) {
-                                *mat = newmat.clone()
-                            }
+            for object in &mut model.objects {
+                for group in &mut object.groups {
+                    if let Some(ref mut mat) = group.material {
+                        if let Some(newmat) = materials.get(&mat.name) {
+                            *mat = newmat.clone()
                         }
                     }
                 }
+            }
 
-                Ok(PrefabLoader::load_model(asys, model))
-            })
-        };
+            Ok(PrefabLoader::load_model(asys, model))
+        });
 
         // futurize
         Box::new(final_future.map_err(|e| AssetError::FileIoError(e)))

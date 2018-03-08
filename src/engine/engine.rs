@@ -287,8 +287,6 @@ where
 
         if let Some(col) = option.color {
             self.gl.clear_color(col.0, col.1, col.2, col.3);
-        } else {
-            self.gl.clear_color(0.0, 0.0, 0.0, 1.0);
         }
 
         if option.clear_color {
@@ -315,8 +313,6 @@ where
             Ok(())
         })?;
 
-        let prog = ctx.prog.upgrade().unwrap();
-
         material.bind(|tex| {
             ctx.prepare_cache_tex(tex, |ctx, unit| {
                 // Binding texture
@@ -327,7 +323,7 @@ where
             })
         })?;
 
-        self.setup_light(ctx, &prog);
+        self.setup_light(ctx);
 
         Ok(())
     }
@@ -352,8 +348,10 @@ where
         prog.set("uViewPos", camera.eye());
     }
 
-    fn setup_light(&self, ctx: &EngineContext, prog: &ShaderProgram) {
+    fn setup_light(&self, ctx: &EngineContext) {
         // Setup light
+
+        let prog = ctx.prog.upgrade().unwrap();
 
         let light_com = ctx.main_light.as_ref().unwrap();
         let light = light_com.try_as::<Light>().unwrap();

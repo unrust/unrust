@@ -9,7 +9,7 @@ pub enum Light {
     Point(Point),
 }
 
-macro_rules! add_light_cast {
+macro_rules! impl_light {
     ($s:ident, $sm:ident, $v:ident, $t:ty) => {
         pub fn $s(&self) -> Option<&$t> {
             if let &Light::$v(ref l) = self {
@@ -30,8 +30,8 @@ macro_rules! add_light_cast {
 }
 
 impl Light {
-    add_light_cast!(directional, directional_mut, Directional, Directional);
-    add_light_cast!(point, point_mut, Point, Point);
+    impl_light!(directional, directional_mut, Directional, Directional);
+    impl_light!(point, point_mut, Point, Point);
 
     pub fn new<T>(a: T) -> Light
     where

@@ -137,8 +137,9 @@ impl ShaderProgram {
             if !commited.contains_key(s) {
                 if let Some(u) = self.get_uniform(gl, s) {
                     data.set(gl, &u);
-                    commited.insert(s.clone(), data.to_hash());
                 }
+
+                commited.insert(s.clone(), data.to_hash());
             }
         }
     }

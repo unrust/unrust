@@ -76,6 +76,7 @@ impl Actor for MainScene {
                 // so will need to add it back.
                 let scene = world.new_game_object();
                 scene.borrow_mut().add_component(MainScene::new());
+                return;
             }
         }
 

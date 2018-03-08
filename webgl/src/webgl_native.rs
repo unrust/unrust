@@ -356,7 +356,7 @@ impl GLContext {
         width: u16,
         height: u16,
         format: PixelFormat,
-        kind: DataType,
+        kind: PixelType,
         pixels: &[u8],
     ) {
         let p: *const c_void;
@@ -391,7 +391,7 @@ impl GLContext {
         width: u16,
         height: u16,
         format: PixelFormat,
-        kind: DataType,
+        kind: PixelType,
         pixels: &[u8],
     ) {
         unsafe {

@@ -85,6 +85,8 @@ impl GLContext {
                 version = 1;
             }
 
+            var ext = gl.getExtension("WEBGL_depth_texture");
+
             // Create gl related objects
             if( !Module.gl) {
                 Module.gl = {};
@@ -413,13 +415,23 @@ impl GLContext {
         width: u16,
         height: u16,
         format: PixelFormat,
-        kind: DataType,
+        kind: PixelType,
         pixels: &[u8],
     ) {
         self.log("tex_img2d");
         let params1 = js! { return [@{target as u32},@{level as u32},@{format as u32}] };
         let params2 =
             js! { return [@{width as u32},@{height as u32},@{format as u32},@{kind as u32}] };
+
+        // TODO: It is a strange bug !!!
+        // According https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/texImage2D
+        // the format arg should be equal to internal format arg
+        // however, only DEPTH_COMPONENT16 works but not DEPTH_COMPONENT
+
+        let is_depth = match format {
+            PixelFormat::DepthComponent => true,
+            _ => false,
+        };
 
         if pixels.len() > 0 {
             js!{
@@ -433,7 +445,13 @@ impl GLContext {
                 var p = @{params1}.concat(@{params2});
                 var ctx = Module.gl.get(@{&self.reference});
 
-                ctx.texImage2D(p[0],p[1], p[2] ,p[3],p[4],0,p[2],p[6],null);
+                var internal_fmt =  @{format as u32};
+                var fmt = internal_fmt;
+                if ( @{is_depth}) {
+                    internal_fmt =  ctx.DEPTH_COMPONENT16;
+                }
+
+                ctx.texImage2D(p[0],p[1], internal_fmt ,p[3],p[4],0, fmt ,p[6],null);
             };
         }
     }
@@ -447,7 +465,7 @@ impl GLContext {
         width: u16,
         height: u16,
         format: PixelFormat,
-        kind: DataType,
+        kind: PixelType,
         pixels: &[u8],
     ) {
         self.log("sub_tex_img2d");

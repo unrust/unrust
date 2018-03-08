@@ -172,10 +172,10 @@ impl Texture {
     }
 }
 
-fn bind_to_framebuffer(gl: &WebGLRenderingContext, tex: &WebGLTexture) {
+fn bind_to_framebuffer(gl: &WebGLRenderingContext, tex: &WebGLTexture, buffer: Buffers) {
     gl.framebuffer_texture2d(
         Buffers::Framebuffer,
-        Buffers::ColorAttachment0,
+        buffer,
         TextureBindPoint::Texture2d,
         tex,
         0,
@@ -199,6 +199,7 @@ fn texture_bind_buffer(
     kind: &TextureKind,
 ) -> AssetResult<TextureGLState> {
     let mut gl_tex_kind: webgl::TextureKind = webgl::TextureKind::Texture2d;
+    let mut force_nearest_filtering = false;
 
     let tex = match kind {
         &TextureKind::Image(ref img_res) => {
@@ -216,7 +217,7 @@ fn texture_bind_buffer(
                         img.width() as u16,          // width
                         img.height() as u16,         // height
                         PixelFormat::Rgba,           // format
-                        DataType::U8,                // type
+                        PixelType::UnsignedByte,     // type
                         &*img,                       // data
                     );
                 }
@@ -227,7 +228,7 @@ fn texture_bind_buffer(
                         img.width() as u16,          // width
                         img.height() as u16,         // height
                         PixelFormat::Rgb,            // format
-                        DataType::U8,                // type
+                        PixelType::UnsignedByte,     // type
                         &*img,                       // data
                     );
                 }
@@ -264,24 +265,24 @@ fn texture_bind_buffer(
                 match teximg {
                     &TextureImage::Rgba(ref img) => {
                         gl.tex_image2d(
-                            bindpoints[i],       // target
-                            0,                   // level
-                            img.width() as u16,  // width
-                            img.height() as u16, // height
-                            PixelFormat::Rgba,   // format
-                            DataType::U8,        // type
-                            &*img,               // data
+                            bindpoints[i],           // target
+                            0,                       // level
+                            img.width() as u16,      // width
+                            img.height() as u16,     // height
+                            PixelFormat::Rgba,       // format
+                            PixelType::UnsignedByte, // type
+                            &*img,                   // data
                         );
                     }
                     &TextureImage::Rgb(ref img) => {
                         gl.tex_image2d(
-                            bindpoints[i],       // target
-                            0,                   // level
-                            img.width() as u16,  // width
-                            img.height() as u16, // height
-                            PixelFormat::Rgb,    // format
-                            DataType::U8,        // type
-                            &*img,               // data
+                            bindpoints[i],           // target
+                            0,                       // level
+                            img.width() as u16,      // width
+                            img.height() as u16,     // height
+                            PixelFormat::Rgb,        // format
+                            PixelType::UnsignedByte, // type
+                            &*img,                   // data
                         );
                     }
                 }
@@ -292,7 +293,15 @@ fn texture_bind_buffer(
             tex
         }
 
-        &TextureKind::RenderTexture { size, .. } => {
+        &TextureKind::RenderTexture { size, ref attach } => {
+            let (fmt, data_type) = match attach {
+                &TextureAttachment::Color0 => (PixelFormat::Rgba, PixelType::UnsignedByte),
+                &TextureAttachment::Depth => {
+                    force_nearest_filtering = true;
+                    (PixelFormat::DepthComponent, PixelType::UnsignedShort)
+                }
+            };
+
             let tex = gl.create_texture();
             gl.active_texture(0);
             gl.bind_texture(&tex);
@@ -301,8 +310,8 @@ fn texture_bind_buffer(
                 0,                           // level
                 size.0 as u16,               // width
                 size.1 as u16,               // height
-                PixelFormat::Rgba,           // format
-                DataType::U8,                // type
+                fmt,                         // format
+                data_type,                   // type
                 &[],                         // data
             );
 
@@ -310,10 +319,14 @@ fn texture_bind_buffer(
         }
     };
 
-    let filtering: i32 = match texfilter {
+    let mut filtering: i32 = match texfilter {
         &TextureFiltering::Nearest => TextureMagFilter::Nearest as i32,
         _ => TextureMagFilter::Linear as i32,
     };
+
+    if force_nearest_filtering {
+        filtering = TextureMagFilter::Nearest as i32;
+    }
 
     gl.tex_parameteri(gl_tex_kind, TextureParameter::TextureMagFilter, filtering);
     gl.tex_parameteri(gl_tex_kind, TextureParameter::TextureMinFilter, filtering);
@@ -336,8 +349,11 @@ fn texture_bind_buffer(
         );
     }
 
-    if let &TextureKind::RenderTexture { .. } = kind {
-        bind_to_framebuffer(gl, &tex);
+    if let &TextureKind::RenderTexture { ref attach, .. } = kind {
+        match attach {
+            &TextureAttachment::Color0 => bind_to_framebuffer(gl, &tex, Buffers::ColorAttachment0),
+            &TextureAttachment::Depth => bind_to_framebuffer(gl, &tex, Buffers::DepthAttachment),
+        }
     }
 
     unbind_texture(gl, kind);

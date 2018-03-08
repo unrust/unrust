@@ -460,6 +460,11 @@ pub enum PixelType {
     UnsignedShort5551 = 0x8034,
     ///
     UnsignedShort565 = 0x8363,
+
+    ///
+    UnsignedShort = 0x1403,
+    ///
+    UnsignedInt = 0x1405,
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -8,6 +8,7 @@ use image::ImageDecoder;
 use futures::prelude::*;
 use std::io;
 use std::fmt::Debug;
+use uni_app;
 
 pub struct ImageLoader {}
 
@@ -32,10 +33,14 @@ struct ImageBufferLineSteam<T> {
     codec: T,
     ctx: ImageContext,
     read_bytes: usize,
+
+    max_read_bytes: usize,
+    read_timer: f64,
 }
 
 // the number of bytes read for yield
-const READ_BYTES_YIELD_COUNT: usize = 1024 * 100;
+const MIN_READ_BYTES_YIELD_COUNT: usize = 1024 * 100;
+const ONE_FRAME: f64 = 1.0 / (60.0);
 
 impl<T> Stream for ImageBufferLineSteam<T>
 where
@@ -45,10 +50,24 @@ where
     type Error = AssetError;
 
     fn poll(&mut self) -> Result<Async<Option<Self::Item>>, Self::Error> {
+        // first time initialize timer
+        if self.read_timer == 0.0 {
+            self.read_timer = uni_app::now();
+        }
+
         // The main magic is in here
         // We just return an Async::NotReady to 'yield' the execution
-        if self.read_bytes > READ_BYTES_YIELD_COUNT {
-            self.read_bytes -= READ_BYTES_YIELD_COUNT;
+        // if the timer is smaller than one frame,
+        // we double up the read_bytes count,
+        // so in theory it will reach to yield per frame
+        if self.read_bytes > self.max_read_bytes {
+            self.read_bytes -= self.max_read_bytes;
+            let now = uni_app::now();
+            if now - self.read_timer < ONE_FRAME {
+                self.max_read_bytes *= 2;
+                self.read_timer = now;
+            }
+
             return Ok(Async::NotReady);
         }
 
@@ -74,6 +93,8 @@ where
         codec: codec,
         read_bytes: 0,
         ctx: ctx,
+        max_read_bytes: MIN_READ_BYTES_YIELD_COUNT,
+        read_timer: 0.0,
     })
 }
 

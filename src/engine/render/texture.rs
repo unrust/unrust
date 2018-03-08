@@ -21,10 +21,19 @@ pub enum TextureImage {
 }
 
 #[derive(Debug)]
+pub enum TextureAttachment {
+    Color0,
+    Depth,
+}
+
+#[derive(Debug)]
 enum TextureKind {
     Image(Resource<TextureImage>),
     CubeMap([Resource<TextureImage>; 6]),
-    RenderTexture { size: (u32, u32) },
+    RenderTexture {
+        size: (u32, u32),
+        attach: TextureAttachment,
+    },
 }
 
 #[derive(Debug)]
@@ -124,12 +133,13 @@ struct TextureGLState {
 }
 
 impl Texture {
-    pub fn new_render_texture(width: u32, height: u32) -> Rc<Self> {
+    pub fn new_render_texture(width: u32, height: u32, attach: TextureAttachment) -> Rc<Self> {
         Rc::new(Texture {
             filtering: TextureFiltering::Linear,
             gl_state: RefCell::new(None),
             kind: TextureKind::RenderTexture {
                 size: (width, height),
+                attach: attach,
             },
         })
     }
@@ -282,7 +292,7 @@ fn texture_bind_buffer(
             tex
         }
 
-        &TextureKind::RenderTexture { size } => {
+        &TextureKind::RenderTexture { size, .. } => {
             let tex = gl.create_texture();
             gl.active_texture(0);
             gl.bind_texture(&tex);

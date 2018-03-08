@@ -2,7 +2,7 @@ extern crate unrust;
 
 use unrust::world::{Actor, Handle, World, WorldBuilder};
 use unrust::engine::{Camera, ClearOption, Directional, GameObject, Light, Material, Mesh,
-                     RenderTexture};
+                     RenderTexture, TextureAttachment};
 use unrust::world::events::*;
 use unrust::math::*;
 
@@ -117,7 +117,7 @@ pub struct Crt {
 impl Actor for Crt {
     fn new() -> Box<Actor> {
         Box::new(Crt {
-            rt: Rc::new(RenderTexture::new(1024, 1024)),
+            rt: Rc::new(RenderTexture::new(1024, 1024, TextureAttachment::Color0)),
             cube: GameObject::empty(),
         })
     }

@@ -2,7 +2,7 @@ extern crate unrust;
 
 use unrust::world::{Actor, World, WorldBuilder};
 use unrust::engine::{Camera, ClearOption, Directional, GameObject, Light, Material, Mesh,
-                     RenderTexture};
+                     RenderTexture, TextureAttachment};
 use unrust::world::events::*;
 use unrust::math::*;
 
@@ -122,7 +122,7 @@ impl Actor for MiniScreen {
     fn new() -> Box<Actor> {
         Box::new(MiniScreen {
             crt: false,
-            rt: Rc::new(RenderTexture::new(1024, 1024)),
+            rt: Rc::new(RenderTexture::new(1024, 1024, TextureAttachment::Color0)),
         })
     }
 

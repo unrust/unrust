@@ -2,7 +2,7 @@ use webgl::*;
 
 use std::rc::Rc;
 use std::cell::RefCell;
-use engine::render::Texture;
+use engine::render::{Texture, TextureAttachment};
 
 pub struct FrameBuffer {
     pub texture: Rc<Texture>,
@@ -10,8 +10,8 @@ pub struct FrameBuffer {
 }
 
 impl FrameBuffer {
-    pub fn new(width: u32, height: u32) -> FrameBuffer {
-        let texture = Texture::new_render_texture(width, height);
+    pub fn new(width: u32, height: u32, attach: TextureAttachment) -> FrameBuffer {
+        let texture = Texture::new_render_texture(width, height, attach);
         let handle = RefCell::new(None);
         FrameBuffer { texture, handle }
     }

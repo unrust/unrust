@@ -1,4 +1,4 @@
-use engine::render::Texture;
+use engine::render::{Texture, TextureAttachment};
 use std::rc::Rc;
 use std::ops::Deref;
 use engine::render::frame_buffer::FrameBuffer;
@@ -15,8 +15,8 @@ impl Deref for RenderTexture {
 }
 
 impl RenderTexture {
-    pub fn new(width: u32, height: u32) -> RenderTexture {
-        RenderTexture(FrameBuffer::new(width, height))
+    pub fn new(width: u32, height: u32, attach: TextureAttachment) -> RenderTexture {
+        RenderTexture(FrameBuffer::new(width, height, attach))
     }
 
     pub fn bind_frame_buffer(&self, gl: &WebGLRenderingContext) {

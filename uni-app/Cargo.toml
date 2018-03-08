@@ -5,8 +5,8 @@ authors = ["Edwin Cheng <edwin0cheng@gmail.com>"]
 
 [dependencies]
 
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-stdweb =  "0.4.0"
+[target.wasm32-unknown-unknown.dependencies]
+stdweb =  "0.4.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 glutin = "0.13.0"

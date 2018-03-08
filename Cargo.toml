@@ -13,8 +13,6 @@ uni-glsl = {path="uni-glsl"}
 futures = "0.1"
 obj = "0.8.2"
 alga = "0.5"
-# Bring in stdweb to make sure the main function will translate to js
-stdweb =  "0.4.0"
 
 [dependencies.lazy_static]
 version = "1.0"
@@ -31,5 +29,5 @@ features = ["png_codec"]
 
 # wasm compilation isn't currently compatible with incremental compilation
 # see https://github.com/rust-lang/rust/issues/47643
-[profile.dev]
-incremental = false
+# [profile.dev]
+# incremental = false

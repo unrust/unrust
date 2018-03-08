@@ -6,8 +6,8 @@ authors = ["Edwin Cheng <edwin0cheng@gmail.com>"]
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 gl = "0.6.0"
 
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-stdweb =  "0.4.0"
+[target.wasm32-unknown-unknown.dependencies]
+stdweb =  "0.4.1"
 
 [dependencies.serde]
 version = "1.0"

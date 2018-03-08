@@ -16,6 +16,7 @@ use self::native_keycode::translate_keycode;
 pub struct App {
     window: glutin::GlWindow,
     events_loop: glutin::EventsLoop,
+    exiting: bool,
     pub events: Rc<RefCell<Vec<AppEvent>>>,
 }
 
@@ -87,6 +88,7 @@ impl App {
         App {
             window: gl_window,
             events_loop,
+            exiting: false,
             events: Rc::new(RefCell::new(Vec::new())),
         }
     }
@@ -128,6 +130,17 @@ impl App {
                         glutin::Event::WindowEvent { ref event, .. } => match event {
                             &glutin::WindowEvent::Closed => running = false,
                             &glutin::WindowEvent::Resized(w, h) => window.resize(w, h),
+                            &glutin::WindowEvent::KeyboardInput { input, .. } => {
+                                // issue tracked in https://github.com/tomaka/winit/issues/41
+                                // Right now we handle it manually.
+                                if cfg!(target_os = "macos") {
+                                    if let Some(keycode) = input.virtual_keycode {
+                                        if keycode == VirtualKeyCode::Q && input.modifiers.logo {
+                                            running = false;
+                                        }
+                                    }
+                                }
+                            }
                             _ => (),
                         },
                         _ => (),
@@ -144,6 +157,10 @@ impl App {
             self.events.borrow_mut().clear();
 
             self.window.swap_buffers().unwrap();
+
+            if self.exiting {
+                break;
+            }
         }
     }
 }

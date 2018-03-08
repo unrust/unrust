@@ -212,22 +212,26 @@ impl RenderQueueList {
     pub fn new() -> RenderQueueList {
         let mut qlist = RenderQueueList::default();
 
+        // Opaque Queue
         let mut state = RenderQueueState::default();
         state.depth_write = true;
         state.depth_test = true;
         qlist.insert(RenderQueue::Opaque, state);
 
+        // Skybox Queue
         let mut state = RenderQueueState::default();
         state.depth_write = false;
         state.depth_test = true;
         state.depth_func = DepthTest::LessEqual;
         qlist.insert(RenderQueue::Skybox, state);
 
+        // Transparent Queue
         let mut state = RenderQueueState::default();
         state.depth_write = false;
         state.depth_test = true;
         qlist.insert(RenderQueue::Transparent, state);
 
+        // UI Queue
         let mut state = RenderQueueState::default();
         state.depth_write = true;
         state.depth_test = true;
@@ -554,8 +558,10 @@ where
 
     pub fn main_camera(&self) -> Option<Arc<Component>> {
         let mut found = self.current_camera.borrow_mut();
-        if let None = *found {
-            *found = self.find_component::<Camera>();
+        match *found {
+            None => *found = self.find_component::<Camera>(),
+            Some(ref c) if Arc::strong_count(c) == 1 => *found = self.find_component::<Camera>(),
+            _ => (),
         }
 
         if let Some(ref c) = *found {

@@ -1,7 +1,7 @@
 use webgl::*;
 use webgl;
 
-use image::RgbaImage;
+use image::{RgbImage, RgbaImage};
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -15,9 +15,15 @@ pub enum TextureFiltering {
 }
 
 #[derive(Debug)]
+pub enum TextureImage {
+    Rgba(RgbaImage),
+    Rgb(RgbImage),
+}
+
+#[derive(Debug)]
 enum TextureKind {
-    Image(Resource<RgbaImage>),
-    CubeMap([Resource<RgbaImage>; 6]),
+    Image(Resource<TextureImage>),
+    CubeMap([Resource<TextureImage>; 6]),
     RenderTexture { size: (u32, u32) },
 }
 
@@ -29,12 +35,12 @@ pub struct Texture {
 }
 
 pub enum TextureAsset {
-    Single(Resource<RgbaImage>),
-    Cube([Resource<RgbaImage>; 6]),
+    Single(Resource<TextureImage>),
+    Cube([Resource<TextureImage>; 6]),
 }
 
-impl From<RgbaImage> for TextureAsset {
-    fn from(img: RgbaImage) -> TextureAsset {
+impl From<TextureImage> for TextureAsset {
+    fn from(img: TextureImage) -> TextureAsset {
         TextureAsset::Single(Resource::new(img))
     }
 }
@@ -66,15 +72,15 @@ impl LoadableAsset for Texture {
     ) -> Self::Resource {
         if files.len() == 6 {
             TextureAsset::Cube([
-                Self::load_resource::<RgbaImage, T>(asys.clone(), files.remove(0)),
-                Self::load_resource::<RgbaImage, T>(asys.clone(), files.remove(0)),
-                Self::load_resource::<RgbaImage, T>(asys.clone(), files.remove(0)),
-                Self::load_resource::<RgbaImage, T>(asys.clone(), files.remove(0)),
-                Self::load_resource::<RgbaImage, T>(asys.clone(), files.remove(0)),
-                Self::load_resource::<RgbaImage, T>(asys.clone(), files.remove(0)),
+                Self::load_resource::<TextureImage, T>(asys.clone(), files.remove(0)),
+                Self::load_resource::<TextureImage, T>(asys.clone(), files.remove(0)),
+                Self::load_resource::<TextureImage, T>(asys.clone(), files.remove(0)),
+                Self::load_resource::<TextureImage, T>(asys.clone(), files.remove(0)),
+                Self::load_resource::<TextureImage, T>(asys.clone(), files.remove(0)),
+                Self::load_resource::<TextureImage, T>(asys.clone(), files.remove(0)),
             ])
         } else {
-            TextureAsset::Single(Self::load_resource::<RgbaImage, T>(
+            TextureAsset::Single(Self::load_resource::<TextureImage, T>(
                 asys.clone(),
                 files.remove(0),
             ))
@@ -186,21 +192,36 @@ fn texture_bind_buffer(
 
     let tex = match kind {
         &TextureKind::Image(ref img_res) => {
-            let img = img_res.try_into()?;
+            let teximg = img_res.try_into()?;
 
             let tex = gl.create_texture();
             gl.active_texture(0);
             gl.bind_texture(&tex);
 
-            gl.tex_image2d(
-                TextureBindPoint::Texture2d, // target
-                0,                           // level
-                img.width() as u16,          // width
-                img.height() as u16,         // height
-                PixelFormat::Rgba,           // format
-                DataType::U8,                // type
-                &*img,                       // data
-            );
+            match teximg {
+                TextureImage::Rgba(img) => {
+                    gl.tex_image2d(
+                        TextureBindPoint::Texture2d, // target
+                        0,                           // level
+                        img.width() as u16,          // width
+                        img.height() as u16,         // height
+                        PixelFormat::Rgba,           // format
+                        DataType::U8,                // type
+                        &*img,                       // data
+                    );
+                }
+                TextureImage::Rgb(img) => {
+                    gl.tex_image2d(
+                        TextureBindPoint::Texture2d, // target
+                        0,                           // level
+                        img.width() as u16,          // width
+                        img.height() as u16,         // height
+                        PixelFormat::Rgb,            // format
+                        DataType::U8,                // type
+                        &*img,                       // data
+                    );
+                }
+            }
 
             tex
         }
@@ -229,16 +250,31 @@ fn texture_bind_buffer(
             gl.active_texture(0);
             gl.bind_texture_cube(&tex);
 
-            for (i, img) in imgs.iter().enumerate() {
-                gl.tex_image2d(
-                    bindpoints[i],       // target
-                    0,                   // level
-                    img.width() as u16,  // width
-                    img.height() as u16, // height
-                    PixelFormat::Rgba,   // format
-                    DataType::U8,        // type
-                    &*img,               // data
-                );
+            for (i, teximg) in imgs.iter().enumerate() {
+                match teximg {
+                    &TextureImage::Rgba(ref img) => {
+                        gl.tex_image2d(
+                            bindpoints[i],       // target
+                            0,                   // level
+                            img.width() as u16,  // width
+                            img.height() as u16, // height
+                            PixelFormat::Rgba,   // format
+                            DataType::U8,        // type
+                            &*img,               // data
+                        );
+                    }
+                    &TextureImage::Rgb(ref img) => {
+                        gl.tex_image2d(
+                            bindpoints[i],       // target
+                            0,                   // level
+                            img.width() as u16,  // width
+                            img.height() as u16, // height
+                            PixelFormat::Rgb,    // format
+                            DataType::U8,        // type
+                            &*img,               // data
+                        );
+                    }
+                }
             }
 
             gl_tex_kind = webgl::TextureKind::TextureCubeMap;

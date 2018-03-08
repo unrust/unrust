@@ -1,10 +1,9 @@
 use engine::asset::loader::{Loadable, Loader};
 use engine::asset::{AssetError, AssetResult, AssetSystem, File, FileFuture};
-use image::RgbaImage;
+use engine::TextureImage;
 use image::png;
 use image;
 use image::ImageDecoder;
-use uni_app;
 
 use futures::prelude::*;
 use std::io;
@@ -12,8 +11,8 @@ use std::fmt::Debug;
 
 pub struct ImageLoader {}
 
-impl Loader<RgbaImage> for ImageLoader {
-    fn load<A>(_asys: A, mut _file: Box<File>) -> AssetResult<RgbaImage>
+impl Loader<TextureImage> for ImageLoader {
+    fn load<A>(_asys: A, mut _file: Box<File>) -> AssetResult<TextureImage>
     where
         A: AssetSystem + Clone,
     {
@@ -120,7 +119,7 @@ fn new_img_context(
     ))
 }
 
-impl Loadable for RgbaImage {
+impl Loadable for TextureImage {
     type Loader = ImageLoader;
 
     fn load_future<A>(_asys: A, objfile: FileFuture) -> Box<Future<Item = Self, Error = AssetError>>
@@ -170,28 +169,18 @@ impl Loadable for RgbaImage {
         let decoded = decoded.flatten().and_then(|r| r);
 
         let img = decoded.and_then(move |(decoded, ctx)| {
-            let t = uni_app::now();
-
             let img = match ctx.color {
-                image::ColorType::RGBA(_) => image::ImageBuffer::from_raw(ctx.w, ctx.h, decoded)
-                    .map(image::DynamicImage::ImageRgba8),
-                image::ColorType::RGB(_) => image::ImageBuffer::from_raw(ctx.w, ctx.h, decoded)
-                    .map(image::DynamicImage::ImageRgb8),
+                image::ColorType::RGBA(_) => {
+                    image::ImageBuffer::from_raw(ctx.w, ctx.h, decoded).map(TextureImage::Rgba)
+                }
+                image::ColorType::RGB(_) => {
+                    image::ImageBuffer::from_raw(ctx.w, ctx.h, decoded).map(TextureImage::Rgb)
+                }
                 _ => unreachable!(),
             };
 
             match img {
-                Some(img) => {
-                    let rgba = img.to_rgba();
-                    uni_app::App::print(format!(
-                        "image {} loading time : {}\n",
-                        &ctx.info.file_name,
-                        (uni_app::now() - t)
-                    ));
-
-                    Ok(rgba)
-                }
-
+                Some(img) => Ok(img),
                 None => Err(make_invalid_format(
                     &ctx.info,
                     image::ImageError::DimensionError,

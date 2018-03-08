@@ -9,7 +9,8 @@ use engine::asset::loader;
 use engine::asset::loader::Loadable;
 use engine::asset::Resource;
 
-use engine::{MeshBuffer, ShaderFs, ShaderProgram, ShaderVs, Texture, TextureFiltering};
+use engine::{MeshBuffer, ShaderFs, ShaderProgram, ShaderVs, Texture, TextureFiltering,
+             TextureImage};
 use std::fmt::Debug;
 use std::ops::Deref;
 use futures::{Async, Future};
@@ -256,7 +257,7 @@ where
     }
 
     fn new_default_font_bitmap() -> Rc<Texture> {
-        let mut tex = Texture::new(ImageBuffer::from_fn(128, 64, |x, y| {
+        let mut tex = Texture::new(TextureImage::Rgba(ImageBuffer::from_fn(128, 64, |x, y| {
             let cx: u32 = x / 8;
             let cy: u32 = y / 8;
             let c = &DEFAULT_FONT_DATA[(cx + cy * 16) as usize];
@@ -269,7 +270,7 @@ where
             } else {
                 image::Rgba([0, 0, 0, 0])
             }
-        }));
+        })));
 
         Rc::get_mut(&mut tex).unwrap().filtering = TextureFiltering::Nearest;
 
@@ -280,13 +281,13 @@ where
         // Construct a new ImageBuffer with the specified width and height.
 
         // Construct a new by repeated calls to the supplied closure.
-        Texture::new(ImageBuffer::from_fn(64, 64, |x, y| {
+        Texture::new(TextureImage::Rgba(ImageBuffer::from_fn(64, 64, |x, y| {
             if (x < 32 && y < 32) || (x > 32 && y > 32) {
                 image::Rgba([0xff, 0xff, 0xff, 0xff])
             } else {
                 image::Rgba([0, 0, 0, 0xff])
             }
-        }))
+        })))
     }
 
     pub fn new_default_program() -> Rc<ShaderProgram> {

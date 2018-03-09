@@ -3,7 +3,7 @@ use AppConfig;
 
 use stdweb::web::IEventTarget;
 use stdweb::web::window;
-use stdweb::web::event::{ClickEvent, IKeyboardEvent, KeyDownEvent, KeyUpEvent, ResizeEvent};
+use stdweb::web::event::{ClickEvent, IKeyboardEvent, IMouseEvent, MouseMoveEvent, KeyDownEvent, KeyUpEvent, ResizeEvent};
 use stdweb::unstable::TryInto;
 use stdweb::web::html_element::CanvasElement;
 use stdweb::web::IHtmlElement;
@@ -114,6 +114,21 @@ impl App {
             events::ClickEvent {}
         });
 
+        canvas.add_event_listener({
+            let canvas = canvas.clone();
+            let canvas_x : f64 = js! {
+                return @{&canvas}.getBoundingClientRect().left; }.try_into().unwrap();
+            let canvas_y : f64 = js! {
+                return @{&canvas}.getBoundingClientRect().top; }.try_into().unwrap();
+            map_event!{
+                self.events,
+                MouseMoveEvent,
+                MousePos,
+                e,
+                (e.client_x() as f64 - canvas_x,e.client_y() as f64 - canvas_y)
+            }
+        });
+        
         canvas.add_event_listener(map_event!{
             self.events,
             KeyDownEvent,

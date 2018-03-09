@@ -560,7 +560,6 @@ where
         let mut found = self.current_camera.borrow_mut();
         match *found {
             None => *found = self.find_component::<Camera>(),
-            Some(ref c) if Arc::strong_count(c) == 1 => *found = self.find_component::<Camera>(),
             _ => (),
         }
 

@@ -46,6 +46,11 @@ impl FPS {
     }
 }
 
+#[derive(Default)]
+struct NewActorList {
+    pub list: Vec<ActorPair>,
+}
+
 pub struct World {
     engine: AppEngine,
     main_tree: Rc<SceneTree>,
@@ -54,7 +59,7 @@ pub struct World {
     fps: FPS,
 
     actors: Vec<ActorPair>,
-    new_actors: Rc<RefCell<Vec<ActorPair>>>,
+    new_actors: Rc<RefCell<NewActorList>>,
 
     shown_stats: bool,
     events: Rc<RefCell<Vec<AppEvent>>>,
@@ -124,13 +129,13 @@ impl<'a> WorldBuilder<'a> {
                     match changed {
                         ComponentEvent::Add => {
                             // filter
-                            actors
-                                .borrow_mut()
-                                .push((Rc::downgrade(go), Arc::downgrade(c)));
+                            let mut actors = actors.borrow_mut();
+                            actors.list.push((Rc::downgrade(go), Arc::downgrade(c)));
                         }
 
                         ComponentEvent::Remove => {
-                            actors.borrow_mut().retain(|&(_, ref cc)| {
+                            let mut actors = actors.borrow_mut();
+                            actors.list.retain(|&(_, ref cc)| {
                                 cc.upgrade().map_or(true, |ref ccp| !Arc::ptr_eq(ccp, &c))
                             });
                         }
@@ -181,18 +186,20 @@ impl World {
     }
 
     fn active_starting_actors(&mut self) {
-        let mut starting = Vec::new();
-        starting.append(&mut self.new_actors.borrow_mut());
+        while self.new_actors.borrow().list.len() > 0 {
+            let mut starting = Vec::new();
+            starting.append(&mut self.new_actors.borrow_mut().list);
 
-        for &(ref wgo, ref c) in starting.iter() {
-            let com = c.upgrade().unwrap().clone();
-            let actor = com.try_as::<Box<Actor>>().unwrap();
-            let go = wgo.upgrade().unwrap();
+            for &(ref wgo, ref c) in starting.iter() {
+                let com = c.upgrade().unwrap().clone();
+                let actor = com.try_as::<Box<Actor>>().unwrap();
+                let go = wgo.upgrade().unwrap();
 
-            (*actor).borrow_mut().start_rc(go, self);
+                (*actor).borrow_mut().start_rc(go, self);
+            }
+
+            self.actors.append(&mut starting);
         }
-
-        self.actors.append(&mut starting);
     }
 
     fn step(&mut self) {

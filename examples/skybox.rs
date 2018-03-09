@@ -126,7 +126,7 @@ impl Actor for Cube {
     fn start(&mut self, go: &mut GameObject, world: &mut World) {
         let db = &mut world.asset_system();
 
-        let mut material = Material::new(db.new_program("phong"));
+        let material = Material::new(db.new_program("phong"));
         material.set("uMaterial.diffuse", db.new_texture("tex_a.png"));
         material.set("uMaterial.shininess", 32.0);
 

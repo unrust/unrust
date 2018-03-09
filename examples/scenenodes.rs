@@ -126,7 +126,7 @@ impl Actor for Cube {
         {
             let db = &mut world.asset_system();
 
-            let mut material = Material::new(db.new_program("phong"));
+            let material = Material::new(db.new_program("phong"));
             let s: &str = match self.level % 3 {
                 0 => "tex_a.png",
                 1 => "tex_b.png",

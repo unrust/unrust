@@ -132,11 +132,11 @@ impl Actor for Crt {
         {
             let db = &mut world.asset_system();
 
-            let mut material = Material::new(db.new_program("crt"));
+            let material = Material::new(db.new_program("crt"));
             material.set("uDiffuse", self.rt.as_texture());
 
             let mut mesh = Mesh::new();
-            mesh.add_surface(db.new_mesh_buffer("screen_quad"), Rc::new(material));
+            mesh.add_surface(db.new_mesh_buffer("screen_quad"), material);
             go.add_component(mesh);
         }
 
@@ -183,7 +183,7 @@ impl Actor for Cube {
     fn start(&mut self, go: &mut GameObject, world: &mut World) {
         let db = &mut world.asset_system();
 
-        let mut material = Material::new(db.new_program("phong"));
+        let material = Material::new(db.new_program("phong"));
         material.set("uMaterial.diffuse", db.new_texture("tex_a.png"));
         material.set("uMaterial.shininess", 32.0);
 

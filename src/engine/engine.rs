@@ -382,7 +382,7 @@ where
         gl.depth_mask(q.depth_write);
 
         for cmd in q.commands.iter() {
-            if let Err(err) = self.setup_material(ctx, &*cmd.surface.material) {
+            if let Err(err) = self.setup_material(ctx, &cmd.surface.material) {
                 if let AssetError::NotReady = err {
                     continue;
                 }

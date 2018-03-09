@@ -3,7 +3,6 @@ use engine::asset::{Asset, AssetError, AssetResult, AssetSystem, File, FileFutur
 use engine::render::{Material, Mesh, MeshBuffer, MeshData, RenderQueue};
 use engine::core::Component;
 use std::sync::Arc;
-use std::rc::Rc;
 use std::borrow::Cow;
 use na;
 
@@ -94,7 +93,7 @@ impl PrefabLoader {
 
                 mesh.add_surface(
                     MeshBuffer::new_from_resource(Resource::new(mesh_data)),
-                    Rc::new(material),
+                    material,
                 );
             }
         }

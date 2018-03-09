@@ -1,6 +1,7 @@
 use engine::asset::{Asset, AssetResult};
 use engine::render::{RenderQueue, ShaderProgram, Texture};
 
+use std::cell::RefCell;
 use std::rc::Rc;
 use std::collections::HashMap;
 use na::{Vector2, Vector3, Vector4};
@@ -43,8 +44,9 @@ impl From<Vector4<f32>> for MaterialParam {
 
 pub struct Material {
     pub program: Rc<ShaderProgram>,
-    pub params: HashMap<String, MaterialParam>,
     pub render_queue: RenderQueue,
+
+    params: RefCell<HashMap<String, MaterialParam>>,
 }
 
 impl Material {
@@ -52,7 +54,7 @@ impl Material {
         return Material {
             render_queue: RenderQueue::Opaque,
             program: program,
-            params: HashMap::new(),
+            params: RefCell::new(HashMap::new()),
         };
     }
 
@@ -65,18 +67,18 @@ ctx.prepare_cache_tex(&tex, |ctx, unit| {
                         Ok(())
                     })?
                     */
-    pub fn set<T>(&mut self, name: &str, t: T)
+    pub fn set<T>(&self, name: &str, t: T)
     where
         T: Into<MaterialParam>,
     {
-        self.params.insert(name.to_string(), t.into());
+        self.params.borrow_mut().insert(name.to_string(), t.into());
     }
 
     pub fn bind<F>(&self, mut f: F) -> AssetResult<()>
     where
         F: FnMut(&Rc<Texture>) -> AssetResult<u32>,
     {
-        for (name, param) in self.params.iter() {
+        for (name, param) in self.params.borrow().iter() {
             match param {
                 &MaterialParam::Texture(ref tex) => {
                     let new_unit = f(&tex)?;

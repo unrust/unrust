@@ -6,7 +6,7 @@ use na::Vector3;
 
 pub struct MeshSurface {
     pub buffer: Rc<MeshBuffer>,
-    pub material: Rc<Material>,
+    pub material: Material,
 }
 
 pub struct Mesh {
@@ -25,7 +25,7 @@ impl Mesh {
     pub fn add_surface<U, T>(&mut self, buffer: U, material: T)
     where
         U: Into<Rc<MeshBuffer>>,
-        T: Into<Rc<Material>>,
+        T: Into<Material>,
     {
         self.surfaces.push(Rc::new(MeshSurface {
             buffer: buffer.into(),

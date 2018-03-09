@@ -233,7 +233,7 @@ impl Widget for Label {
             material.set("uDiffuse", db.new_texture("default_font_bitmap"));
             material.render_queue = RenderQueue::UI;
 
-            mesh.add_surface(MeshBuffer::new(meshdata), Rc::new(material));
+            mesh.add_surface(MeshBuffer::new(meshdata), material);
 
             let mut gtran = gomut.transform.global();
             gtran.append_translation_mut(&compute_translate(
@@ -321,7 +321,7 @@ impl Widget for Image {
             material.set("uDiffuse", self.texture.0.clone());
             material.render_queue = RenderQueue::UI;
 
-            mesh.add_surface(MeshBuffer::new(meshdata), Rc::new(material));
+            mesh.add_surface(MeshBuffer::new(meshdata), material);
 
             let mut gtrans = gomut.transform.global();
             gtrans.append_translation_mut(&compute_translate(

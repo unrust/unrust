@@ -4,7 +4,7 @@ use engine::render::{RenderQueue, ShaderProgram, Texture};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::collections::HashMap;
-use na::{Vector2, Vector3, Vector4};
+use na::{Matrix4, Vector2, Vector3, Vector4};
 
 pub enum MaterialParam {
     Texture(Rc<Texture>),
@@ -12,6 +12,7 @@ pub enum MaterialParam {
     Vec2(Vector2<f32>),
     Vec3(Vector3<f32>),
     Vec4(Vector4<f32>),
+    Matrix4(Matrix4<f32>),
 }
 
 impl From<f32> for MaterialParam {
@@ -39,6 +40,12 @@ impl From<Vector3<f32>> for MaterialParam {
 impl From<Vector4<f32>> for MaterialParam {
     fn from(f: Vector4<f32>) -> MaterialParam {
         MaterialParam::Vec4(f)
+    }
+}
+
+impl From<Matrix4<f32>> for MaterialParam {
+    fn from(f: Matrix4<f32>) -> MaterialParam {
+        MaterialParam::Matrix4(f)
     }
 }
 
@@ -95,6 +102,9 @@ ctx.prepare_cache_tex(&tex, |ctx, unit| {
                     self.program.set(&name, v);
                 }
                 &MaterialParam::Vec4(v) => {
+                    self.program.set(&name, v);
+                }
+                &MaterialParam::Matrix4(v) => {
                     self.program.set(&name, v);
                 }
             }

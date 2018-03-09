@@ -5,6 +5,7 @@ use std::os::raw::c_void;
 use glutin::{ElementState, Event, WindowEvent};
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::env;
 use time;
 
 use AppConfig;
@@ -94,6 +95,12 @@ impl App {
             exiting: false,
             events: Rc::new(RefCell::new(Vec::new())),
         }
+    }
+
+    pub fn get_params() -> Vec<String> {
+        let mut params: Vec<String> = env::args().collect();
+        params.remove(0);
+        params
     }
 
     pub fn print<T: Into<String>>(msg: T) {

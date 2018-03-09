@@ -82,6 +82,11 @@ impl App {
         js!{ console.log(@{msg.into()})};
     }
 
+    pub fn get_params() -> Vec<String> {
+        let params = js!{ return window.location.search.substring(1).split("&"); };
+        params.try_into().unwrap()
+    }
+
     pub fn hidpi_factor(&self) -> f32 {
         return 1.0;
     }

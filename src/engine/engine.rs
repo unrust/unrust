@@ -369,7 +369,13 @@ where
         }
     }
 
-    fn render_commands(&self, ctx: &mut EngineContext, q: &RenderQueueState, camera: &Camera) {
+    fn render_commands(
+        &self,
+        ctx: &mut EngineContext,
+        q: &RenderQueueState,
+        camera: &Camera,
+        material: Option<&Material>,
+    ) {
         let gl = &self.gl;
 
         if q.depth_test {
@@ -382,7 +388,12 @@ where
         gl.depth_mask(q.depth_write);
 
         for cmd in q.commands.iter() {
-            if let Err(err) = self.setup_material(ctx, &cmd.surface.material) {
+            let mat = match material.as_ref() {
+                Some(&m) => &m,
+                None => &cmd.surface.material,
+            };
+
+            if let Err(err) = self.setup_material(ctx, mat) {
                 if let AssetError::NotReady = err {
                     continue;
                 }
@@ -507,7 +518,12 @@ where
         }
     }
 
-    pub fn render_pass(&self, camera: &Camera, clear_option: ClearOption) {
+    pub fn render_pass_with_material(
+        &self,
+        camera: &Camera,
+        material: Option<&Material>,
+        clear_option: ClearOption,
+    ) {
         let objects = &self.objects;
 
         let mut ctx: EngineContext = Default::default();
@@ -548,12 +564,16 @@ where
             .sort_by_cam_distance();
 
         for (_, q) in render_q.iter() {
-            self.render_commands(&mut ctx, &q, camera);
+            self.render_commands(&mut ctx, &q, camera, material);
         }
 
         if let Some(ref rt) = camera.render_texture {
             rt.unbind_frame_buffer(&self.gl);
         }
+    }
+
+    pub fn render_pass(&self, camera: &Camera, clear_option: ClearOption) {
+        self.render_pass_with_material(camera, None, clear_option);
     }
 
     pub fn main_camera(&self) -> Option<Arc<Component>> {

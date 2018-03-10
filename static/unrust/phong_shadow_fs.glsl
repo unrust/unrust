@@ -65,7 +65,7 @@ void main(void) {
     gl_FragColor = vec4(result, 1.0);           
 }
 
-float ShadowCalculation(vec4 posLightSpace)
+float ShadowCalculation(vec4 posLightSpace, vec3 normal, vec3 lightDir)
 {
     vec3 projCoords = posLightSpace.xyz / posLightSpace.w;
 
@@ -76,7 +76,9 @@ float ShadowCalculation(vec4 posLightSpace)
 
     float currentDepth = projCoords.z;
 
-    float shadow = currentDepth > closestDepth ? 1.0 : 0.0;
+    float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
+
+    float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;
 
     return shadow;
 }
@@ -95,7 +97,7 @@ vec3 CalcDirectionalLight(DirectionalLight light, vec3 normal, vec3 viewDir)
     float spec = pow(max(dot(viewDir, reflectDir), 0.0), uMaterial.shininess);
     vec3 specular = light.specular * spec; 
 
-    float shadow = ShadowCalculation(vPosLightSpace);
+    float shadow = ShadowCalculation(vPosLightSpace, normal, lightDir);
 
     return ambient + (diffuse + specular) * (1.0 - shadow);
 }

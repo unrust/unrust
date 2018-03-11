@@ -579,48 +579,63 @@ impl GLContext {
         unsafe {
             gl::UniformMatrix4fv(*location.deref() as i32, 1, false as _, &value[0] as _);
         }
+        check_gl_error("uniform_matrix_4fv");
     }
 
     pub fn uniform_matrix_3fv(&self, location: &WebGLUniformLocation, value: &[[f32; 3]; 3]) {
         unsafe {
             gl::UniformMatrix3fv(*location.deref() as i32, 1, false as _, &value[0] as _);
         }
+        check_gl_error("uniform_matrix_3fv");
     }
 
     pub fn uniform_matrix_2fv(&self, location: &WebGLUniformLocation, value: &[[f32; 2]; 2]) {
         unsafe {
             gl::UniformMatrix2fv(*location.deref() as i32, 1, false as _, &value[0] as _);
         }
+        check_gl_error("uniform_matrix_2fv");
+    }
+
+    pub fn uniform_1fv(&self, location: &WebGLUniformLocation, count: usize, value: &[f32]) {
+        unsafe {
+            gl::Uniform1fv(*location.deref() as i32, count as i32, &value[0] as _);
+        }
+        check_gl_error("uniform_1fv");
     }
 
     pub fn uniform_1i(&self, location: &WebGLUniformLocation, value: i32) {
         unsafe {
             gl::Uniform1i(*location.deref() as i32, value as _);
         }
+        check_gl_error("uniform_1i");
     }
 
     pub fn uniform_1f(&self, location: &WebGLUniformLocation, value: f32) {
         unsafe {
             gl::Uniform1f(*location.deref() as i32, value as _);
         }
+        check_gl_error("uniform_1f");
     }
 
     pub fn uniform_2f(&self, location: &WebGLUniformLocation, value: (f32, f32)) {
         unsafe {
             gl::Uniform2f(*location.deref() as _, value.0, value.1);
         }
+        check_gl_error("uniform_2f");
     }
 
     pub fn uniform_3f(&self, location: &WebGLUniformLocation, value: (f32, f32, f32)) {
         unsafe {
             gl::Uniform3f(*location.deref() as _, value.0, value.1, value.2);
         }
+        check_gl_error("uniform_3f");
     }
 
     pub fn uniform_4f(&self, location: &WebGLUniformLocation, value: (f32, f32, f32, f32)) {
         unsafe {
             gl::Uniform4f(*location.deref() as _, value.0, value.1, value.2, value.3);
         }
+        check_gl_error("uniform_4f");
     }
 
     pub fn tex_parameteri(&self, kind: TextureKind, pname: TextureParameter, param: i32) {

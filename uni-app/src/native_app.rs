@@ -82,7 +82,9 @@ impl App {
             .with_gl_profile(GlProfile::Core);
 
         let gl_window = glutin::GlWindow::new(window, context, &events_loop).unwrap();
-
+        if !config.show_cursor {
+            gl_window.set_cursor_state(CursorState::Hide).unwrap();
+        }
         unsafe {
             gl_window.make_current().unwrap();
         }

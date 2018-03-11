@@ -61,6 +61,11 @@ impl App {
             // https://stackoverflow.com/questions/12886286/addeventlistener-for-keydown-on-canvas
             @{&canvas}.tabIndex = 1;
         };
+        if !config.show_cursor {
+            js! {
+                @{&canvas}.style.cursor="none";
+            };
+        }
 
         document()
             .query_selector("body")

@@ -42,6 +42,7 @@ fn translate_event(e: glutin::Event) -> Option<AppEvent> {
             WindowEvent::MouseInput { state, .. } if state == ElementState::Released => {
                 Some(AppEvent::Click(events::ClickEvent {}))
             }
+            WindowEvent::CursorMoved { position, .. } => Some(AppEvent::MousePos(position)),
             WindowEvent::KeyboardInput { input, .. } => match input.state {
                 ElementState::Pressed => Some(AppEvent::KeyDown(events::KeyDownEvent {
                     code: translate_keyevent(input),

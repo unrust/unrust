@@ -21,7 +21,7 @@ pub struct MainScene {
 impl Actor for MainScene {
     fn new() -> Box<Actor> {
         Box::new(MainScene {
-            eye: Vector3::new(-3.0, 3.0, -3.0),
+            eye: Vector3::new(12.0, 12.0, -12.0),
             last_event: None,
         })
     }
@@ -111,8 +111,6 @@ impl Actor for MainScene {
 
 pub struct Shadow {
     rt: Rc<RenderTexture>,
-    cube: Handle<GameObject>,
-    plane: Handle<GameObject>,
     light: Handle<GameObject>,
 
     shadow_material: Option<Material>,
@@ -135,14 +133,12 @@ impl Actor for Shadow {
     fn new() -> Box<Actor> {
         Box::new(Shadow {
             rt: Rc::new(RenderTexture::new(1024, 1024, TextureAttachment::Depth)),
-            cube: GameObject::empty(),
-            plane: GameObject::empty(),
             light: GameObject::empty(),
             shadow_material: None,
         })
     }
 
-    fn start(&mut self, go: &mut GameObject, world: &mut World) {
+    fn start(&mut self, _go: &mut GameObject, world: &mut World) {
         // add main camera to scene
         {
             let go = world.new_game_object();
@@ -165,25 +161,42 @@ impl Actor for Shadow {
         }
 
         // Added a cube in the scene
-        self.cube = world.new_game_object();
-        self.cube.borrow_mut().add_component(Cube::new_actor(Cube {
+        {
+            let cube = world.new_game_object();
+            cube.borrow_mut().add_component(Cube::new_actor(Cube {
+                shadow_map: Some(self.rt.as_texture().clone()),
+                light: self.light.clone(),
+                rotating: true,
+            }));
+            let mut gtran = cube.borrow_mut().transform.global();
+            gtran.append_translation_mut(&Translation3::new(0.0, 3.0, 0.0));
+            cube.borrow_mut().transform.set_global(gtran);
+        }
+
+        {
+            let cube = world.new_game_object();
+            cube.borrow_mut().add_component(Cube::new_actor(Cube {
+                shadow_map: Some(self.rt.as_texture().clone()),
+                light: self.light.clone(),
+                rotating: false,
+            }));
+            let mut gtran = cube.borrow_mut().transform.global();
+            gtran.append_translation_mut(&Translation3::new(5.0, 1.0, 0.0));
+            cube.borrow_mut().transform.set_global(gtran);
+        }
+
+        // Added a plane in the scene
+        let plane = world.new_game_object();
+        plane.borrow_mut().add_component(Plane::new_actor(Plane {
             shadow_map: Some(self.rt.as_texture().clone()),
             light: self.light.clone(),
         }));
-
-        self.plane = world.new_game_object();
-        self.plane
-            .borrow_mut()
-            .add_component(Plane::new_actor(Plane {
-                shadow_map: Some(self.rt.as_texture().clone()),
-                light: self.light.clone(),
-            }));
 
         let db = &mut world.asset_system();
         self.shadow_material = Some(Material::new(db.new_program("unrust/shadow")));
     }
 
-    fn update(&mut self, go: &mut GameObject, world: &mut World) {
+    fn update(&mut self, _go: &mut GameObject, world: &mut World) {
         // Setup fb for camera
         let cam_borrow = world.current_camera().unwrap();
         let mut cam = cam_borrow.borrow_mut();
@@ -218,12 +231,14 @@ impl Actor for Shadow {
 pub struct Cube {
     shadow_map: Option<Rc<Texture>>,
     light: Handle<GameObject>,
+    rotating: bool,
 }
 
 impl Actor for Cube {
     fn new() -> Box<Actor> {
         Box::new(Cube {
             shadow_map: None,
+            rotating: false,
             light: GameObject::empty(),
         })
     }
@@ -242,16 +257,18 @@ impl Actor for Cube {
         let mut mesh = Mesh::new();
         mesh.add_surface(db.new_mesh_buffer("cube"), material);
         go.add_component(mesh);
-
-        let mut gtran = go.transform.global();
-        gtran.append_translation_mut(&Translation3::new(0.0, 3.0, 0.0));
-        go.transform.set_global(gtran);
     }
 
     fn update(&mut self, go: &mut GameObject, _world: &mut World) {
-        let mut gtran = go.transform.global();
-        gtran.append_rotation_wrt_center_mut(&UnitQuaternion::new(Vector3::new(0.01, 0.02, 0.005)));
-        go.transform.set_global(gtran);
+        if self.rotating {
+            let mut gtran = go.transform.global();
+            gtran.append_rotation_wrt_center_mut(&UnitQuaternion::new(Vector3::new(
+                0.01,
+                0.02,
+                0.005,
+            )));
+            go.transform.set_global(gtran);
+        }
     }
 }
 

@@ -36,6 +36,7 @@ pub struct AppConfig {
     pub title: String,
     pub size: (u32, u32),
     pub vsync: bool,
+    pub show_cursor: bool,
 }
 
 impl AppConfig {
@@ -44,6 +45,7 @@ impl AppConfig {
             title: title.into(),
             size,
             vsync: true,
+            show_cursor: true,
         }
     }
 }
@@ -111,4 +113,5 @@ pub enum AppEvent {
     KeyDown(KeyDownEvent),
     KeyUp(KeyUpEvent),
     Resized((u32, u32)),
+    MousePos((f64, f64)),
 }

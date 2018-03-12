@@ -3,7 +3,7 @@ use AppConfig;
 
 use stdweb::web::IEventTarget;
 use stdweb::web::window;
-use stdweb::web::event::{ClickEvent, IKeyboardEvent, KeyDownEvent, KeyUpEvent, ResizeEvent};
+use stdweb::web::event::{ClickEvent, IKeyboardEvent, IMouseEvent, MouseMoveEvent, KeyDownEvent, KeyUpEvent, ResizeEvent};
 use stdweb::unstable::TryInto;
 use stdweb::web::html_element::CanvasElement;
 use stdweb::web::IHtmlElement;
@@ -61,6 +61,11 @@ impl App {
             // https://stackoverflow.com/questions/12886286/addeventlistener-for-keydown-on-canvas
             @{&canvas}.tabIndex = 1;
         };
+        if !config.show_cursor {
+            js! {
+                @{&canvas}.style.cursor="none";
+            };
+        }
 
         document()
             .query_selector("body")
@@ -75,6 +80,11 @@ impl App {
 
     pub fn print<T: Into<String>>(msg: T) {
         js!{ console.log(@{msg.into()})};
+    }
+
+    pub fn get_params() -> Vec<String> {
+        let params = js!{ return window.location.search.substring(1).split("&"); };
+        params.try_into().unwrap()
     }
 
     pub fn hidpi_factor(&self) -> f32 {
@@ -109,6 +119,21 @@ impl App {
             events::ClickEvent {}
         });
 
+        canvas.add_event_listener({
+            let canvas = canvas.clone();
+            let canvas_x : f64 = js! {
+                return @{&canvas}.getBoundingClientRect().left; }.try_into().unwrap();
+            let canvas_y : f64 = js! {
+                return @{&canvas}.getBoundingClientRect().top; }.try_into().unwrap();
+            map_event!{
+                self.events,
+                MouseMoveEvent,
+                MousePos,
+                e,
+                (e.client_x() as f64 - canvas_x,e.client_y() as f64 - canvas_y)
+            }
+        });
+        
         canvas.add_event_listener(map_event!{
             self.events,
             KeyDownEvent,

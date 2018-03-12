@@ -5,6 +5,7 @@ use std::os::raw::c_void;
 use glutin::{ElementState, Event, WindowEvent};
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::env;
 use time;
 
 use AppConfig;
@@ -42,6 +43,7 @@ fn translate_event(e: glutin::Event) -> Option<AppEvent> {
             WindowEvent::MouseInput { state, .. } if state == ElementState::Released => {
                 Some(AppEvent::Click(events::ClickEvent {}))
             }
+            WindowEvent::CursorMoved { position, .. } => Some(AppEvent::MousePos(position)),
             WindowEvent::KeyboardInput { input, .. } => match input.state {
                 ElementState::Pressed => Some(AppEvent::KeyDown(events::KeyDownEvent {
                     code: translate_keyevent(input),
@@ -81,7 +83,9 @@ impl App {
             .with_gl_profile(GlProfile::Core);
 
         let gl_window = glutin::GlWindow::new(window, context, &events_loop).unwrap();
-
+        if !config.show_cursor {
+            gl_window.set_cursor_state(CursorState::Hide).unwrap();
+        }
         unsafe {
             gl_window.make_current().unwrap();
         }
@@ -91,6 +95,12 @@ impl App {
             exiting: false,
             events: Rc::new(RefCell::new(Vec::new())),
         }
+    }
+
+    pub fn get_params() -> Vec<String> {
+        let mut params: Vec<String> = env::args().collect();
+        params.remove(0);
+        params
     }
 
     pub fn print<T: Into<String>>(msg: T) {

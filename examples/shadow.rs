@@ -1,8 +1,8 @@
 extern crate unrust;
 
 use unrust::world::{Actor, Handle, World, WorldBuilder};
-use unrust::engine::{Camera, ClearOption, Directional, GameObject, Light, Material, Mesh,
-                     RenderTexture, Texture, TextureAttachment};
+use unrust::engine::{Camera, ClearOption, ComponentBased, Directional, GameObject, Light,
+                     Material, Mesh, RenderTexture, Texture, TextureAttachment};
 use unrust::world::events::*;
 use unrust::math::*;
 
@@ -28,7 +28,7 @@ impl MainScene {
 // Actor is a trait object which would act like an component
 // (Because Box<Actor> implemented ComponentBased)
 impl Actor for MainScene {
-    fn start(&mut self, _go: &mut GameObject, world: &mut World) {
+    fn start(&mut self, go: &mut GameObject, world: &mut World) {
         // add main camera to scene
         {
             let go = world.new_game_object();
@@ -36,16 +36,45 @@ impl Actor for MainScene {
         }
 
         // add direction light to scene.
-        let go = world.new_game_object();
-        go.borrow_mut()
+        let light = world.new_game_object();
+        light
+            .borrow_mut()
             .add_component(Light::new(Directional::default()));
 
         // Added Shadow
-        let go = world.new_game_object();
-        go.borrow_mut().add_component(Shadow::new());
+        let shadow_pass = Shadow::new(light.clone(), world);
+        go.add_component(shadow_pass);
+
+        // Added a cube in the scene
+        {
+            let cube = world.new_game_object();
+            cube.borrow_mut()
+                .add_component(Cube::new_actor(Cube { rotating: true }));
+            let mut gtran = cube.borrow_mut().transform.global();
+            gtran.append_translation_mut(&Translation3::new(0.0, 3.0, 0.0));
+            cube.borrow_mut().transform.set_global(gtran);
+        }
+
+        {
+            let cube = world.new_game_object();
+            cube.borrow_mut()
+                .add_component(Cube::new_actor(Cube { rotating: false }));
+            let mut gtran = cube.borrow_mut().transform.global();
+            gtran.append_translation_mut(&Translation3::new(5.0, 1.0, 0.0));
+            cube.borrow_mut().transform.set_global(gtran);
+        }
+
+        // Added a plane in the scene
+        {
+            let plane = world.new_game_object();
+            plane.borrow_mut().add_component(Plane::new_actor(Plane {}));
+        }
     }
 
-    fn update(&mut self, _go: &mut GameObject, world: &mut World) {
+    fn update(&mut self, go: &mut GameObject, world: &mut World) {
+        let (mut shadow, _) = go.find_component_mut::<Shadow>().unwrap();
+        shadow.update(world);
+
         // Handle Events
         {
             let target = Vector3::new(0.0, 0.0, 0.0);
@@ -131,70 +160,29 @@ fn compute_light_matrix(go: &Handle<GameObject>) -> Matrix4<f32> {
     return proj * view;
 }
 
+impl ComponentBased for Shadow {}
+
 impl Shadow {
-    fn new() -> Box<Actor> {
-        Box::new(Shadow {
-            rt: Rc::new(RenderTexture::new(1024, 1024, TextureAttachment::Depth)),
-            light: GameObject::empty(),
-            shadow_material: None,
-        })
-    }
-}
-
-impl Actor for Shadow {
-    fn start(&mut self, _go: &mut GameObject, world: &mut World) {
-        // add main camera to scene
-        {
-            let go = world.new_game_object();
-            go.borrow_mut().add_component(Camera::default());
-        }
-
-        // add direction light to scene.
-        {
-            let go = world.new_game_object();
-            go.borrow_mut()
-                .add_component(Light::new(Directional::default()));
-            self.light = go;
-        }
-
-        // Added a cube in the scene
-        {
-            let cube = world.new_game_object();
-            cube.borrow_mut().add_component(Cube::new_actor(Cube {
-                shadow_map: Some(self.rt.as_texture().clone()),
-                light: self.light.clone(),
-                rotating: true,
-            }));
-            let mut gtran = cube.borrow_mut().transform.global();
-            gtran.append_translation_mut(&Translation3::new(0.0, 3.0, 0.0));
-            cube.borrow_mut().transform.set_global(gtran);
-        }
-
-        {
-            let cube = world.new_game_object();
-            cube.borrow_mut().add_component(Cube::new_actor(Cube {
-                shadow_map: Some(self.rt.as_texture().clone()),
-                light: self.light.clone(),
-                rotating: false,
-            }));
-            let mut gtran = cube.borrow_mut().transform.global();
-            gtran.append_translation_mut(&Translation3::new(5.0, 1.0, 0.0));
-            cube.borrow_mut().transform.set_global(gtran);
-        }
-
-        // Added a plane in the scene
-        let plane = world.new_game_object();
-        plane.borrow_mut().add_component(Plane::new_actor(Plane {
-            shadow_map: Some(self.rt.as_texture().clone()),
-            light: self.light.clone(),
-        }));
-
+    fn new(light: Handle<GameObject>, world: &mut World) -> Shadow {
         let db = &mut world.asset_system();
         let shadow_mat = Material::new(db.new_program("unrust/shadow"));
-        self.shadow_material = Some(shadow_mat);
+
+        Shadow {
+            rt: Rc::new(RenderTexture::new(1024, 1024, TextureAttachment::Depth)),
+            light,
+            shadow_material: Some(shadow_mat),
+        }
     }
 
-    fn update(&mut self, _go: &mut GameObject, world: &mut World) {
+    fn light_matrix(&self) -> Matrix4<f32> {
+        compute_light_matrix(&self.light)
+    }
+
+    fn texture(&self) -> Rc<Texture> {
+        self.rt.as_texture().clone()
+    }
+
+    fn update(&mut self, world: &mut World) {
         // Setup fb for camera
         let cam_borrow = world.current_camera().unwrap();
         let mut cam = cam_borrow.borrow_mut();
@@ -227,29 +215,40 @@ impl Actor for Shadow {
 }
 
 pub struct Cube {
-    shadow_map: Option<Rc<Texture>>,
-    light: Handle<GameObject>,
     rotating: bool,
 }
 
 impl Actor for Cube {
     fn start(&mut self, go: &mut GameObject, world: &mut World) {
+        let shadow_map = {
+            let shadow_com = world.find_component::<Shadow>().unwrap();
+            let tex = shadow_com.try_as::<Shadow>().unwrap().borrow().texture();
+            drop(shadow_com);
+            tex
+        };
+
         let db = &mut world.asset_system();
-
-        let light_matrix = compute_light_matrix(&self.light);
-
         let material = Material::new(db.new_program("unrust/phong_shadow"));
         material.set("uMaterial.diffuse", db.new_texture("tex_a.png"));
         material.set("uMaterial.shininess", 32.0);
-        material.set("uShadowMap", self.shadow_map.as_ref().unwrap().clone());
-        material.set("uShadowMatrix", light_matrix);
+        material.set("uShadowMap", shadow_map);
 
         let mut mesh = Mesh::new();
         mesh.add_surface(db.new_mesh_buffer("cube"), material);
         go.add_component(mesh);
     }
 
-    fn update(&mut self, go: &mut GameObject, _world: &mut World) {
+    fn update(&mut self, go: &mut GameObject, world: &mut World) {
+        if let Some(lm) = {
+            world.find_component::<Shadow>().map(|c| {
+                let shadow = c.try_as::<Shadow>().unwrap().borrow();
+                shadow.light_matrix()
+            })
+        } {
+            let (mesh, _) = go.find_component::<Mesh>().unwrap();
+            mesh.surfaces[0].material.set("uShadowMatrix", lm);
+        }
+
         if self.rotating {
             let mut gtran = go.transform.global();
             gtran.append_rotation_wrt_center_mut(&UnitQuaternion::new(Vector3::new(
@@ -262,25 +261,34 @@ impl Actor for Cube {
     }
 }
 
-pub struct Plane {
-    shadow_map: Option<Rc<Texture>>,
-    light: Handle<GameObject>,
-}
+pub struct Plane;
 
 impl Actor for Plane {
     fn start(&mut self, go: &mut GameObject, world: &mut World) {
         let db = &mut world.asset_system();
-        let light_matrix = compute_light_matrix(&self.light);
 
         let material = Material::new(db.new_program("unrust/phong_shadow"));
         material.set("uMaterial.diffuse", db.new_texture("tex_a.png"));
         material.set("uMaterial.shininess", 32.0);
-        material.set("uShadowMap", self.shadow_map.as_ref().unwrap().clone());
-        material.set("uShadowMatrix", light_matrix);
 
         let mut mesh = Mesh::new();
         mesh.add_surface(db.new_mesh_buffer("plane"), material);
         go.add_component(mesh);
+    }
+
+    fn update(&mut self, go: &mut GameObject, world: &mut World) {
+        if let Some((lm, shadow_map)) = {
+            world.find_component::<Shadow>().map(|c| {
+                let shadow = c.try_as::<Shadow>().unwrap().borrow();
+                (shadow.light_matrix(), shadow.texture())
+            })
+        } {
+            let (mesh, _) = go.find_component::<Mesh>().unwrap();
+            mesh.surfaces[0]
+                .material
+                .set("uShadowMap", shadow_map.clone());
+            mesh.surfaces[0].material.set("uShadowMatrix", lm);
+        }
     }
 }
 

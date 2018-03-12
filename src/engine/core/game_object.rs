@@ -196,7 +196,7 @@ impl GameObject {
         self.transform.tree.upgrade().unwrap()
     }
 
-    pub fn find_component<T>(&self) -> Option<(Ref<T>, Arc<Component>)>
+    pub fn find_component<T>(&self) -> Option<(Ref<T>, &Arc<Component>)>
     where
         T: 'static,
     {
@@ -205,7 +205,7 @@ impl GameObject {
         match self.components.iter().find(|c| c.typeid() == typeid) {
             Some(c) => {
                 let com: &Component = c.as_ref();
-                Some((com.try_as::<T>().unwrap().borrow(), c.clone()))
+                Some((com.try_as::<T>().unwrap().borrow(), c))
             }
             _ => None,
         }

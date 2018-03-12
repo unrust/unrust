@@ -293,6 +293,13 @@ impl World {
     pub fn remove_game_object(&mut self, go: &Handle<GameObject>) {
         self.golist.retain(|ref x| !Rc::ptr_eq(&x, go));
     }
+
+    pub fn find_component<T>(&mut self) -> Option<(Arc<Component>)>
+    where
+        T: 'static + ComponentBased,
+    {
+        self.engine.find_component::<T>()
+    }
 }
 
 pub trait Actor {

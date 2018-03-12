@@ -285,7 +285,7 @@ where
             let result = obj.upgrade().and_then(|obj| {
                 obj.try_borrow()
                     .ok()
-                    .and_then(|o| o.find_component::<T>().map(|(_, c)| c))
+                    .and_then(|o| o.find_component::<T>().map(|(_, c)| c.clone()))
             });
 
             if let Some(com) = result {
@@ -309,7 +309,7 @@ where
         result
     }
 
-    fn find_component<T>(&self) -> Option<Arc<Component>>
+    pub fn find_component<T>(&self) -> Option<Arc<Component>>
     where
         T: 'static + ComponentBased,
     {
@@ -339,6 +339,9 @@ where
                     }
                 })
                 .take(4)            // only take 4 points light.
+                .map(
+                    |c| c.clone()
+                )
                 .collect();
     }
 
@@ -431,7 +434,7 @@ where
     pub fn main_camera(&self) -> Option<Arc<Component>> {
         let mut found = self.current_camera.borrow_mut();
         match *found {
-            None => *found = self.find_component::<Camera>(),
+            None => *found = self.find_component::<Camera>().map(|c| c.clone()),
             _ => (),
         }
 

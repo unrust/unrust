@@ -1,8 +1,10 @@
 mod app_fs;
 mod world;
 mod fps;
+mod actor;
 
-pub use self::world::{Actor, Handle, World, WorldBuilder};
+pub use self::actor::Actor;
+pub use self::world::{Handle, World, WorldBuilder};
 
 // Just reexport all engine modules
 pub use engine::*;

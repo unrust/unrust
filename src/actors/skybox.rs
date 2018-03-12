@@ -3,11 +3,13 @@ use engine::{GameObject, Material, Mesh, RenderQueue};
 
 pub struct SkyBox {}
 
-impl Actor for SkyBox {
-    fn new() -> Box<Actor> {
+impl SkyBox {
+    pub fn new() -> Box<Actor> {
         Box::new(SkyBox {})
     }
+}
 
+impl Actor for SkyBox {
     fn start(&mut self, go: &mut GameObject, world: &mut World) {
         let db = &mut world.asset_system();
 

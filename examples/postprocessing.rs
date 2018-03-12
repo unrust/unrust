@@ -18,14 +18,16 @@ pub struct MainScene {
 
 // Actor is a trait object which would act like an component
 // (Because Box<Actor> implemented ComponentBased)
-impl Actor for MainScene {
+impl MainScene {
     fn new() -> Box<Actor> {
         Box::new(MainScene {
             eye: Vector3::new(-3.0, 3.0, -3.0),
             last_event: None,
         })
     }
+}
 
+impl Actor for MainScene {
     fn start(&mut self, _go: &mut GameObject, world: &mut World) {
         // add main camera to scene
         {
@@ -114,14 +116,16 @@ pub struct Crt {
     cube: Handle<GameObject>,
 }
 
-impl Actor for Crt {
+impl Crt {
     fn new() -> Box<Actor> {
         Box::new(Crt {
             rt: Rc::new(RenderTexture::new(1024, 1024, TextureAttachment::Color0)),
             cube: GameObject::empty(),
         })
     }
+}
 
+impl Actor for Crt {
     fn start(&mut self, go: &mut GameObject, world: &mut World) {
         // add main camera to scene
         {
@@ -175,11 +179,13 @@ impl Actor for Crt {
 
 pub struct Cube {}
 
-impl Actor for Cube {
+impl Cube {
     fn new() -> Box<Actor> {
         Box::new(Cube {})
     }
+}
 
+impl Actor for Cube {
     fn start(&mut self, go: &mut GameObject, world: &mut World) {
         let db = &mut world.asset_system();
 

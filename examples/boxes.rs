@@ -116,7 +116,7 @@ impl MainScene {
         go.borrow_mut().add_component(PhysicObject(rb.clone()));
 
         if let Some(_) = shape.as_shape::<Cuboid3<f32>>() {
-            let actor = CubeActor::new_actor(CubeActor { id: self.counter });
+            let actor = CubeActor::new(self.counter);
             self.counter += 1;
             go.borrow_mut().add_component(actor);
         } else if let Some(_) = shape.as_shape::<Plane3<f32>>() {
@@ -125,11 +125,7 @@ impl MainScene {
             unimplemented!();
         }
     }
-}
 
-// Actor is a trait object which would act like an component
-// (Because Box<Actor> implemented ComponentBased)
-impl Actor for MainScene {
     fn new() -> Box<Actor> {
         Box::new(MainScene {
             eye: Vector3::new(-30.0, 30.0, -30.0),
@@ -139,7 +135,11 @@ impl Actor for MainScene {
             counter: 0,
         })
     }
+}
 
+// Actor is a trait object which would act like an component
+// (Because Box<Actor> implemented ComponentBased)
+impl Actor for MainScene {
     fn start(&mut self, _: &mut GameObject, world: &mut World) {
         // add main camera to scene
         {
@@ -271,11 +271,13 @@ pub struct CubeActor {
     id: u32,
 }
 
-impl Actor for CubeActor {
-    fn new() -> Box<Actor> {
-        Box::new(CubeActor { id: 0 })
+impl CubeActor {
+    fn new(id: u32) -> Box<Actor> {
+        Box::new(CubeActor { id: id })
     }
+}
 
+impl Actor for CubeActor {
     fn start(&mut self, go: &mut GameObject, world: &mut World) {
         let db = &mut world.asset_system();
 
@@ -306,11 +308,13 @@ impl Actor for CubeActor {
 
 pub struct PlaneActor {}
 
-impl Actor for PlaneActor {
+impl PlaneActor {
     fn new() -> Box<Actor> {
         Box::new(PlaneActor {})
     }
+}
 
+impl Actor for PlaneActor {
     fn start(&mut self, go: &mut GameObject, world: &mut World) {
         let db = &mut world.asset_system();
 

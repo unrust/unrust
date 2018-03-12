@@ -295,15 +295,6 @@ impl World {
     }
 }
 
-#[derive(Default)]
-struct EmptyActor {}
-
-impl Actor for EmptyActor {
-    fn new() -> Box<Actor> {
-        Box::new(EmptyActor::default())
-    }
-}
-
 pub trait Actor {
     // Called before first update call
     fn start_rc(&mut self, go: Handle<GameObject>, world: &mut World) {
@@ -319,16 +310,12 @@ pub trait Actor {
 
     fn update(&mut self, &mut GameObject, &mut World) {}
 
-    fn new() -> Box<Actor>
-    where
-        Self: Sized;
-
-    fn new_actor<T>(a: T) -> Box<Actor>
+    fn new_actor<T: Actor>(t: T) -> Box<Actor>
     where
         Self: Sized,
-        T: 'static + Actor,
+        T: 'static,
     {
-        Box::new(a)
+        Box::new(t)
     }
 }
 

@@ -16,16 +16,18 @@ pub struct MainScene {
     last_event: Option<AppEvent>,
 }
 
-// Actor is a trait object which would act like an component
-// (Because Box<Actor> implemented ComponentBased)
-impl Actor for MainScene {
+impl MainScene {
     fn new() -> Box<Actor> {
         Box::new(MainScene {
             eye: Vector3::new(12.0, 12.0, -12.0),
             last_event: None,
         })
     }
+}
 
+// Actor is a trait object which would act like an component
+// (Because Box<Actor> implemented ComponentBased)
+impl Actor for MainScene {
     fn start(&mut self, _go: &mut GameObject, world: &mut World) {
         // add main camera to scene
         {
@@ -129,7 +131,7 @@ fn compute_light_matrix(go: &Handle<GameObject>) -> Matrix4<f32> {
     return proj * view;
 }
 
-impl Actor for Shadow {
+impl Shadow {
     fn new() -> Box<Actor> {
         Box::new(Shadow {
             rt: Rc::new(RenderTexture::new(1024, 1024, TextureAttachment::Depth)),
@@ -137,7 +139,9 @@ impl Actor for Shadow {
             shadow_material: None,
         })
     }
+}
 
+impl Actor for Shadow {
     fn start(&mut self, _go: &mut GameObject, world: &mut World) {
         // add main camera to scene
         {
@@ -229,14 +233,6 @@ pub struct Cube {
 }
 
 impl Actor for Cube {
-    fn new() -> Box<Actor> {
-        Box::new(Cube {
-            shadow_map: None,
-            rotating: false,
-            light: GameObject::empty(),
-        })
-    }
-
     fn start(&mut self, go: &mut GameObject, world: &mut World) {
         let db = &mut world.asset_system();
 
@@ -272,13 +268,6 @@ pub struct Plane {
 }
 
 impl Actor for Plane {
-    fn new() -> Box<Actor> {
-        Box::new(Plane {
-            shadow_map: None,
-            light: GameObject::empty(),
-        })
-    }
-
     fn start(&mut self, go: &mut GameObject, world: &mut World) {
         let db = &mut world.asset_system();
         let light_matrix = compute_light_matrix(&self.light);

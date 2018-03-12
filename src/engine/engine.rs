@@ -11,7 +11,8 @@ use std::ops::{Deref, DerefMut};
 use engine::core::{Component, ComponentBased, GameObject, SceneTree};
 use engine::render::Camera;
 use engine::render::{Directional, Light};
-use engine::render::{Material, Mesh, MeshBuffer, MeshSurface, ShaderProgram, Texture};
+use engine::render::{CullMode, Material, MaterialState, Mesh, MeshBuffer, MeshSurface,
+                     ShaderProgram, Texture};
 use engine::render::RenderQueue;
 use engine::asset::{AssetError, AssetResult, AssetSystem};
 
@@ -60,6 +61,8 @@ struct EngineContext {
     switch_mesh: u32,
     switch_prog: u32,
     switch_tex: u32,
+
+    current_material_states: Vec<MaterialState>,
 }
 
 macro_rules! impl_cacher {
@@ -144,6 +147,34 @@ impl EngineContext {
             None => true,
             Some(ref p) => !Rc::ptr_eq(new_p, p),
         }
+    }
+
+    fn apply_default_states(&mut self, gl: &WebGLRenderingContext) {
+        self.apply_material_state(gl, &MaterialState::Cull(CullMode::Back));
+    }
+
+    fn apply_material_state(&mut self, gl: &WebGLRenderingContext, ms: &MaterialState) {
+        match ms {
+            &MaterialState::Cull(ref cm) => match cm {
+                &CullMode::Off => {
+                    gl.disable(Culling::CullFace as i32);
+                }
+                &CullMode::Front => {
+                    gl.enable(Culling::CullFace as i32);
+                    gl.cull_face(Culling::Front);
+                }
+                &CullMode::Back => {
+                    gl.enable(Culling::CullFace as i32);
+                    gl.cull_face(Culling::Back);
+                }
+                &CullMode::FrontAndBack => {
+                    gl.enable(Culling::CullFace as i32);
+                    gl.cull_face(Culling::FrontAndBack);
+                }
+            },
+        }
+
+        self.current_material_states.push(*ms);
     }
 }
 
@@ -392,6 +423,12 @@ where
                 Some(&m) => &m,
                 None => &cmd.surface.material,
             };
+
+            ctx.apply_default_states(gl);
+
+            for state in mat.states.iter() {
+                ctx.apply_material_state(gl, &state);
+            }
 
             if let Err(err) = self.setup_material(ctx, mat) {
                 if let AssetError::NotReady = err {

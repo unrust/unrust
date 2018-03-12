@@ -1,8 +1,8 @@
 extern crate unrust;
 
 use unrust::world::{Actor, Handle, World, WorldBuilder};
-use unrust::engine::{Camera, ClearOption, Directional, GameObject, Light, Material, Mesh,
-                     RenderTexture, Texture, TextureAttachment};
+use unrust::engine::{Camera, ClearOption, CullMode, Directional, GameObject, Light, Material,
+                     MaterialState, Mesh, RenderTexture, Texture, TextureAttachment};
 use unrust::world::events::*;
 use unrust::math::*;
 
@@ -153,13 +153,6 @@ impl Actor for Shadow {
             self.light = go;
         }
 
-        {
-            let db = &mut world.asset_system();
-
-            let material = Material::new(db.new_program("unrust/shadow_display"));
-            material.set("uDepthMap", self.rt.as_texture());
-        }
-
         // Added a cube in the scene
         {
             let cube = world.new_game_object();
@@ -193,7 +186,8 @@ impl Actor for Shadow {
         }));
 
         let db = &mut world.asset_system();
-        self.shadow_material = Some(Material::new(db.new_program("unrust/shadow")));
+        let mut shadow_mat = Material::new(db.new_program("unrust/shadow"));
+        self.shadow_material = Some(shadow_mat);
     }
 
     fn update(&mut self, _go: &mut GameObject, world: &mut World) {

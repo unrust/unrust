@@ -49,9 +49,23 @@ impl From<Matrix4<f32>> for MaterialParam {
     }
 }
 
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub enum CullMode {
+    Off,
+    Back,
+    Front,
+    FrontAndBack,
+}
+
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub enum MaterialState {
+    Cull(CullMode),
+}
+
 pub struct Material {
     pub program: Rc<ShaderProgram>,
     pub render_queue: RenderQueue,
+    pub states: Vec<MaterialState>,
 
     params: RefCell<HashMap<String, MaterialParam>>,
 }
@@ -62,18 +76,10 @@ impl Material {
             render_queue: RenderQueue::Opaque,
             program: program,
             params: RefCell::new(HashMap::new()),
+            states: Vec::new(),
         };
     }
 
-    /*
-ctx.prepare_cache_tex(&tex, |ctx, unit| {
-                        // Binding texture
-                        tex.bind(&self.gl, unit)?;
-
-                        ctx.switch_tex += 1;
-                        Ok(())
-                    })?
-                    */
     pub fn set<T>(&self, name: &str, t: T)
     where
         T: Into<MaterialParam>,

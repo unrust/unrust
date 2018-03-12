@@ -1,5 +1,6 @@
 mod app_fs;
 mod world;
+mod fps;
 
 pub use self::world::{Actor, Handle, World, WorldBuilder};
 

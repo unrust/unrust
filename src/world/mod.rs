@@ -2,6 +2,7 @@ mod app_fs;
 mod world;
 mod fps;
 mod actor;
+mod type_watcher;
 
 pub use self::actor::Actor;
 pub use self::world::{Handle, World, WorldBuilder};

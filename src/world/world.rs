@@ -1,29 +1,21 @@
 use std::rc::Rc;
-use std::rc;
 use std::cell::{Ref, RefCell, RefMut};
 use std::sync::Arc;
-use std::sync;
 use std::ops::Deref;
 
 use world::app_fs::AppEngine;
-use engine::{AssetSystem, Camera, ClearOption, Component, ComponentBased, ComponentEvent, Engine,
-             GameObject, IEngine, SceneTree};
+use engine::{AssetSystem, Camera, ClearOption, Component, ComponentBased, Engine, GameObject,
+             IEngine, SceneTree};
 
 use engine::imgui;
 use world::fps::FPS;
-use world::actor::Actor;
+use world::type_watcher::{ActorWatcher, TypeWatcher, TypeWatcherBuilder, Watcher};
+use world::Actor;
 
 use uni_app::{now, App, AppConfig, AppEvent};
 use std::default::Default;
 
 pub type Handle<T> = Rc<RefCell<T>>;
-type WeakHandle<T> = rc::Weak<RefCell<T>>;
-type ActorPair = (WeakHandle<GameObject>, sync::Weak<Component>);
-
-#[derive(Default)]
-struct NewActorList {
-    pub list: Vec<ActorPair>,
-}
 
 pub struct World {
     engine: AppEngine,
@@ -32,8 +24,7 @@ pub struct World {
     app: Option<App>,
     fps: FPS,
 
-    actors: Vec<ActorPair>,
-    new_actors: Rc<RefCell<NewActorList>>,
+    watcher: Rc<TypeWatcher>,
 
     shown_stats: bool,
     events: Rc<RefCell<Vec<AppEvent>>>,
@@ -45,6 +36,7 @@ pub struct WorldBuilder<'a> {
     title: &'a str,
     size: Option<(u32, u32)>,
     shown_stats: Option<bool>,
+    watchers: Vec<Box<Watcher>>,
 }
 
 impl<'a> WorldBuilder<'a> {
@@ -53,6 +45,7 @@ impl<'a> WorldBuilder<'a> {
             title: title,
             size: None,
             shown_stats: None,
+            watchers: Vec::new(),
         }
     }
 
@@ -63,6 +56,11 @@ impl<'a> WorldBuilder<'a> {
 
     pub fn with_stats(mut self, stats: bool) -> WorldBuilder<'a> {
         self.shown_stats = Some(stats);
+        self
+    }
+
+    pub fn with_actor<T: Actor + 'static>(mut self) -> WorldBuilder<'a> {
+        self.watchers.push(Box::new(ActorWatcher::<T>::new()));
         self
     }
 
@@ -82,41 +80,21 @@ impl<'a> WorldBuilder<'a> {
         );
         let events = app.events.clone();
         let main_tree = engine.new_scene_tree();
+        let watcher = TypeWatcherBuilder::new(main_tree.clone())
+            .add_watcher(ActorWatcher::<Box<Actor>>::new())
+            .add_watchers(self.watchers)
+            .build();
 
         let w = World {
             engine,
             app: Some(app),
-            main_tree,
-            actors: Default::default(),
-            new_actors: Default::default(),
+            main_tree: main_tree.clone(),
+            watcher: Rc::new(watcher),
             shown_stats: self.shown_stats.unwrap_or(false),
             fps: FPS::new(),
             events: events,
             golist: Vec::new(),
         };
-
-        w.main_tree.add_watcher({
-            let actors = w.new_actors.clone();
-
-            move |changed, ref go, ref c: &Arc<Component>| {
-                if c.try_as::<Box<Actor>>().is_some() {
-                    match changed {
-                        ComponentEvent::Add => {
-                            // filter
-                            let mut actors = actors.borrow_mut();
-                            actors.list.push((Rc::downgrade(go), Arc::downgrade(c)));
-                        }
-
-                        ComponentEvent::Remove => {
-                            let mut actors = actors.borrow_mut();
-                            actors.list.retain(|&(_, ref cc)| {
-                                cc.upgrade().map_or(true, |ref ccp| !Arc::ptr_eq(ccp, &c))
-                            });
-                        }
-                    }
-                }
-            }
-        });
 
         w
     }
@@ -159,23 +137,6 @@ impl World {
         return Some(CameraBorrow(c));
     }
 
-    fn active_starting_actors(&mut self) {
-        while self.new_actors.borrow().list.len() > 0 {
-            let mut starting = Vec::new();
-            starting.append(&mut self.new_actors.borrow_mut().list);
-
-            for &(ref wgo, ref c) in starting.iter() {
-                let com = c.upgrade().unwrap().clone();
-                let actor = com.try_as::<Box<Actor>>().unwrap();
-                let go = wgo.upgrade().unwrap();
-
-                (*actor).borrow_mut().start_rc(go, self);
-            }
-
-            self.actors.append(&mut starting);
-        }
-    }
-
     fn step(&mut self) {
         for evt in self.events.borrow().iter() {
             match evt {
@@ -184,29 +145,8 @@ impl World {
             }
         }
 
-        self.active_starting_actors();
-
-        let mut actor_components = Vec::new();
-        {
-            let actors = &mut self.actors;
-
-            for &(ref wgo, ref c) in actors.iter() {
-                if let Some(go) = wgo.upgrade() {
-                    actor_components.push((go.clone(), c.clone()));
-                }
-            }
-        }
-
-        for (go, c) in actor_components.into_iter() {
-            let com = c.upgrade().unwrap().clone();
-            let actor = com.try_as::<Box<Actor>>().unwrap();
-
-            (*actor).borrow_mut().update_rc(go, self);
-        }
-
-        let actors = &mut self.actors;
-        // move back and remove all unused components
-        actors.retain(|&(_, ref c)| c.upgrade().is_some());
+        let watcher = self.watcher.clone();
+        watcher.step(self);
 
         use engine::imgui::Metric::*;
 
@@ -220,7 +160,7 @@ impl World {
                     "fps: {} nobj: {} actors:{} lists:{}",
                     self.fps.fps,
                     self.engine().objects.len(),
-                    self.actors.len(),
+                    self.watcher.len(),
                     self.main_tree.len(),
                 ),
             );
@@ -236,7 +176,7 @@ impl World {
     }
 
     pub fn reset(&mut self) {
-        self.actors.clear();
+        self.watcher.clear();
         self.golist.clear();
         self.engine.asset_system_mut().reset();
         self.main_tree.root_mut().clear_components();

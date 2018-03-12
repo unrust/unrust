@@ -71,10 +71,7 @@ impl Actor for MainScene {
         }
     }
 
-    fn update(&mut self, go: &mut GameObject, world: &mut World) {
-        let (mut shadow, _) = go.find_component_mut::<Shadow>().unwrap();
-        shadow.update(world);
-
+    fn update(&mut self, _go: &mut GameObject, world: &mut World) {
         // Handle Events
         {
             let target = Vector3::new(0.0, 0.0, 0.0);
@@ -181,8 +178,10 @@ impl Shadow {
     fn texture(&self) -> Rc<Texture> {
         self.rt.as_texture().clone()
     }
+}
 
-    fn update(&mut self, world: &mut World) {
+impl Actor for Shadow {
+    fn update(&mut self, _go: &mut GameObject, world: &mut World) {
         // Setup fb for camera
         let cam_borrow = world.current_camera().unwrap();
         let mut cam = cam_borrow.borrow_mut();
@@ -296,6 +295,7 @@ pub fn main() {
     let mut world = WorldBuilder::new("Shadow demo")
         .with_size((800, 600))
         .with_stats(true)
+        .with_actor::<Shadow>()
         .build();
 
     // Add the main scene as component of scene game object

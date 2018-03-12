@@ -57,15 +57,36 @@ pub enum CullMode {
     FrontAndBack,
 }
 
+#[allow(dead_code)]
 #[derive(Copy, Clone, Eq, PartialEq)]
-pub enum MaterialState {
-    Cull(CullMode),
+pub enum DepthTest {
+    Never,
+    Less,
+    Equal,
+    LessEqual,
+    Greater,
+    NotEqual,
+    GreaterEqual,
+    Always,
+}
+
+impl Default for DepthTest {
+    fn default() -> DepthTest {
+        DepthTest::Less
+    }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Default)]
+pub struct MaterialState {
+    pub cull: Option<CullMode>,
+    pub depth_write: Option<bool>,
+    pub depth_test: Option<DepthTest>,
 }
 
 pub struct Material {
     pub program: Rc<ShaderProgram>,
     pub render_queue: RenderQueue,
-    pub states: Vec<MaterialState>,
+    pub states: MaterialState,
 
     params: RefCell<HashMap<String, MaterialParam>>,
 }
@@ -76,7 +97,7 @@ impl Material {
             render_queue: RenderQueue::Opaque,
             program: program,
             params: RefCell::new(HashMap::new()),
-            states: Vec::new(),
+            states: MaterialState::default(),
         };
     }
 

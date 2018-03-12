@@ -1,8 +1,8 @@
 extern crate unrust;
 
 use unrust::world::{Actor, Handle, World, WorldBuilder};
-use unrust::engine::{Camera, ClearOption, CullMode, Directional, GameObject, Light, Material,
-                     MaterialState, Mesh, RenderTexture, Texture, TextureAttachment};
+use unrust::engine::{Camera, ClearOption, Directional, GameObject, Light, Material, Mesh,
+                     RenderTexture, Texture, TextureAttachment};
 use unrust::world::events::*;
 use unrust::math::*;
 
@@ -186,7 +186,7 @@ impl Actor for Shadow {
         }));
 
         let db = &mut world.asset_system();
-        let mut shadow_mat = Material::new(db.new_program("unrust/shadow"));
+        let shadow_mat = Material::new(db.new_program("unrust/shadow"));
         self.shadow_material = Some(shadow_mat);
     }
 

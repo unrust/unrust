@@ -1,20 +1,18 @@
 use webgl::*;
-use webgl;
-
 use na::*;
 use std::rc::{Rc, Weak};
 use std::cell::RefCell;
-use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 use std::ops::{Deref, DerefMut};
 
 use engine::core::{Component, ComponentBased, GameObject, SceneTree};
 use engine::render::Camera;
-use engine::render::{Directional, Light};
-use engine::render::{CullMode, Material, MaterialState, Mesh, MeshBuffer, MeshSurface,
-                     ShaderProgram, Texture};
+use engine::render::{DepthTest, Directional, Light, Material, MaterialState, Mesh, MeshSurface,
+                     ShaderProgram};
 use engine::render::RenderQueue;
 use engine::asset::{AssetError, AssetResult, AssetSystem};
+use engine::context::EngineContext;
 
 use std::default::Default;
 
@@ -49,179 +47,15 @@ where
     pub gui_context: Rc<RefCell<imgui::Context>>,
 }
 
-#[derive(Default)]
-struct EngineContext {
-    mesh_buffer: Weak<MeshBuffer>,
-    prog: Weak<ShaderProgram>,
-    textures: VecDeque<(u32, Weak<Texture>)>,
-
-    main_light: Option<Arc<Component>>,
-    point_lights: Vec<Arc<Component>>,
-
-    switch_mesh: u32,
-    switch_prog: u32,
-    switch_tex: u32,
-
-    current_material_states: Vec<MaterialState>,
-}
-
-macro_rules! impl_cacher {
-    ($k:ident, $t:ty) => {
-        impl EngineCacher for $t {
-            fn get_cache<'a>(ctx: &'a mut EngineContext) -> &'a mut Weak<Self> {
-                &mut ctx.$k
-            }
-        }
-    };
-}
-
-trait EngineCacher {
-    fn get_cache(ctx: &mut EngineContext) -> &mut Weak<Self>;
-}
-
-impl_cacher!(prog, ShaderProgram);
-impl_cacher!(mesh_buffer, MeshBuffer);
-
-const MAX_TEXTURE_UNITS: u32 = 8;
-
-impl EngineContext {
-    pub fn prepare_cache<T, F>(&mut self, new_p: &Rc<T>, bind: F) -> AssetResult<()>
-    where
-        T: EngineCacher,
-        F: FnOnce(&mut EngineContext) -> AssetResult<()>,
-    {
-        if self.need_cache(new_p) {
-            bind(self)?;
-            *T::get_cache(self) = Rc::downgrade(new_p);
-        }
-
-        Ok(())
-    }
-
-    pub fn need_cache_tex(&self, new_tex: &Rc<Texture>) -> Option<u32> {
-        for &(u, ref tex) in self.textures.iter() {
-            if let Some(ref p) = tex.upgrade() {
-                if Rc::ptr_eq(new_tex, p) {
-                    return Some(u);
-                }
-            }
-        }
-
-        None
-    }
-
-    pub fn prepare_cache_tex<F>(&mut self, new_tex: &Rc<Texture>, bind_func: F) -> AssetResult<u32>
-    where
-        F: FnOnce(&mut EngineContext, u32) -> AssetResult<()>,
-    {
-        let found = self.need_cache_tex(new_tex);
-        if let Some(t) = found {
-            return Ok(t);
-        }
-
-        let mut unit = self.textures.len() as u32;
-
-        // find the empty slots.
-        if unit >= MAX_TEXTURE_UNITS {
-            let opt_pos = self.textures
-                .iter()
-                .position(|&(_, ref t)| t.upgrade().is_none());
-
-            unit = match opt_pos {
-                Some(pos) => self.textures.remove(pos).unwrap().0,
-                None => self.textures.pop_front().unwrap().0,
-            }
-        }
-
-        bind_func(self, unit).map(|_| {
-            self.textures.push_back((unit, Rc::downgrade(new_tex)));
-            unit
-        })
-    }
-
-    fn need_cache<T>(&mut self, new_p: &Rc<T>) -> bool
-    where
-        T: EngineCacher,
-    {
-        match T::get_cache(self).upgrade() {
-            None => true,
-            Some(ref p) => !Rc::ptr_eq(new_p, p),
-        }
-    }
-
-    fn apply_default_states(&mut self, gl: &WebGLRenderingContext) {
-        self.apply_material_state(gl, &MaterialState::Cull(CullMode::Back));
-    }
-
-    fn apply_material_state(&mut self, gl: &WebGLRenderingContext, ms: &MaterialState) {
-        match ms {
-            &MaterialState::Cull(ref cm) => match cm {
-                &CullMode::Off => {
-                    gl.disable(Culling::CullFace as i32);
-                }
-                &CullMode::Front => {
-                    gl.enable(Culling::CullFace as i32);
-                    gl.cull_face(Culling::Front);
-                }
-                &CullMode::Back => {
-                    gl.enable(Culling::CullFace as i32);
-                    gl.cull_face(Culling::Back);
-                }
-                &CullMode::FrontAndBack => {
-                    gl.enable(Culling::CullFace as i32);
-                    gl.cull_face(Culling::FrontAndBack);
-                }
-            },
-        }
-
-        self.current_material_states.push(*ms);
-    }
-}
-
 struct RenderCommand {
     pub surface: Rc<MeshSurface>,
     pub model_m: Matrix4<f32>,
     pub cam_distance: f32,
 }
 
-#[allow(dead_code)]
-enum DepthTest {
-    Never,
-    Less,
-    Equal,
-    LessEqual,
-    Greater,
-    NotEqual,
-    GreaterEqual,
-    Always,
-}
-
-impl Default for DepthTest {
-    fn default() -> DepthTest {
-        DepthTest::Less
-    }
-}
-
-impl DepthTest {
-    fn as_gl_state(&self) -> webgl::DepthTest {
-        match self {
-            &DepthTest::Never => webgl::DepthTest::Never,
-            &DepthTest::Always => webgl::DepthTest::Always,
-            &DepthTest::Less => webgl::DepthTest::Less,
-            &DepthTest::LessEqual => webgl::DepthTest::Lequal,
-            &DepthTest::Greater => webgl::DepthTest::Greater,
-            &DepthTest::NotEqual => webgl::DepthTest::Notequal,
-            &DepthTest::GreaterEqual => webgl::DepthTest::Gequal,
-            &DepthTest::Equal => webgl::DepthTest::Equal,
-        }
-    }
-}
-
 #[derive(Default)]
 struct RenderQueueState {
-    depth_write: bool,
-    depth_test: bool,
-    depth_func: DepthTest,
+    states: MaterialState,
     commands: Vec<RenderCommand>,
 }
 
@@ -244,28 +78,22 @@ impl RenderQueueList {
         let mut qlist = RenderQueueList::default();
 
         // Opaque Queue
-        let mut state = RenderQueueState::default();
-        state.depth_write = true;
-        state.depth_test = true;
+        let state = RenderQueueState::default();
         qlist.insert(RenderQueue::Opaque, state);
 
         // Skybox Queue
         let mut state = RenderQueueState::default();
-        state.depth_write = false;
-        state.depth_test = true;
-        state.depth_func = DepthTest::LessEqual;
+        state.states.depth_write = Some(false);
+        state.states.depth_test = Some(DepthTest::LessEqual);
         qlist.insert(RenderQueue::Skybox, state);
 
         // Transparent Queue
         let mut state = RenderQueueState::default();
-        state.depth_write = false;
-        state.depth_test = true;
+        state.states.depth_write = Some(false);
         qlist.insert(RenderQueue::Transparent, state);
 
         // UI Queue
-        let mut state = RenderQueueState::default();
-        state.depth_write = true;
-        state.depth_test = true;
+        let state = RenderQueueState::default();
         qlist.insert(RenderQueue::UI, state);
 
         qlist
@@ -317,9 +145,6 @@ where
     }
 
     pub fn clear(&self, option: ClearOption) {
-        // make sure all reset all state
-        self.gl.depth_mask(true);
-
         if let Some(col) = option.color {
             self.gl.clear_color(col.0, col.1, col.2, col.3);
         }
@@ -409,26 +234,16 @@ where
     ) {
         let gl = &self.gl;
 
-        if q.depth_test {
-            gl.enable(Flag::DepthTest as i32);
-            gl.depth_func(q.depth_func.as_gl_state());
-        } else {
-            gl.disable(Flag::DepthTest as i32);
-        }
-
-        gl.depth_mask(q.depth_write);
-
         for cmd in q.commands.iter() {
             let mat = match material.as_ref() {
                 Some(&m) => &m,
                 None => &cmd.surface.material,
             };
 
-            ctx.apply_default_states(gl);
-
-            for state in mat.states.iter() {
-                ctx.apply_material_state(gl, &state);
-            }
+            ctx.states.apply_defaults();
+            ctx.states.apply(&q.states);
+            ctx.states.apply(&mat.states);
+            ctx.states.commit(gl);
 
             if let Err(err) = self.setup_material(ctx, mat) {
                 if let AssetError::NotReady = err {
@@ -646,14 +461,8 @@ where
         // Clear the canvas
         gl.clear_color(0.5, 0.5, 0.5, 1.0);
 
-        // Enable the depth test
-        gl.enable(Flag::DepthTest as i32);
-
         // Enable alpha blending
         gl.enable(Flag::Blend as i32);
-
-        gl.enable(Culling::CullFace as i32);
-        gl.cull_face(Culling::Back);
 
         // Clear the color buffer bit
         gl.clear(BufferBit::Color);

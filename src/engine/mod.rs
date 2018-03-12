@@ -3,6 +3,7 @@ mod render;
 mod asset;
 
 pub mod imgui;
+pub mod context;
 pub mod engine;
 
 pub use self::imgui::Metric;

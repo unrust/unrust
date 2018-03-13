@@ -3,7 +3,8 @@ use AppConfig;
 
 use stdweb::web::IEventTarget;
 use stdweb::web::window;
-use stdweb::web::event::{ClickEvent, IKeyboardEvent, IMouseEvent, MouseMoveEvent, KeyDownEvent, KeyUpEvent, ResizeEvent};
+use stdweb::web::event::{ClickEvent, IKeyboardEvent, IMouseEvent, KeyDownEvent, KeyUpEvent,
+                         MouseMoveEvent, ResizeEvent};
 use stdweb::unstable::TryInto;
 use stdweb::web::html_element::CanvasElement;
 use stdweb::web::IHtmlElement;
@@ -72,6 +73,9 @@ impl App {
             .unwrap()
             .unwrap()
             .append_child(&canvas);
+        js!{
+            @{&canvas}.focus();
+        }
         App {
             window: canvas,
             events: Rc::new(RefCell::new(vec![])),
@@ -121,10 +125,14 @@ impl App {
 
         canvas.add_event_listener({
             let canvas = canvas.clone();
-            let canvas_x : f64 = js! {
-                return @{&canvas}.getBoundingClientRect().left; }.try_into().unwrap();
-            let canvas_y : f64 = js! {
-                return @{&canvas}.getBoundingClientRect().top; }.try_into().unwrap();
+            let canvas_x: f64 = js! {
+            return @{&canvas}.getBoundingClientRect().left; }
+                .try_into()
+                .unwrap();
+            let canvas_y: f64 = js! {
+            return @{&canvas}.getBoundingClientRect().top; }
+                .try_into()
+                .unwrap();
             map_event!{
                 self.events,
                 MouseMoveEvent,
@@ -133,7 +141,7 @@ impl App {
                 (e.client_x() as f64 - canvas_x,e.client_y() as f64 - canvas_y)
             }
         });
-        
+
         canvas.add_event_listener(map_event!{
             self.events,
             KeyDownEvent,

@@ -85,9 +85,16 @@ float ShadowCalculation(vec4 posLightSpace, vec3 normal, vec3 lightDir)
     {
         for(int y = -1; y <= 1; ++y)
         {
-            vec2 boundProj = clamp(projCoords.xy + vec2(x, y)* texelSize, vec2(0,0), vec2(1.0,1.0));
+            vec2 boundProj = projCoords.xy + vec2(x, y)* texelSize;
             float pcfDepth = texture2D(uShadowMap, boundProj).r;
-            shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
+            float partShadow = currentDepth - bias > pcfDepth ? 1.0 : 0.0;
+            
+            if (boundProj.x < 0.0 || boundProj.x > 1.0 ||
+            boundProj.y < 0.0 || boundProj.y > 1.0 ) {
+                partShadow = 0.0;
+            }            
+            
+            shadow += partShadow;
         }       
     }
     

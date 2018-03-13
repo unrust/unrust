@@ -3,7 +3,7 @@ use std::rc;
 use std::cell::{Ref, RefCell, RefMut};
 use std::sync::Arc;
 use std::any::{Any, TypeId};
-use na::{Isometry3, Matrix4};
+use na::{Isometry3, Matrix4, Vector3};
 use super::scene_tree::{ComponentEvent, NodeTransform, SceneTree};
 
 use std::sync::atomic::AtomicU32;
@@ -172,6 +172,13 @@ impl Transform {
         let tree = self.tree.upgrade().unwrap();
         let mut local = tree.get_local_transform(self.node_id);
         local.transform = trans;
+        tree.set_local_transform(self.node_id, local);
+    }
+
+    pub fn set_local_scale(&mut self, s: Vector3<f32>) {
+        let tree = self.tree.upgrade().unwrap();
+        let mut local = tree.get_local_transform(self.node_id);
+        local.scale = s;
         tree.set_local_transform(self.node_id, local);
     }
 }

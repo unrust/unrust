@@ -10,6 +10,7 @@ use unrust::nphysics3d::world::World as PhyWorld;
 use unrust::nphysics3d::object::{RigidBody, RigidBodyHandle};
 
 use unrust::engine::ComponentBased;
+use unrust::actors::ShadowPass;
 
 // GUI
 use unrust::imgui;
@@ -128,7 +129,7 @@ impl MainScene {
 
     fn new() -> Box<Actor> {
         Box::new(MainScene {
-            eye: Vector3::new(-30.0, 30.0, -30.0),
+            eye: Vector3::new(0.0, 40.0, -40.0),
             last_event: None,
             phy_scene: Scene::new(),
             point_lights: Vec::new(),
@@ -287,7 +288,7 @@ impl Actor for CubeActor {
             _ => db.new_texture("tex_b.png"),
         };
 
-        let material = Material::new(db.new_program("phong"));
+        let material = Material::new(db.new_program("unrust/phong_shadow"));
         material.set("uMaterial.diffuse", texture);
         material.set("uMaterial.shininess", 32.0);
 
@@ -318,7 +319,7 @@ impl Actor for PlaneActor {
     fn start(&mut self, go: &mut GameObject, world: &mut World) {
         let db = &mut world.asset_system();
 
-        let material = Material::new(db.new_program("phong"));
+        let material = Material::new(db.new_program("unrust/phong_shadow"));
         material.set("uMaterial.diffuse", db.new_texture("tex_a.png"));
         material.set("uMaterial.shininess", 32.0);
 
@@ -334,6 +335,7 @@ impl Actor for PlaneActor {
         };
 
         go.transform.set_global(new_trans);
+        go.transform.set_local_scale(Vector3::new(5.0, 1.0, 5.0));
     }
 }
 
@@ -341,6 +343,7 @@ pub fn main() {
     let mut world = WorldBuilder::new("Boxes with physics demo")
         .with_size((800, 600))
         .with_stats(true)
+        .with_processor::<ShadowPass>()
         .build();
 
     // Add the main scene as component of scene game object

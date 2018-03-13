@@ -103,8 +103,9 @@ mod tests {
         assert!(decl.is_some());
     }
 
+    #[test]
     fn preprocess_test_query_decl_all() {
-        let test_text = r#"uniform vec3 p; uniform vec3 v"#;
+        let test_text = r#"uniform vec3 p; uniform vec3 v;"#;
         let unit = parse(test_text).unwrap();
 
         let decl: Vec<&SingleDeclaration> = unit.query_decl_all(TypeQualifier::Uniform);

@@ -1,5 +1,5 @@
 use nom::types::CompleteStr;
-use nom::Err;
+use nom::{multispace0,Err};
 use statement::{statement, Statement};
 use declaration::{declaration, function_prototype, Declaration, FunctionPrototype};
 
@@ -15,10 +15,10 @@ pub enum ExternalDeclaration {
 }
 
 named!(external_declaration<CS, ExternalDeclaration >, 
-    ows!(alt!(
-        map!(declaration, ExternalDeclaration::Declaration)|
-        map!(pair!(function_prototype, statement), |(f,s)| ExternalDeclaration::FuntionDefinition(f,s))
-    ))
+    alt!(
+        ows!(map!(declaration, ExternalDeclaration::Declaration))|
+        ows!(map!(pair!(function_prototype, statement), |(f,s)| ExternalDeclaration::FuntionDefinition(f,s)))
+    )
 );
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -30,14 +30,19 @@ pub struct TranslationUnit {
 #[cfg_attr(rustfmt, rustfmt_skip)] 
 named!(
     translation_unit<CS,TranslationUnit>, 
-    exact!(fold_many0!(external_declaration,TranslationUnit::default(), |mut unit: TranslationUnit, item| {
-            match item {
-                ExternalDeclaration::FuntionDefinition(f, s) => unit.func_defs.push((f, s)),
-                ExternalDeclaration::Declaration(d) => unit.decls.push(d),
-            }
-            unit
-        }
-    ))
+    exact!(
+        do_parse!(
+            unit: fold_many0!(external_declaration,TranslationUnit::default(), |mut unit: TranslationUnit, item| {
+                match item {
+                    ExternalDeclaration::FuntionDefinition(f, s) => unit.func_defs.push((f, s)),
+                    ExternalDeclaration::Declaration(d) => unit.decls.push(d),
+                }
+                unit
+            }) >>
+            multispace0 >>
+            (unit)
+        )            
+    )
 );
 
 #[derive(Debug)]

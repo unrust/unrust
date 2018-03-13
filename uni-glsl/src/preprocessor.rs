@@ -72,8 +72,8 @@ macro_rules! spe {
 named!(#[allow(unused_imports)], // fix value! warning
     pub comment<CS, CS>,
     alt!(
-    complete!(preceded!(tag!("//"), take_until!("\n"))) |
-    complete!(delimited!(tag!("/*"), take_until!("*/"), tag!("*/"))) |
+    preceded!(tag!("//"), take_until!("\n")) |
+    delimited!(tag!("/*"), take_until!("*/"), tag!("*/")) |
     eat_separator!(&b" \t"[..])
     )
 );
@@ -92,7 +92,7 @@ fn join_string(input: Vec<CS>) -> String {
     input.into_iter().fold("".into(), |c, s| c + " " + s.0)
 }
 
-named!(remove_comment<CS, String>, map!( many0!(comment_eater!(not_whitespace)), join_string));
+named!(remove_comment<CS, String>, map!( many0!(spe!(comment_eater!(not_whitespace))), join_string));
 
 #[derive(Clone, Debug, PartialEq, Hash, Eq)]
 enum Define {

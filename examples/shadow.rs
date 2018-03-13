@@ -1,16 +1,13 @@
 extern crate unrust;
 
-use unrust::world::{Actor, Handle, World, WorldBuilder};
-use unrust::engine::{Camera, ClearOption, ComponentBased, Directional, GameObject, Light,
-                     Material, Mesh, RenderTexture, Texture, TextureAttachment};
+use unrust::world::{Actor, World, WorldBuilder};
+use unrust::engine::{Camera, Directional, GameObject, Light, Material, Mesh};
 use unrust::world::events::*;
 use unrust::math::*;
 use unrust::actors::ShadowPass;
 
 // GUI
 use unrust::imgui;
-
-use std::rc::Rc;
 
 pub struct MainScene {
     eye: Vector3<f32>,
@@ -24,12 +21,18 @@ impl MainScene {
             last_event: None,
         })
     }
+
+    fn build(world: &mut World) {
+        let scene = world.new_game_object();
+        scene.borrow_mut().add_component(ShadowPass::new());
+        scene.borrow_mut().add_component(MainScene::new());
+    }
 }
 
 // Actor is a trait object which would act like an component
 // (Because Box<Actor> implemented ComponentBased)
 impl Actor for MainScene {
-    fn start(&mut self, go: &mut GameObject, world: &mut World) {
+    fn start(&mut self, _go: &mut GameObject, world: &mut World) {
         // add main camera to scene
         {
             let go = world.new_game_object();
@@ -41,10 +44,6 @@ impl Actor for MainScene {
         light
             .borrow_mut()
             .add_component(Light::new(Directional::default()));
-
-        // Added Shadow
-        let shadow_pass = ShadowPass::new();
-        go.add_component(shadow_pass);
 
         // Added a rotating cube in the scene
         {
@@ -105,8 +104,7 @@ impl Actor for MainScene {
                 // Because reset will remove all objects in the world,
                 // included this Actor itself
                 // so will need to add it back.
-                let scene = world.new_game_object();
-                scene.borrow_mut().add_component(MainScene::new());
+                MainScene::build(world);
                 return;
             }
         }
@@ -227,9 +225,7 @@ pub fn main() {
         .build();
 
     // Add the main scene as component of scene game object
-    let scene = world.new_game_object();
-    scene.borrow_mut().add_component(MainScene::new());
-    drop(scene);
+    MainScene::build(&mut world);
 
     world.event_loop();
 }

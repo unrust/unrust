@@ -143,18 +143,10 @@ pub struct Cube {
 
 impl Actor for Cube {
     fn start(&mut self, go: &mut GameObject, world: &mut World) {
-        let shadow_map = {
-            world
-                .find_component::<ShadowPass>()
-                .map(|s| s.borrow().texture())
-                .unwrap()
-        };
-
         let db = &mut world.asset_system();
         let material = Material::new(db.new_program("unrust/phong_shadow"));
         material.set("uMaterial.diffuse", db.new_texture("tex_a.png"));
         material.set("uMaterial.shininess", 32.0);
-        material.set("uShadowMap", shadow_map);
 
         let mut mesh = Mesh::new();
         mesh.add_surface(db.new_mesh_buffer("cube"), material);
@@ -165,18 +157,7 @@ impl Actor for Cube {
         {
             let (mesh, _) = go.find_component::<Mesh>().unwrap();
             let shadow = world.find_component::<ShadowPass>().unwrap();
-            let lm = shadow.borrow().light_matrix();
-            let shadow_map_size = shadow
-                .borrow()
-                .texture()
-                .size()
-                .map(|(w, h)| Vector2::new(w as f32, h as f32))
-                .unwrap_or(Vector2::new(0.0, 0.0));
-
-            mesh.surfaces[0].material.set("uShadowMatrix", lm);
-            mesh.surfaces[0]
-                .material
-                .set("uShadowMapSize", shadow_map_size);
+            shadow.borrow().apply(&mesh.surfaces[0].material);
         }
 
         if self.rotating {
@@ -195,19 +176,11 @@ pub struct Plane;
 
 impl Actor for Plane {
     fn start(&mut self, go: &mut GameObject, world: &mut World) {
-        let shadow_map = {
-            world
-                .find_component::<ShadowPass>()
-                .map(|s| s.borrow().texture())
-                .unwrap()
-        };
-
         let db = &mut world.asset_system();
 
         let material = Material::new(db.new_program("unrust/phong_shadow"));
         material.set("uMaterial.diffuse", db.new_texture("tex_a.png"));
         material.set("uMaterial.shininess", 32.0);
-        material.set("uShadowMap", shadow_map);
 
         let mut mesh = Mesh::new();
         mesh.add_surface(db.new_mesh_buffer("plane"), material);
@@ -217,18 +190,7 @@ impl Actor for Plane {
     fn update(&mut self, go: &mut GameObject, world: &mut World) {
         let (mesh, _) = go.find_component::<Mesh>().unwrap();
         let shadow = world.find_component::<ShadowPass>().unwrap();
-        let lm = shadow.borrow().light_matrix();
-        let shadow_map_size = shadow
-            .borrow()
-            .texture()
-            .size()
-            .map(|(w, h)| Vector2::new(w as f32, h as f32))
-            .unwrap_or(Vector2::new(0.0, 0.0));
-
-        mesh.surfaces[0].material.set("uShadowMatrix", lm);
-        mesh.surfaces[0]
-            .material
-            .set("uShadowMapSize", shadow_map_size);
+        shadow.borrow().apply(&mesh.surfaces[0].material);
     }
 }
 

@@ -48,6 +48,18 @@ impl ShadowPass {
     fn light(&self) -> Option<&Arc<Component>> {
         self.light_cache.as_ref()
     }
+
+    pub fn apply(&self, material: &Material) {
+        let lm = self.light_matrix();
+        let shadow_map_size = self.texture()
+            .size()
+            .map(|(w, h)| Vector2::new(w as f32, h as f32))
+            .unwrap_or(Vector2::new(0.0, 0.0));
+
+        material.set("uShadowMatrix", lm);
+        material.set("uShadowMapSize", shadow_map_size);
+        material.set("uShadowMap", self.texture());
+    }
 }
 
 impl Actor for ShadowPass {

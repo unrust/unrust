@@ -3,11 +3,17 @@ use uni_app::fs;
 
 use futures::{Async, Future};
 use futures::future;
+use std::collections::BTreeSet;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 // unrust engine support different file system.
 #[derive(Default)]
-pub struct AppFileSystem {}
-pub struct AppFile(String, fs::File);
+pub struct AppFileSystem {
+    loading_files: Rc<RefCell<BTreeSet<String>>>,
+}
+
+pub struct AppFile(String, fs::File, Rc<RefCell<BTreeSet<String>>>);
 pub struct AppFileReader(Option<AppFile>);
 
 impl Future for AppFileReader {
@@ -20,6 +26,7 @@ impl Future for AppFileReader {
         }
 
         if let Some(f) = self.0.take() {
+            f.2.borrow_mut().remove(&f.name());
             return Ok(Async::Ready(Box::new(f)));
         }
 
@@ -36,8 +43,23 @@ impl FileSystem for AppFileSystem {
 
         match f {
             Err(e) => Box::new(future::err(e)),
-            Ok(file) => Box::new(AppFileReader(Some(AppFile(filename.into(), file)))),
+            Ok(file) => {
+                self.loading_files.borrow_mut().insert(filename.to_string());
+                Box::new(AppFileReader(Some(AppFile(
+                    filename.into(),
+                    file,
+                    self.loading_files.clone(),
+                ))))
+            }
         }
+    }
+
+    fn loading_files(&self) -> Vec<String> {
+        self.loading_files
+            .borrow()
+            .iter()
+            .map(|s| s.clone())
+            .collect()
     }
 }
 

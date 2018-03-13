@@ -53,6 +53,8 @@ pub trait AssetSystem {
     fn reset(&mut self);
 
     fn step(&mut self);
+
+    fn loading_files(&self) -> Vec<String>;
 }
 
 pub trait Asset {
@@ -209,6 +211,10 @@ where
             .collect();
 
         *self.pending_prefabs.borrow_mut() = new_pending;
+    }
+
+    fn loading_files(&self) -> Vec<String> {
+        self.fs.loading_files()
     }
 }
 

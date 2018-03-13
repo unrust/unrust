@@ -209,6 +209,21 @@ impl World {
                     self.main_tree.len(),
                 ),
             );
+
+            let loading_files = self.engine().asset_system().loading_files();
+
+            if loading_files.len() > 0 {
+                let files: Vec<String> = loading_files
+                    .into_iter()
+                    .map(|s| format!("loading {} ...", s))
+                    .collect();
+
+                imgui::pivot((0.0, 0.0));
+                imgui::label(
+                    Native(0.0, 0.0) + Pixel(8.0, 24.0),
+                    &format!("{}", files.join("\n")),
+                );
+            }
         }
     }
 

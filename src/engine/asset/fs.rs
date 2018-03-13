@@ -8,6 +8,8 @@ pub trait FileSystem: Default {
     type File;
 
     fn open(&self, filename: &str) -> FileFuture;
+
+    fn loading_files(&self) -> Vec<String>;
 }
 
 pub trait File {

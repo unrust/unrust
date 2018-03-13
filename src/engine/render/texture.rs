@@ -130,6 +130,7 @@ impl LoadableAsset for Texture {
 #[derive(Debug)]
 struct TextureGLState {
     tex: WebGLTexture,
+    size: (u32, u32),
 }
 
 impl Texture {
@@ -142,6 +143,10 @@ impl Texture {
                 attach: attach,
             },
         })
+    }
+
+    pub fn size(&self) -> Option<(u32, u32)> {
+        self.gl_state.borrow().as_ref().map(|ref s| s.size)
     }
 
     pub fn bind(&self, gl: &WebGLRenderingContext, unit: u32) -> AssetResult<()> {
@@ -201,16 +206,19 @@ fn texture_bind_buffer(
     let mut gl_tex_kind: webgl::TextureKind = webgl::TextureKind::Texture2d;
     let mut force_nearest_filtering = false;
 
-    let tex = match kind {
+    let (tex, size) = match kind {
         &TextureKind::Image(ref img_res) => {
             let teximg = img_res.try_into()?;
 
             let tex = gl.create_texture();
+            let size: (u32, u32);
+
             gl.active_texture(0);
             gl.bind_texture(&tex);
 
             match teximg {
                 TextureImage::Rgba(img) => {
+                    size = (img.width(), img.height());
                     gl.tex_image2d(
                         TextureBindPoint::Texture2d, // target
                         0,                           // level
@@ -222,6 +230,7 @@ fn texture_bind_buffer(
                     );
                 }
                 TextureImage::Rgb(img) => {
+                    size = (img.width(), img.height());
                     gl.tex_image2d(
                         TextureBindPoint::Texture2d, // target
                         0,                           // level
@@ -234,10 +243,11 @@ fn texture_bind_buffer(
                 }
             }
 
-            tex
+            (tex, size)
         }
         &TextureKind::CubeMap(ref img_res) => {
             let mut imgs = Vec::new();
+            let mut size: (u32, u32) = (0, 0);
 
             let bindpoints = [
                 TextureBindPoint::TextureCubeMapPositiveX,
@@ -264,6 +274,7 @@ fn texture_bind_buffer(
             for (i, teximg) in imgs.iter().enumerate() {
                 match teximg {
                     &TextureImage::Rgba(ref img) => {
+                        size = (img.width(), img.height());
                         gl.tex_image2d(
                             bindpoints[i],           // target
                             0,                       // level
@@ -275,6 +286,7 @@ fn texture_bind_buffer(
                         );
                     }
                     &TextureImage::Rgb(ref img) => {
+                        size = (img.width(), img.height());
                         gl.tex_image2d(
                             bindpoints[i],           // target
                             0,                       // level
@@ -290,7 +302,7 @@ fn texture_bind_buffer(
 
             gl_tex_kind = webgl::TextureKind::TextureCubeMap;
 
-            tex
+            (tex, size)
         }
 
         &TextureKind::RenderTexture { size, ref attach } => {
@@ -315,7 +327,7 @@ fn texture_bind_buffer(
                 &[],                         // data
             );
 
-            tex
+            (tex, size)
         }
     };
 
@@ -358,5 +370,5 @@ fn texture_bind_buffer(
 
     unbind_texture(gl, kind);
 
-    Ok(TextureGLState { tex: tex })
+    Ok(TextureGLState { tex, size })
 }

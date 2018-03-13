@@ -164,11 +164,19 @@ impl Actor for Cube {
     fn update(&mut self, go: &mut GameObject, world: &mut World) {
         {
             let (mesh, _) = go.find_component::<Mesh>().unwrap();
-            let lm = world
-                .find_component::<ShadowPass>()
-                .map(|s| s.borrow().light_matrix())
-                .unwrap();
+            let shadow = world.find_component::<ShadowPass>().unwrap();
+            let lm = shadow.borrow().light_matrix();
+            let shadow_map_size = shadow
+                .borrow()
+                .texture()
+                .size()
+                .map(|(w, h)| Vector2::new(w as f32, h as f32))
+                .unwrap_or(Vector2::new(0.0, 0.0));
+
             mesh.surfaces[0].material.set("uShadowMatrix", lm);
+            mesh.surfaces[0]
+                .material
+                .set("uShadowMapSize", shadow_map_size);
         }
 
         if self.rotating {
@@ -208,12 +216,19 @@ impl Actor for Plane {
 
     fn update(&mut self, go: &mut GameObject, world: &mut World) {
         let (mesh, _) = go.find_component::<Mesh>().unwrap();
-        let lm = world
-            .find_component::<ShadowPass>()
-            .map(|s| s.borrow().light_matrix())
-            .unwrap();
+        let shadow = world.find_component::<ShadowPass>().unwrap();
+        let lm = shadow.borrow().light_matrix();
+        let shadow_map_size = shadow
+            .borrow()
+            .texture()
+            .size()
+            .map(|(w, h)| Vector2::new(w as f32, h as f32))
+            .unwrap_or(Vector2::new(0.0, 0.0));
 
         mesh.surfaces[0].material.set("uShadowMatrix", lm);
+        mesh.surfaces[0]
+            .material
+            .set("uShadowMapSize", shadow_map_size);
     }
 }
 

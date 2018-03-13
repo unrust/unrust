@@ -22,7 +22,8 @@ pub mod world;
 pub mod actors;
 
 pub mod math {
-    pub use na::{Isometry3, Matrix4, Point3, Rotation3, Translation3, UnitQuaternion, Vector3};
+    pub use na::{Isometry3, Matrix4, Point3, Rotation3, Translation3, UnitQuaternion, Vector2,
+                 Vector3};
 }
 
 pub use engine::imgui;

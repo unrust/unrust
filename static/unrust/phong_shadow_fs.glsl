@@ -43,6 +43,7 @@ varying vec3 vNormal;
 varying vec4 vPosLightSpace;
 
 uniform sampler2D uShadowMap;
+uniform vec2 uShadowMapSize;
 
 // Lights
 uniform DirectionalLight uDirectionalLight;
@@ -72,17 +73,25 @@ float ShadowCalculation(vec4 posLightSpace, vec3 normal, vec3 lightDir)
     // transform ndc to range [0,1]
     projCoords = projCoords * 0.5 + 0.5;
     if (projCoords.z > 1.0)
-        return 0;
+        return 0.0;
     
-    vec2 boundProj = clamp(projCoords.xy, vec2(0,0), vec2(1.0,1.0));
-    float closestDepth = texture2D(uShadowMap, boundProj).r;
-
     float currentDepth = projCoords.z;
 
     float bias = max(0.005 * (1.0 - dot(normal, lightDir)), 0.001);
+    vec2 texelSize =  1.0 / uShadowMapSize;
 
-    float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;
-
+    float shadow = 0.0;
+    for(int x = -1; x <= 1; ++x)
+    {
+        for(int y = -1; y <= 1; ++y)
+        {
+            vec2 boundProj = clamp(projCoords.xy + vec2(x, y)* texelSize, vec2(0,0), vec2(1.0,1.0));
+            float pcfDepth = texture2D(uShadowMap, boundProj).r;
+            shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
+        }       
+    }
+    
+    shadow /= 9.0;
     return shadow;
 }
 

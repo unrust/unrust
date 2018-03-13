@@ -69,10 +69,13 @@ float ShadowCalculation(vec4 posLightSpace, vec3 normal, vec3 lightDir)
 {
     vec3 projCoords = posLightSpace.xyz / posLightSpace.w;
 
-    // transform ndc to range [0,1
+    // transform ndc to range [0,1]
     projCoords = projCoords * 0.5 + 0.5;
-
-    float closestDepth = texture2D(uShadowMap, projCoords.xy).r;
+    if (projCoords.z > 1.0)
+        return 0;
+    
+    vec2 boundProj = clamp(projCoords.xy, vec2(0,0), vec2(1.0,1.0));
+    float closestDepth = texture2D(uShadowMap, boundProj).r;
 
     float currentDepth = projCoords.z;
 

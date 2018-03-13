@@ -10,7 +10,7 @@ use unrust::nphysics3d::world::World as PhyWorld;
 use unrust::nphysics3d::object::{RigidBody, RigidBodyHandle};
 
 use unrust::engine::ComponentBased;
-use unrust::actors::ShadowPass;
+use unrust::actors::{ShadowPass, SkyBox};
 
 // GUI
 use unrust::imgui;
@@ -129,7 +129,7 @@ impl MainScene {
 
     fn new() -> Box<Actor> {
         Box::new(MainScene {
-            eye: Vector3::new(0.0, 40.0, -40.0),
+            eye: Vector3::new(26.0, 38.0, -43.0),
             last_event: None,
             phy_scene: Scene::new(),
             point_lights: Vec::new(),
@@ -181,6 +181,12 @@ impl Actor for MainScene {
             for rb in rigid_bodies.into_iter() {
                 self.add_object(rb, world);
             }
+        }
+
+        // Added a SkyBox in the scene
+        {
+            let go = world.new_game_object();
+            go.borrow_mut().add_component(SkyBox::new());
         }
     }
 
@@ -335,7 +341,7 @@ impl Actor for PlaneActor {
         };
 
         go.transform.set_global(new_trans);
-        go.transform.set_local_scale(Vector3::new(5.0, 1.0, 5.0));
+        go.transform.set_local_scale(Vector3::new(3.0, 1.0, 3.0));
     }
 }
 
@@ -349,6 +355,7 @@ pub fn main() {
     // Add the main scene as component of scene game object
     let scene = world.new_game_object();
     scene.borrow_mut().add_component(MainScene::new());
+
     drop(scene);
 
     world.event_loop();

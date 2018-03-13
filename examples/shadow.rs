@@ -220,10 +220,10 @@ pub struct Cube {
 impl Actor for Cube {
     fn start(&mut self, go: &mut GameObject, world: &mut World) {
         let shadow_map = {
-            let shadow_com = world.find_component::<Shadow>().unwrap();
-            let tex = shadow_com.try_as::<Shadow>().unwrap().borrow().texture();
-            drop(shadow_com);
-            tex
+            world
+                .find_component::<Shadow>()
+                .map(|s| s.borrow().texture())
+                .unwrap()
         };
 
         let db = &mut world.asset_system();
@@ -238,13 +238,12 @@ impl Actor for Cube {
     }
 
     fn update(&mut self, go: &mut GameObject, world: &mut World) {
-        if let Some(lm) = {
-            world.find_component::<Shadow>().map(|c| {
-                let shadow = c.try_as::<Shadow>().unwrap().borrow();
-                shadow.light_matrix()
-            })
-        } {
+        {
             let (mesh, _) = go.find_component::<Mesh>().unwrap();
+            let lm = world
+                .find_component::<Shadow>()
+                .map(|s| s.borrow().light_matrix())
+                .unwrap();
             mesh.surfaces[0].material.set("uShadowMatrix", lm);
         }
 
@@ -264,11 +263,19 @@ pub struct Plane;
 
 impl Actor for Plane {
     fn start(&mut self, go: &mut GameObject, world: &mut World) {
+        let shadow_map = {
+            world
+                .find_component::<Shadow>()
+                .map(|s| s.borrow().texture())
+                .unwrap()
+        };
+
         let db = &mut world.asset_system();
 
         let material = Material::new(db.new_program("unrust/phong_shadow"));
         material.set("uMaterial.diffuse", db.new_texture("tex_a.png"));
         material.set("uMaterial.shininess", 32.0);
+        material.set("uShadowMap", shadow_map);
 
         let mut mesh = Mesh::new();
         mesh.add_surface(db.new_mesh_buffer("plane"), material);
@@ -276,18 +283,13 @@ impl Actor for Plane {
     }
 
     fn update(&mut self, go: &mut GameObject, world: &mut World) {
-        if let Some((lm, shadow_map)) = {
-            world.find_component::<Shadow>().map(|c| {
-                let shadow = c.try_as::<Shadow>().unwrap().borrow();
-                (shadow.light_matrix(), shadow.texture())
-            })
-        } {
-            let (mesh, _) = go.find_component::<Mesh>().unwrap();
-            mesh.surfaces[0]
-                .material
-                .set("uShadowMap", shadow_map.clone());
-            mesh.surfaces[0].material.set("uShadowMatrix", lm);
-        }
+        let (mesh, _) = go.find_component::<Mesh>().unwrap();
+        let lm = world
+            .find_component::<Shadow>()
+            .map(|s| s.borrow().light_matrix())
+            .unwrap();
+
+        mesh.surfaces[0].material.set("uShadowMatrix", lm);
     }
 }
 

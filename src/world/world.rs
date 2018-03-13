@@ -14,6 +14,7 @@ use world::Actor;
 
 use uni_app::{now, App, AppConfig, AppEvent};
 use std::default::Default;
+use std::marker::PhantomData;
 
 pub type Handle<T> = Rc<RefCell<T>>;
 
@@ -100,13 +101,28 @@ impl<'a> WorldBuilder<'a> {
     }
 }
 
-pub struct CameraBorrow(Arc<Component>);
+pub struct ComponentBorrow<T> {
+    c: Arc<Component>,
+    marker: PhantomData<T>,
+}
 
-impl Deref for CameraBorrow {
-    type Target = RefCell<Camera>;
+impl<T> ComponentBorrow<T> {
+    fn new(c: Arc<Component>) -> ComponentBorrow<T> {
+        ComponentBorrow {
+            c,
+            marker: Default::default(),
+        }
+    }
+}
+
+impl<T> Deref for ComponentBorrow<T>
+where
+    T: 'static,
+{
+    type Target = RefCell<T>;
 
     fn deref(&self) -> &Self::Target {
-        self.0.try_as::<Camera>().unwrap()
+        self.c.try_as::<T>().unwrap()
     }
 }
 
@@ -127,14 +143,14 @@ impl World {
         &self.engine
     }
 
-    pub fn current_camera<'a>(&self) -> Option<CameraBorrow> {
+    pub fn current_camera<'a>(&self) -> Option<ComponentBorrow<Camera>> {
         if self.engine.main_camera().is_none() {
             return None;
         }
 
         let c = self.engine.main_camera().unwrap().clone();
 
-        return Some(CameraBorrow(c));
+        return Some(ComponentBorrow::<Camera>::new(c));
     }
 
     fn step(&mut self) {
@@ -208,10 +224,12 @@ impl World {
         self.golist.retain(|ref x| !Rc::ptr_eq(&x, go));
     }
 
-    pub fn find_component<T>(&mut self) -> Option<(Arc<Component>)>
+    pub fn find_component<T>(&mut self) -> Option<ComponentBorrow<T>>
     where
         T: 'static + ComponentBased,
     {
-        self.engine.find_component::<T>()
+        self.engine
+            .find_component::<T>()
+            .map(|c| ComponentBorrow::new(c))
     }
 }

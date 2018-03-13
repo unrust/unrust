@@ -237,7 +237,7 @@ where
         for cmd in q.commands.iter() {
             let mat = match material.as_ref() {
                 Some(&m) => &m,
-                None => &cmd.surface.material,
+                None => &*cmd.surface.material,
             };
 
             ctx.states.apply_defaults();

@@ -24,7 +24,6 @@ impl MainScene {
 
     fn build(world: &mut World) {
         let scene = world.new_game_object();
-        scene.borrow_mut().add_component(ShadowPass::new());
         scene.borrow_mut().add_component(MainScene::new());
     }
 }
@@ -153,13 +152,7 @@ impl Actor for Cube {
         go.add_component(mesh);
     }
 
-    fn update(&mut self, go: &mut GameObject, world: &mut World) {
-        {
-            let (mesh, _) = go.find_component::<Mesh>().unwrap();
-            let shadow = world.find_component::<ShadowPass>().unwrap();
-            shadow.borrow().apply(&mesh.surfaces[0].material);
-        }
-
+    fn update(&mut self, go: &mut GameObject, _world: &mut World) {
         if self.rotating {
             let mut gtran = go.transform.global();
             gtran.append_rotation_wrt_center_mut(&UnitQuaternion::new(Vector3::new(
@@ -186,19 +179,13 @@ impl Actor for Plane {
         mesh.add_surface(db.new_mesh_buffer("plane"), material);
         go.add_component(mesh);
     }
-
-    fn update(&mut self, go: &mut GameObject, world: &mut World) {
-        let (mesh, _) = go.find_component::<Mesh>().unwrap();
-        let shadow = world.find_component::<ShadowPass>().unwrap();
-        shadow.borrow().apply(&mesh.surfaces[0].material);
-    }
 }
 
 pub fn main() {
     let mut world = WorldBuilder::new("Shadow demo")
         .with_size((800, 600))
         .with_stats(true)
-        .with_actor::<ShadowPass>()
+        .with_processor::<ShadowPass>()
         .build();
 
     // Add the main scene as component of scene game object

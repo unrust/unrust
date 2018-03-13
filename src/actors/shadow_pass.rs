@@ -1,6 +1,8 @@
 use world::{Actor, World};
 use engine::{ClearOption, Component, ComponentBased, GameObject, Light, Material, RenderTexture,
              Texture, TextureAttachment};
+use world::Processor;
+
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -27,14 +29,6 @@ fn compute_light_matrix(com: &Arc<Component>) -> Matrix4<f32> {
 impl ComponentBased for ShadowPass {}
 
 impl ShadowPass {
-    pub fn new() -> ShadowPass {
-        ShadowPass {
-            rt: Rc::new(RenderTexture::new(1024, 1024, TextureAttachment::Depth)),
-            shadow_material: None,
-            light_cache: None,
-        }
-    }
-
     pub fn light_matrix(&self) -> Matrix4<f32> {
         self.light()
             .map(|c| compute_light_matrix(&c))
@@ -102,5 +96,21 @@ impl Actor for ShadowPass {
         // Clean up stuffs in camera, as later we could render normally
         cam.render_texture = None;
         cam.rect = None;
+    }
+}
+
+impl Processor for ShadowPass {
+    fn new() -> ShadowPass {
+        ShadowPass {
+            rt: Rc::new(RenderTexture::new(1024, 1024, TextureAttachment::Depth)),
+            shadow_material: None,
+            light_cache: None,
+        }
+    }
+
+    fn apply_materials(&self, materials: &Vec<Rc<Material>>) {
+        for m in materials.iter() {
+            self.apply(&m);
+        }
     }
 }

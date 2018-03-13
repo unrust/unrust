@@ -6,10 +6,10 @@ use std::sync::Arc;
 use std::marker::PhantomData;
 
 use engine::{Component, ComponentEvent, GameObject, SceneTree};
-use world::{Actor, World};
+use world::{Actor, Handle, World};
 
 type WeakHandle<T> = rc::Weak<RefCell<T>>;
-type GameObjectComponentPair = (WeakHandle<GameObject>, sync::Weak<Component>);
+pub type GameObjectComponentPair = (WeakHandle<GameObject>, sync::Weak<Component>);
 
 #[derive(Default)]
 pub struct NewObjectList {
@@ -25,16 +25,51 @@ pub struct ObjectContainer {
 pub trait Watcher {
     fn is(&self, c: &Arc<Component>) -> bool;
 
+    fn object_start(&self, _go: &Handle<GameObject>, _com: &Arc<Component>, &mut World) {}
+
+    fn object_step(&self, _go: &Handle<GameObject>, _com: &Arc<Component>, &mut World) {}
+
+    fn watch_pre_render(
+        &self,
+        _actors: &RefCell<Vec<GameObjectComponentPair>>,
+        _world: &mut World,
+    ) {
+    }
+
     fn watch_step(
         &self,
         new_actors: &RefCell<NewObjectList>,
         actors: &RefCell<Vec<GameObjectComponentPair>>,
-        &mut World,
+        world: &mut World,
     ) {
-        // move to actors
-        actors
-            .borrow_mut()
-            .append(&mut new_actors.borrow_mut().list);
+        while new_actors.borrow().list.len() > 0 {
+            let mut starting = Vec::new();
+            starting.append(&mut new_actors.borrow_mut().list);
+
+            for &(ref wgo, ref c) in starting.iter() {
+                let com = c.upgrade().unwrap().clone();
+                let go = wgo.upgrade().unwrap();
+
+                self.object_start(&go, &com, world);
+            }
+
+            actors.borrow_mut().append(&mut starting);
+        }
+
+        let mut actor_components = Vec::new();
+        {
+            for &(ref wgo, ref c) in actors.borrow().iter() {
+                if let Some(go) = wgo.upgrade() {
+                    actor_components.push((go.clone(), c.clone()));
+                }
+            }
+        }
+
+        for (go, c) in actor_components.into_iter() {
+            let com = c.upgrade().unwrap().clone();
+
+            self.object_step(&go, &com, world);
+        }
     }
 }
 
@@ -62,42 +97,14 @@ where
         c.try_as::<T>().is_some()
     }
 
-    fn watch_step(
-        &self,
-        new_actors: &RefCell<NewObjectList>,
-        actors: &RefCell<Vec<GameObjectComponentPair>>,
-        world: &mut World,
-    ) {
-        while new_actors.borrow().list.len() > 0 {
-            let mut starting = Vec::new();
-            starting.append(&mut new_actors.borrow_mut().list);
+    fn object_start(&self, go: &Handle<GameObject>, com: &Arc<Component>, world: &mut World) {
+        let actor = com.try_as::<T>().unwrap();
+        (*actor).borrow_mut().start_rc(go.clone(), world);
+    }
 
-            for &(ref wgo, ref c) in starting.iter() {
-                let com = c.upgrade().unwrap().clone();
-                let actor = com.try_as::<T>().unwrap();
-                let go = wgo.upgrade().unwrap();
-
-                (*actor).borrow_mut().start_rc(go, world);
-            }
-
-            actors.borrow_mut().append(&mut starting);
-        }
-
-        let mut actor_components = Vec::new();
-        {
-            for &(ref wgo, ref c) in actors.borrow().iter() {
-                if let Some(go) = wgo.upgrade() {
-                    actor_components.push((go.clone(), c.clone()));
-                }
-            }
-        }
-
-        for (go, c) in actor_components.into_iter() {
-            let com = c.upgrade().unwrap().clone();
-            let actor = com.try_as::<T>().unwrap();
-
-            (*actor).borrow_mut().update_rc(go, world);
-        }
+    fn object_step(&self, go: &Handle<GameObject>, com: &Arc<Component>, world: &mut World) {
+        let actor = com.try_as::<T>().unwrap();
+        (*actor).borrow_mut().update_rc(go.clone(), world);
     }
 }
 
@@ -106,52 +113,14 @@ impl Watcher for ActorWatcher<Box<Actor>> {
         c.try_as::<Box<Actor>>().is_some()
     }
 
-    fn watch_step(
-        &self,
-        new_actors: &RefCell<NewObjectList>,
-        actors: &RefCell<Vec<GameObjectComponentPair>>,
-        world: &mut World,
-    ) {
-        while new_actors.borrow().list.len() > 0 {
-            let mut starting = Vec::new();
-            starting.append(&mut new_actors.borrow_mut().list);
+    fn object_start(&self, go: &Handle<GameObject>, com: &Arc<Component>, world: &mut World) {
+        let actor = com.try_as::<Box<Actor>>().unwrap();
+        (*actor).borrow_mut().start_rc(go.clone(), world);
+    }
 
-            for &(ref wgo, ref c) in starting.iter() {
-                let com = c.upgrade().unwrap().clone();
-                let actor = com.try_as::<Box<Actor>>().unwrap();
-                let go = wgo.upgrade().unwrap();
-
-                (*actor).borrow_mut().start_rc(go, world);
-            }
-
-            actors.borrow_mut().append(&mut starting);
-        }
-
-        let mut actor_components = Vec::new();
-        {
-            for &(ref wgo, ref c) in actors.borrow().iter() {
-                if let Some(go) = wgo.upgrade() {
-                    actor_components.push((go.clone(), c.clone()));
-                }
-            }
-        }
-
-        for (go, c) in actor_components.into_iter() {
-            let com = c.upgrade().unwrap();
-            let actor = com.try_as::<Box<Actor>>().unwrap();
-
-            // check whether the components are still in the actors list.
-            let r = {
-                actors.borrow().iter().position(|&(_, ref c)| {
-                    c.upgrade().map(|c| c.id() == com.id()).unwrap_or(false)
-                })
-            };
-
-            // do only if it is valid
-            if let Some(_) = r {
-                (*actor).borrow_mut().update_rc(go, world);
-            }
-        }
+    fn object_step(&self, go: &Handle<GameObject>, com: &Arc<Component>, world: &mut World) {
+        let actor = com.try_as::<Box<Actor>>().unwrap();
+        (*actor).borrow_mut().update_rc(go.clone(), world);
     }
 }
 
@@ -202,6 +171,12 @@ impl TypeWatcher {
                 .objects
                 .borrow_mut()
                 .retain(|&(_, ref c)| c.upgrade().is_some());
+        }
+    }
+
+    pub fn pre_render(&self, world: &mut World) {
+        for &(ref watcher, ref container) in self.object_containers.iter() {
+            watcher.watch_pre_render(&container.objects, world);
         }
     }
 

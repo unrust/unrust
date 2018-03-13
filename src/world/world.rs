@@ -11,6 +11,7 @@ use engine::imgui;
 use world::fps::FPS;
 use world::type_watcher::{ActorWatcher, TypeWatcher, TypeWatcherBuilder, Watcher};
 use world::Actor;
+use world::processor::{IProcessorBuilder, Processor};
 
 use uni_app::{now, App, AppConfig, AppEvent};
 use std::default::Default;
@@ -31,6 +32,8 @@ pub struct World {
     events: Rc<RefCell<Vec<AppEvent>>>,
 
     golist: Vec<Handle<GameObject>>,
+
+    processor_builders: Vec<Rc<Box<IProcessorBuilder>>>,
 }
 
 pub struct WorldBuilder<'a> {
@@ -38,6 +41,7 @@ pub struct WorldBuilder<'a> {
     size: Option<(u32, u32)>,
     shown_stats: Option<bool>,
     watchers: Vec<Box<Watcher>>,
+    processor_builders: Vec<Rc<Box<IProcessorBuilder>>>,
 }
 
 impl<'a> WorldBuilder<'a> {
@@ -47,6 +51,7 @@ impl<'a> WorldBuilder<'a> {
             size: None,
             shown_stats: None,
             watchers: Vec::new(),
+            processor_builders: Vec::new(),
         }
     }
 
@@ -62,6 +67,11 @@ impl<'a> WorldBuilder<'a> {
 
     pub fn with_actor<T: Actor + 'static>(mut self) -> WorldBuilder<'a> {
         self.watchers.push(Box::new(ActorWatcher::<T>::new()));
+        self
+    }
+
+    pub fn with_processor<T: Processor + 'static>(mut self) -> WorldBuilder<'a> {
+        self.processor_builders.push(Rc::new(T::new_builder()));
         self
     }
 
@@ -81,12 +91,19 @@ impl<'a> WorldBuilder<'a> {
         );
         let events = app.events.clone();
         let main_tree = engine.new_scene_tree();
+
+        let processor_watchers = self.processor_builders
+            .iter()
+            .flat_map(|builder| builder.new_watchers())
+            .collect();
+
         let watcher = TypeWatcherBuilder::new(main_tree.clone())
             .add_watcher(ActorWatcher::<Box<Actor>>::new())
             .add_watchers(self.watchers)
+            .add_watchers(processor_watchers)
             .build();
 
-        let w = World {
+        let mut w = World {
             engine,
             app: Some(app),
             main_tree: main_tree.clone(),
@@ -95,7 +112,14 @@ impl<'a> WorldBuilder<'a> {
             fps: FPS::new(),
             events: events,
             golist: Vec::new(),
+            processor_builders: self.processor_builders.clone(),
         };
+
+        // add all processor into the scenes
+        let go = w.new_game_object();
+        for builder in self.processor_builders.into_iter() {
+            go.borrow_mut().add_component(builder.new_processor());
+        }
 
         w
     }
@@ -153,6 +177,11 @@ impl World {
         return Some(ComponentBorrow::<Camera>::new(c));
     }
 
+    fn pre_render(&mut self) {
+        let watcher = self.watcher.clone();
+        watcher.pre_render(self);
+    }
+
     fn step(&mut self) {
         for evt in self.events.borrow().iter() {
             match evt {
@@ -196,6 +225,12 @@ impl World {
         self.golist.clear();
         self.engine.asset_system_mut().reset();
         self.main_tree.root_mut().clear_components();
+
+        // add all processor back
+        let go = self.new_game_object();
+        for builder in self.processor_builders.iter() {
+            go.borrow_mut().add_component(builder.new_processor());
+        }
     }
 
     pub fn event_loop(mut self) {
@@ -205,6 +240,8 @@ impl World {
             self.engine.begin();
 
             self.step();
+
+            self.pre_render();
 
             // Render
             self.engine.render(ClearOption::default());

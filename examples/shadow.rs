@@ -5,6 +5,7 @@ use unrust::engine::{Camera, ClearOption, ComponentBased, Directional, GameObjec
                      Material, Mesh, RenderTexture, Texture, TextureAttachment};
 use unrust::world::events::*;
 use unrust::math::*;
+use unrust::actors::ShadowPass;
 
 // GUI
 use unrust::imgui;
@@ -42,10 +43,10 @@ impl Actor for MainScene {
             .add_component(Light::new(Directional::default()));
 
         // Added Shadow
-        let shadow_pass = Shadow::new(light.clone(), world);
+        let shadow_pass = ShadowPass::new();
         go.add_component(shadow_pass);
 
-        // Added a cube in the scene
+        // Added a rotating cube in the scene
         {
             let cube = world.new_game_object();
             cube.borrow_mut()
@@ -55,6 +56,7 @@ impl Actor for MainScene {
             cube.borrow_mut().transform.set_global(gtran);
         }
 
+        // Added a stationary cube in the scene
         {
             let cube = world.new_game_object();
             cube.borrow_mut()
@@ -137,82 +139,6 @@ impl Actor for MainScene {
     }
 }
 
-pub struct Shadow {
-    rt: Rc<RenderTexture>,
-    light: Handle<GameObject>,
-
-    shadow_material: Option<Material>,
-}
-
-fn compute_light_matrix(go: &Handle<GameObject>) -> Matrix4<f32> {
-    let light_borrow = go.borrow();
-    let (light, _) = light_borrow.find_component::<Light>().unwrap();
-    let lightdir = light.directional().unwrap().direction;
-
-    // build an ortho matrix for directional light
-    let proj = Matrix4::new_orthographic(-20.0, 20.0, -20.0, 20.0, -20.0, 40.0);
-    let light_target = Point3 { coords: -lightdir };
-    let view = Matrix4::look_at_rh(&light_target, &Point3::new(0.0, 0.0, 0.0), &Vector3::y());
-
-    return proj * view;
-}
-
-impl ComponentBased for Shadow {}
-
-impl Shadow {
-    fn new(light: Handle<GameObject>, world: &mut World) -> Shadow {
-        let db = &mut world.asset_system();
-        let shadow_mat = Material::new(db.new_program("unrust/shadow"));
-
-        Shadow {
-            rt: Rc::new(RenderTexture::new(1024, 1024, TextureAttachment::Depth)),
-            light,
-            shadow_material: Some(shadow_mat),
-        }
-    }
-
-    fn light_matrix(&self) -> Matrix4<f32> {
-        compute_light_matrix(&self.light)
-    }
-
-    fn texture(&self) -> Rc<Texture> {
-        self.rt.as_texture().clone()
-    }
-}
-
-impl Actor for Shadow {
-    fn update(&mut self, _go: &mut GameObject, world: &mut World) {
-        // Setup fb for camera
-        let cam_borrow = world.current_camera().unwrap();
-        let mut cam = cam_borrow.borrow_mut();
-
-        {
-            let light_matrix = compute_light_matrix(&self.light);
-
-            self.shadow_material
-                .as_ref()
-                .unwrap()
-                .set("uShadowMatrix", light_matrix);
-        }
-
-        cam.render_texture = Some(self.rt.clone());
-
-        // Setup proper viewport to render to the whole texture
-        cam.rect = Some(((0, 0), (1024, 1024)));
-
-        // Render current scene by camera using given frame buffer
-        world.engine().render_pass_with_material(
-            &cam,
-            self.shadow_material.as_ref(),
-            ClearOption::default(),
-        );
-
-        // Clean up stuffs in camera, as later we could render normally
-        cam.render_texture = None;
-        cam.rect = None;
-    }
-}
-
 pub struct Cube {
     rotating: bool,
 }
@@ -221,7 +147,7 @@ impl Actor for Cube {
     fn start(&mut self, go: &mut GameObject, world: &mut World) {
         let shadow_map = {
             world
-                .find_component::<Shadow>()
+                .find_component::<ShadowPass>()
                 .map(|s| s.borrow().texture())
                 .unwrap()
         };
@@ -241,7 +167,7 @@ impl Actor for Cube {
         {
             let (mesh, _) = go.find_component::<Mesh>().unwrap();
             let lm = world
-                .find_component::<Shadow>()
+                .find_component::<ShadowPass>()
                 .map(|s| s.borrow().light_matrix())
                 .unwrap();
             mesh.surfaces[0].material.set("uShadowMatrix", lm);
@@ -265,7 +191,7 @@ impl Actor for Plane {
     fn start(&mut self, go: &mut GameObject, world: &mut World) {
         let shadow_map = {
             world
-                .find_component::<Shadow>()
+                .find_component::<ShadowPass>()
                 .map(|s| s.borrow().texture())
                 .unwrap()
         };
@@ -285,7 +211,7 @@ impl Actor for Plane {
     fn update(&mut self, go: &mut GameObject, world: &mut World) {
         let (mesh, _) = go.find_component::<Mesh>().unwrap();
         let lm = world
-            .find_component::<Shadow>()
+            .find_component::<ShadowPass>()
             .map(|s| s.borrow().light_matrix())
             .unwrap();
 
@@ -297,7 +223,7 @@ pub fn main() {
     let mut world = WorldBuilder::new("Shadow demo")
         .with_size((800, 600))
         .with_stats(true)
-        .with_actor::<Shadow>()
+        .with_actor::<ShadowPass>()
         .build();
 
     // Add the main scene as component of scene game object

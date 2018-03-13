@@ -322,10 +322,23 @@ where
         r
     }
 
+    pub fn find_main_light(&self) -> Option<Arc<Component>> {
+        self.find_all_components::<Light>()
+            .into_iter()
+            .filter(|c| {
+                let light_com = c.try_as::<Light>().unwrap();
+                match *light_com.borrow() {
+                    Light::Directional(_) => true,
+                    _ => false,
+                }
+            })
+            .nth(0)
+    }
+
     fn prepare_ctx(&self, ctx: &mut EngineContext) {
         // prepare main light.
         ctx.main_light = Some(
-            self.find_component::<Light>()
+            self.find_main_light()
                 .unwrap_or({ Component::new(Light::new(Directional::default())) }),
         );
 

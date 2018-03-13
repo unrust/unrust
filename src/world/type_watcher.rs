@@ -137,10 +137,20 @@ impl Watcher for ActorWatcher<Box<Actor>> {
         }
 
         for (go, c) in actor_components.into_iter() {
-            let com = c.upgrade().unwrap().clone();
+            let com = c.upgrade().unwrap();
             let actor = com.try_as::<Box<Actor>>().unwrap();
 
-            (*actor).borrow_mut().update_rc(go, world);
+            // check whether the components are still in the actors list.
+            let r = {
+                actors.borrow().iter().position(|&(_, ref c)| {
+                    c.upgrade().map(|c| c.id() == com.id()).unwrap_or(false)
+                })
+            };
+
+            // do only if it is valid
+            if let Some(_) = r {
+                (*actor).borrow_mut().update_rc(go, world);
+            }
         }
     }
 }

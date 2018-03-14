@@ -1,7 +1,7 @@
 use world::{ComponentBased, GameObject, Handle, World};
 use engine::{Material, Mesh};
 use std::marker::PhantomData;
-use world::type_watcher::{GameObjectComponentPair, Watcher};
+use world::type_watcher::{GameObjectComponentPair, TypeWatcherBuilder, Watcher};
 
 use engine::Component;
 use std::sync::Arc;
@@ -19,6 +19,9 @@ where
 {
     fn is(&self, c: &Arc<Component>) -> bool {
         c.try_as::<T>().is_some()
+    }
+
+    fn watch_step(&self, _objects: &Vec<(Handle<GameObject>, Arc<Component>)>, _world: &mut World) {
     }
 
     fn watch_pre_render(
@@ -97,7 +100,7 @@ where
 pub trait IProcessorBuilder {
     fn new_processor(&self) -> Arc<Component>;
 
-    fn new_watchers(&self) -> Vec<Box<Watcher>>;
+    fn register_watchers(&self, TypeWatcherBuilder) -> TypeWatcherBuilder;
 }
 
 pub struct ProcessorBuilder<T> {
@@ -113,15 +116,16 @@ where
         Component::new(T::new())
     }
 
-    fn new_watchers(&self) -> Vec<Box<Watcher>> {
-        vec![
-            Box::new(ProcessorWatcher::<T> {
-                marker: PhantomData::default(),
-                context: self.context.clone(),
-            }),
-            Box::new(MaterialWatcher {
-                context: self.context.clone(),
-            }),
-        ]
+    fn register_watchers(&self, mut builder: TypeWatcherBuilder) -> TypeWatcherBuilder {
+        builder = builder.add_watcher(ProcessorWatcher::<T> {
+            marker: PhantomData::default(),
+            context: self.context.clone(),
+        });
+
+        builder = builder.add_watcher(MaterialWatcher {
+            context: self.context.clone(),
+        });
+
+        builder
     }
 }

@@ -145,15 +145,6 @@ impl TypeWatcherBuilder {
         self
     }
 
-    pub fn add_watchers(mut self, watchers: Vec<Box<Watcher>>) -> TypeWatcherBuilder {
-        for watcher in watchers.into_iter() {
-            self.object_containers
-                .push((watcher, ObjectContainer::default()));
-        }
-
-        self
-    }
-
     pub fn build(self, main_tree: Rc<SceneTree>) -> TypeWatcher {
         let tw = TypeWatcher {
             object_containers: Rc::new(self.object_containers),

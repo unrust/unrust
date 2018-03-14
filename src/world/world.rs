@@ -72,7 +72,9 @@ impl<'a> WorldBuilder<'a> {
 
     pub fn with_processor<T: Processor + Actor + 'static>(mut self) -> WorldBuilder<'a> {
         self.watcher_builder = self.watcher_builder.add_watcher(ActorWatcher::<T>::new());
-        self.processor_builders.push(Rc::new(T::new_builder()));
+        let pb = T::new_builder();
+        self.watcher_builder = pb.register_watchers(self.watcher_builder);
+        self.processor_builders.push(Rc::new(pb));
         self
     }
 
@@ -93,13 +95,7 @@ impl<'a> WorldBuilder<'a> {
         let events = app.events.clone();
         let main_tree = engine.new_scene_tree();
 
-        let processor_watchers = self.processor_builders
-            .iter()
-            .flat_map(|builder| builder.new_watchers())
-            .collect();
-
         let watcher = self.watcher_builder
-            .add_watchers(processor_watchers)
             .add_watcher(ActorWatcher::<Box<Actor>>::new())
             .build(main_tree.clone());
 

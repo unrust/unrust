@@ -1,6 +1,7 @@
 
 /target/
 **/*.rs.bk
+**/.DS_Store
 
 /.vscode
 /webgl/target/**

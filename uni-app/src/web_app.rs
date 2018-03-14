@@ -18,6 +18,7 @@ use AppEvent;
 pub struct App {
     window: CanvasElement,
     pub events: Rc<RefCell<Vec<AppEvent>>>,
+    device_pixel_ratio: f32,
 }
 
 use super::events;
@@ -55,8 +56,15 @@ impl App {
             .unwrap();
 
         js!{
-            (@{&canvas}).width = @{config.size.0};
-            @{&canvas}.height = @{config.size.1};
+            // setup the buffer size
+            // see https://webglfundamentals.org/webgl/lessons/webgl-resizing-the-canvas.html
+            var realToCSSPixels = window.devicePixelRatio;
+            (@{&canvas}).width = @{config.size.0} * realToCSSPixels;
+            (@{&canvas}).height = @{config.size.1} * realToCSSPixels;
+
+            // setup the canvas size
+            (@{&canvas}).style.width = @{config.size.0} + "px";
+            (@{&canvas}).style.height = @{config.size.1} + "px";
 
             // Make it focusable
             // https://stackoverflow.com/questions/12886286/addeventlistener-for-keydown-on-canvas
@@ -67,6 +75,8 @@ impl App {
                 @{&canvas}.style.cursor="none";
             };
         }
+
+        let device_pixel_ratio: f64 = js!{ return window.devicePixelRatio; }.try_into().unwrap();
 
         document()
             .query_selector("body")
@@ -79,6 +89,7 @@ impl App {
         App {
             window: canvas,
             events: Rc::new(RefCell::new(vec![])),
+            device_pixel_ratio: device_pixel_ratio as f32,
         }
     }
 
@@ -92,7 +103,7 @@ impl App {
     }
 
     pub fn hidpi_factor(&self) -> f32 {
-        return 1.0;
+        return self.device_pixel_ratio;
     }
 
     pub fn canvas(&self) -> &CanvasElement {

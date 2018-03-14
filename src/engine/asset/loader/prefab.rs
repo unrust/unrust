@@ -134,6 +134,14 @@ where
     files
 }
 
+fn parent_path(filename: &str) -> String {
+    let path = Path::new(filename);
+    let parent = path.parent();
+    parent
+        .map_or("".to_string(), |p| p.to_str().unwrap().to_string() + "/")
+        .to_string()
+}
+
 impl Loadable for Prefab {
     type Loader = PrefabLoader;
 
@@ -145,12 +153,7 @@ impl Loadable for Prefab {
         let allmat = {
             let asys = asys.clone();
             objfile.and_then(move |mut f| {
-                let filename = f.name();
-                let path = Path::new(&filename);
-                let parent = path.parent();
-                let parent =
-                    parent.map_or("".to_string(), |p| p.to_str().unwrap().to_string() + "/");
-
+                let parent = parent_path(&f.name());
                 let bytes = f.read_binary()?;
                 let mut r = BufReader::new(bytes.as_slice());
 

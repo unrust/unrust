@@ -181,11 +181,6 @@ where
         };
 
         db.setup();
-
-        if cfg!(not(target_arch = "wasm32")) {
-            Rc::get_mut(&mut db.context).unwrap().path = "static/".into();
-        }
-
         db
     }
 

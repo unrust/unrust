@@ -38,7 +38,13 @@ impl FileSystem for AppFileSystem {
     type File = AppFile;
 
     fn open(&self, filename: &str) -> FileFuture {
-        let f = fs::FileSystem::open(filename)
+        let mut abs_filename = filename.to_string();
+
+        if cfg!(not(target_arch = "wasm32")) {
+            abs_filename = "static/".to_string() + filename;
+        }
+
+        let f = fs::FileSystem::open(&abs_filename)
             .map_err(|_| FileIoError::NoSuchFile(filename.to_string()));
 
         match f {

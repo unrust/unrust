@@ -5,6 +5,7 @@ use engine::core::Component;
 use std::sync::Arc;
 use std::borrow::Cow;
 use na;
+use std::path::Path;
 
 use obj;
 use obj::SimplePolygon;
@@ -57,19 +58,36 @@ impl PrefabLoader {
                 let mut gt = Vec::new();
                 let mut gn = Vec::new();
 
+                let mut add_v = |index_tuple: obj::IndexTuple| {
+                    indices.push(indices.len() as u16);
+                    gv.extend_from_slice(&vertices[index_tuple.0]);
+                    index_tuple.1.map(|uv| {
+                        gt.extend_from_slice(&uvs[uv]);
+                    });
+                    index_tuple.2.map(|n| {
+                        gn.extend_from_slice(&normals[n]);
+                    });
+                };
+
                 for poly in g.polys {
-                    for index_tuple in poly {
-                        indices.push(indices.len() as u16);
+                    // assert_eq!(poly.len(), 3, "We only handle triangle obj files");
+                    match poly.len() {
+                        3 => {
+                            add_v(poly[0]);
+                            add_v(poly[1]);
+                            add_v(poly[2]);
+                        }
+                        4 => {
+                            add_v(poly[0]);
+                            add_v(poly[1]);
+                            add_v(poly[2]);
 
-                        gv.extend_from_slice(&vertices[index_tuple.0]);
+                            add_v(poly[2]);
+                            add_v(poly[3]);
+                            add_v(poly[0]);
+                        }
 
-                        index_tuple.1.map(|uv| {
-                            gt.extend_from_slice(&uvs[uv]);
-                        });
-
-                        index_tuple.2.map(|n| {
-                            gn.extend_from_slice(&normals[n]);
-                        });
+                        _ => panic!("We only handle triangle or quad obj files"),
                     }
                 }
 
@@ -104,14 +122,14 @@ impl PrefabLoader {
     }
 }
 
-fn get_mtl_files<A>(asys: A, o: &mut obj::Obj<SimplePolygon>) -> Vec<FileFuture>
+fn get_mtl_files<A>(asys: A, basedir: &str, o: &mut obj::Obj<SimplePolygon>) -> Vec<FileFuture>
 where
     A: AssetSystem + Clone + 'static,
 {
     let mut files: Vec<FileFuture> = Vec::new();
 
     for m in &o.material_libs {
-        files.push(asys.new_file(m));
+        files.push(asys.new_file(&(basedir.to_string() + m)));
     }
     files
 }
@@ -127,11 +145,17 @@ impl Loadable for Prefab {
         let allmat = {
             let asys = asys.clone();
             objfile.and_then(move |mut f| {
+                let filename = f.name();
+                let path = Path::new(&filename);
+                let parent = path.parent();
+                let parent =
+                    parent.map_or("".to_string(), |p| p.to_str().unwrap().to_string() + "/");
+
                 let bytes = f.read_binary()?;
                 let mut r = BufReader::new(bytes.as_slice());
 
                 let mut model = obj::Obj::<SimplePolygon>::load_buf(&mut r)?;
-                let files = join_all(get_mtl_files(asys, &mut model));
+                let files = join_all(get_mtl_files(asys, &parent, &mut model));
 
                 // attach the model to future
                 Ok(files.map(move |x| (x, model)))
@@ -143,7 +167,6 @@ impl Loadable for Prefab {
 
         let final_future = allmat.and_then(move |(files, mut model)| {
             let mut materials = HashMap::new();
-
             for mut f in files {
                 let bytes = f.read_binary()?;
                 let mtl = obj::Mtl::load(&mut BufReader::new(bytes.as_slice()));

@@ -9,7 +9,7 @@ use engine::{AssetSystem, Camera, ClearOption, Component, ComponentBased, Engine
 
 use engine::imgui;
 use world::fps::FPS;
-use world::type_watcher::{ActorWatcher, TypeWatcher, TypeWatcherBuilder, Watcher};
+use world::type_watcher::{ActorWatcher, TypeWatcher, TypeWatcherBuilder};
 use world::Actor;
 use world::processor::{IProcessorBuilder, Processor};
 
@@ -40,7 +40,7 @@ pub struct WorldBuilder<'a> {
     title: &'a str,
     size: Option<(u32, u32)>,
     shown_stats: Option<bool>,
-    watchers: Vec<Box<Watcher>>,
+    watcher_builder: TypeWatcherBuilder,
     processor_builders: Vec<Rc<Box<IProcessorBuilder>>>,
 }
 
@@ -50,7 +50,7 @@ impl<'a> WorldBuilder<'a> {
             title: title,
             size: None,
             shown_stats: None,
-            watchers: Vec::new(),
+            watcher_builder: TypeWatcherBuilder::new(),
             processor_builders: Vec::new(),
         }
     }
@@ -66,11 +66,12 @@ impl<'a> WorldBuilder<'a> {
     }
 
     pub fn with_actor<T: Actor + 'static>(mut self) -> WorldBuilder<'a> {
-        self.watchers.push(Box::new(ActorWatcher::<T>::new()));
+        self.watcher_builder = self.watcher_builder.add_watcher(ActorWatcher::<T>::new());
         self
     }
 
-    pub fn with_processor<T: Processor + 'static>(mut self) -> WorldBuilder<'a> {
+    pub fn with_processor<T: Processor + Actor + 'static>(mut self) -> WorldBuilder<'a> {
+        self.watcher_builder = self.watcher_builder.add_watcher(ActorWatcher::<T>::new());
         self.processor_builders.push(Rc::new(T::new_builder()));
         self
     }
@@ -97,11 +98,10 @@ impl<'a> WorldBuilder<'a> {
             .flat_map(|builder| builder.new_watchers())
             .collect();
 
-        let watcher = TypeWatcherBuilder::new(main_tree.clone())
-            .add_watcher(ActorWatcher::<Box<Actor>>::new())
-            .add_watchers(self.watchers)
+        let watcher = self.watcher_builder
             .add_watchers(processor_watchers)
-            .build();
+            .add_watcher(ActorWatcher::<Box<Actor>>::new())
+            .build(main_tree.clone());
 
         let mut w = World {
             engine,

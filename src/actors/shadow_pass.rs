@@ -71,6 +71,10 @@ impl Actor for ShadowPass {
         }
 
         // Setup fb for camera
+        if world.current_camera().is_none() {
+            return;
+        }
+
         let cam_borrow = world.current_camera().unwrap();
         let mut cam = cam_borrow.borrow_mut();
 

@@ -1,7 +1,7 @@
-use world::{Actor, ComponentBased, GameObject, Handle, World};
+use world::{ComponentBased, GameObject, Handle, World};
 use engine::{Material, Mesh};
 use std::marker::PhantomData;
-use world::type_watcher::{GameObjectComponentPair, NewObjectList, Watcher};
+use world::type_watcher::{GameObjectComponentPair, Watcher};
 
 use engine::Component;
 use std::sync::Arc;
@@ -21,34 +21,21 @@ where
         c.try_as::<T>().is_some()
     }
 
-    fn object_start(&self, go: &Handle<GameObject>, com: &Arc<Component>, world: &mut World) {
-        let processor = com.try_as::<T>().unwrap();
-        (*processor).borrow_mut().start_rc(go.clone(), world);
-    }
-
-    fn object_step(&self, go: &Handle<GameObject>, com: &Arc<Component>, world: &mut World) {
-        let processor = com.try_as::<T>().unwrap();
-        (*processor).borrow_mut().update_rc(go.clone(), world);
-    }
-
     fn watch_pre_render(
         &self,
         objects: &RefCell<Vec<GameObjectComponentPair>>,
         _world: &mut World,
     ) {
-        let mut processor_components = Vec::new();
-        {
-            for &(ref wgo, ref c) in objects.borrow().iter() {
-                if let Some(go) = wgo.upgrade() {
-                    processor_components.push((go.clone(), c.clone()));
-                }
-            }
-        }
+        let processor_components = objects
+            .borrow()
+            .iter()
+            .map(|&(_, ref wc)| wc.upgrade())
+            .flat_map(|x| x)
+            .collect::<Vec<_>>();
 
         let materials = self.context.materials.borrow().clone();
 
-        for (_, c) in processor_components.into_iter() {
-            let com = c.upgrade().unwrap().clone();
+        for com in processor_components.into_iter() {
             let processor = com.try_as::<T>().unwrap();
             processor.borrow().apply_materials(&materials);
         }
@@ -70,25 +57,14 @@ impl Watcher for MaterialWatcher {
         c.try_as::<Mesh>().is_some()
     }
 
-    fn watch_step(
-        &self,
-        new_actors: &RefCell<NewObjectList>,
-        actors: &RefCell<Vec<GameObjectComponentPair>>,
-        _world: &mut World,
-    ) {
-        actors
-            .borrow_mut()
-            .append(&mut new_actors.borrow_mut().list);
-
+    fn watch_step(&self, objects: &Vec<(Handle<GameObject>, Arc<Component>)>, _world: &mut World) {
         let mut materials = Vec::new();
         {
-            for &(_, ref c) in actors.borrow().iter() {
-                if let Some(cc) = c.upgrade() {
-                    let mesh = cc.try_as::<Mesh>().unwrap();
+            for &(_, ref c) in objects.iter() {
+                let mesh = c.try_as::<Mesh>().unwrap();
 
-                    for surface in mesh.borrow().surfaces.iter() {
-                        materials.push(surface.material.clone());
-                    }
+                for surface in mesh.borrow().surfaces.iter() {
+                    materials.push(surface.material.clone());
                 }
             }
         }
@@ -99,7 +75,7 @@ impl Watcher for MaterialWatcher {
 
 pub trait Processor
 where
-    Self: Actor + ComponentBased,
+    Self: ComponentBased,
 {
     fn new_builder() -> Box<IProcessorBuilder>
     where

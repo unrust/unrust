@@ -247,6 +247,7 @@ where
                 "default_font_bitmap".into(),
                 Self::new_default_font_bitmap(),
             );
+            hm.insert("default_white".into(), Self::new_default_white_texture());
             hm.insert("default".into(), Self::new_default_texture());
         }
 
@@ -271,6 +272,16 @@ where
             } else {
                 image::Rgba([0, 0, 0, 0])
             }
+        })));
+
+        Rc::get_mut(&mut tex).unwrap().filtering = TextureFiltering::Nearest;
+
+        tex
+    }
+
+    fn new_default_white_texture() -> Rc<Texture> {
+        let mut tex = Texture::new(TextureImage::Rgba(ImageBuffer::from_fn(4, 4, |_, _| {
+            image::Rgba([0xff, 0xff, 0xff, 0xff])
         })));
 
         Rc::get_mut(&mut tex).unwrap().filtering = TextureFiltering::Nearest;

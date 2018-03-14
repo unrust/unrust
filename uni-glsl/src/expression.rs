@@ -103,8 +103,7 @@ macro_rules! fold_left_alt {
 
         while found {
             #[allow(unused_imports)]   // fix value! warning
-            let r = alt!(input, $($args)*);
-
+            let r = ows!(input, alt!($($args)*));
             found = match r {
                 Result::Ok( (curi1, e1) ) => { input = curi1; $e = e1; true }
                 Result::Err(_) => false,
@@ -524,6 +523,15 @@ mod tests {
         assert_eq!(
             format!("{:?}", i.unwrap().1),
             "Comma([Assign(Equal, Identifier(\"b\"), Constant(Integer(1))), Assign(Equal, Identifier(\"a\"), Constant(Integer(3)))])"
+        );
+    }
+
+    #[test]
+    fn parse_multiple_mul_expression() {        
+        let i = logical_or_expression(CompleteStr("c * d.b * e"));
+        assert_eq!(
+            format!("{:?}", i.unwrap().1),
+            "Binary(Mult, Binary(Mult, Identifier(\"c\"), DotField(Identifier(\"d\"), \"b\")), Identifier(\"e\"))"
         );
     }
 }

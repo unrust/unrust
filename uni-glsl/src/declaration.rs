@@ -419,4 +419,12 @@ mod tests {
         assert_eq!(format!("{:?}", i.unwrap().1), "DeclarationList([SingleDeclaration { variant_type_spec: Normal(FullyTypeSpecifier { qualifer: None, type_spec: TypeSpecifier { precision: None, actual_type: Struct(Struct { name: Some(\"A\"), members: [StructMember { ts: TypeSpecifier { precision: None, actual_type: Vec3 }, name: \"x\", array_spec: None }, StructMember { ts: TypeSpecifier { precision: None, actual_type: Vec3 }, name: \"y\", array_spec: None }, StructMember { ts: TypeSpecifier { precision: None, actual_type: Vec3 }, name: \"z\", array_spec: None }, StructMember { ts: TypeSpecifier { precision: None, actual_type: Float }, name: \"f\", array_spec: None }] }) } }), name: None, array_spec: None, equal_to: None }])");
     }
 
+    #[test]
+    fn parse_multiple_mul_declaration() {        
+        let i = declaration(CompleteStr("float g = d * uMaterial.diffuse * f;"));
+        assert_eq!(
+            format!("{:?}", i.unwrap().1),
+            "DeclarationList([SingleDeclaration { variant_type_spec: Normal(FullyTypeSpecifier { qualifer: None, type_spec: TypeSpecifier { precision: None, actual_type: Float } }), name: Some(\"g\"), array_spec: None, equal_to: Some(Binary(Mult, Binary(Mult, Identifier(\"d\"), DotField(Identifier(\"uMaterial\"), \"diffuse\")), Identifier(\"f\"))) }])"
+        );
+    }
 }

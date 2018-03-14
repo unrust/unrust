@@ -45,12 +45,6 @@ impl Actor for MainScene {
             let go = world.new_game_object();
             go.borrow_mut().add_component(Cube::new());
         }
-
-        // Added a SkyBox in the scene
-        {
-            let go = world.new_game_object();
-            go.borrow_mut().add_component(SkyBox::new());
-        }
     }
 
     fn update(&mut self, _go: &mut GameObject, world: &mut World) {
@@ -150,6 +144,7 @@ pub fn main() {
     let mut world = WorldBuilder::new("Skybox demo")
         .with_size((640, 480))
         .with_stats(true)
+        .with_processor::<SkyBox>()
         .build();
 
     // Add the main scene as component of scene game object

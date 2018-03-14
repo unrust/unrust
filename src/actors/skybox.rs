@@ -1,13 +1,7 @@
-use world::{Actor, World};
-use engine::{GameObject, Material, Mesh, RenderQueue};
+use world::{Actor, Processor, World};
+use engine::{ComponentBased, GameObject, Material, Mesh, RenderQueue};
 
 pub struct SkyBox {}
-
-impl SkyBox {
-    pub fn new() -> Box<Actor> {
-        Box::new(SkyBox {})
-    }
-}
 
 impl Actor for SkyBox {
     fn start(&mut self, go: &mut GameObject, world: &mut World) {
@@ -20,5 +14,13 @@ impl Actor for SkyBox {
         let mut mesh = Mesh::new();
         mesh.add_surface(db.new_mesh_buffer("skybox"), material);
         go.add_component(mesh);
+    }
+}
+
+impl ComponentBased for SkyBox {}
+
+impl Processor for SkyBox {
+    fn new() -> SkyBox {
+        SkyBox {}
     }
 }

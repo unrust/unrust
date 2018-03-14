@@ -117,4 +117,11 @@ impl Processor for ShadowPass {
             self.apply(&m);
         }
     }
+
+    fn watch_material() -> bool
+    where
+        Self: Sized,
+    {
+        return true;
+    }
 }

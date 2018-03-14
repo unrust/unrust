@@ -182,12 +182,6 @@ impl Actor for MainScene {
                 self.add_object(rb, world);
             }
         }
-
-        // Added a SkyBox in the scene
-        {
-            let go = world.new_game_object();
-            go.borrow_mut().add_component(SkyBox::new());
-        }
     }
 
     fn update(&mut self, _go: &mut GameObject, world: &mut World) {
@@ -350,6 +344,7 @@ pub fn main() {
         .with_size((800, 600))
         .with_stats(true)
         .with_processor::<ShadowPass>()
+        .with_processor::<SkyBox>()
         .build();
 
     // Add the main scene as component of scene game object

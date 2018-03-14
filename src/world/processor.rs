@@ -29,18 +29,20 @@ where
         objects: &RefCell<Vec<GameObjectComponentPair>>,
         _world: &mut World,
     ) {
-        let processor_components = objects
-            .borrow()
-            .iter()
-            .map(|&(_, ref wc)| wc.upgrade())
-            .flat_map(|x| x)
-            .collect::<Vec<_>>();
+        if T::watch_material() {
+            let processor_components = objects
+                .borrow()
+                .iter()
+                .map(|&(_, ref wc)| wc.upgrade())
+                .flat_map(|x| x)
+                .collect::<Vec<_>>();
 
-        let materials = self.context.materials.borrow().clone();
+            let materials = self.context.materials.borrow().clone();
 
-        for com in processor_components.into_iter() {
-            let processor = com.try_as::<T>().unwrap();
-            processor.borrow().apply_materials(&materials);
+            for com in processor_components.into_iter() {
+                let processor = com.try_as::<T>().unwrap();
+                processor.borrow().apply_materials(&materials);
+            }
         }
     }
 }
@@ -94,7 +96,14 @@ where
     where
         Self: Sized;
 
-    fn apply_materials(&self, materials: &Vec<Rc<Material>>);
+    fn watch_material() -> bool
+    where
+        Self: Sized,
+    {
+        return false;
+    }
+
+    fn apply_materials(&self, &Vec<Rc<Material>>) {}
 }
 
 pub trait IProcessorBuilder {
@@ -122,9 +131,11 @@ where
             context: self.context.clone(),
         });
 
-        builder = builder.add_watcher(MaterialWatcher {
-            context: self.context.clone(),
-        });
+        if T::watch_material() {
+            builder = builder.add_watcher(MaterialWatcher {
+                context: self.context.clone(),
+            });
+        }
 
         builder
     }

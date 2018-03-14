@@ -9,7 +9,8 @@ pub struct Camera {
     /// Optional viewport of this camera,  (pos, size) in pixels
     /// from 0 (left/top) to screen width/height (right/bottom)
     pub rect: Option<((i32, i32), (u32, u32))>,
-
+    pub znear: f32,
+    pub zfar: f32,
     eye: Point3<f32>,
     pub render_texture: Option<Rc<RenderTexture>>,
 }
@@ -36,7 +37,7 @@ impl Camera {
             aspect = w as f32 / h as f32;
         }
 
-        Matrix4::new_perspective(aspect, 3.1415 / 4.0, 0.03, 1000.0)
+        Matrix4::new_perspective(aspect, 3.1415 / 4.0, self.znear, self.zfar)
     }
 
     pub fn new() -> Camera {
@@ -44,6 +45,8 @@ impl Camera {
             v: Matrix4::identity(),
             eye: Point3::new(0.0, 0.0, 0.0),
             rect: None,
+            znear: 0.03,
+            zfar: 1000.0,
             render_texture: None,
         }
     }

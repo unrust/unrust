@@ -2,13 +2,14 @@ use engine::asset::loader::{Loadable, Loader};
 use engine::asset::{AssetError, AssetResult, AssetSystem, File, FileFuture};
 use engine::TextureImage;
 use image::png;
+use image::tga;
 use image;
-use image::ImageDecoder;
 
 use futures::prelude::*;
 use std::io;
 use std::fmt::Debug;
 use uni_app;
+use std::path::Path;
 
 pub struct ImageLoader {}
 
@@ -46,7 +47,7 @@ impl<T> Stream for ImageBufferLineSteam<T>
 where
     T: image::ImageDecoder,
 {
-    type Item = Vec<u8>;
+    type Item = (Vec<u8>, u32);
     type Error = AssetError;
 
     fn poll(&mut self) -> Result<Async<Option<Self::Item>>, Self::Error> {
@@ -76,7 +77,7 @@ where
 
         match self.codec.read_scanline(&mut buffer) {
             Err(image::ImageError::ImageEnd) => Ok(Async::Ready(None)),
-            Ok(_) => Ok(Async::Ready(Some(buffer))),
+            Ok(row_index) => Ok(Async::Ready(Some((buffer, row_index)))),
             Err(e) => Err(make_invalid_format(&self.ctx.info, e)),
         }
     }
@@ -85,7 +86,7 @@ where
 fn image_rows_stream<T>(
     codec: T,
     ctx: ImageContext,
-) -> Box<Stream<Item = Vec<u8>, Error = AssetError>>
+) -> Box<Stream<Item = (Vec<u8>, u32), Error = AssetError>>
 where
     T: image::ImageDecoder + 'static,
 {
@@ -113,31 +114,77 @@ struct ImageContext {
     row_len: usize,
 }
 
+fn guess_format(
+    info: &ImageFileInfo,
+    buf: &Vec<u8>,
+) -> Result<image::ImageFormat, image::ImageError> {
+    let path = Path::new(&info.file_name);
+    let ext = path.extension();
+
+    if let Some(exts) = ext.and_then(|s| s.to_str()) {
+        if exts.to_string().to_lowercase() == "tga" {
+            return Ok(image::ImageFormat::TGA);
+        }
+    }
+
+    // image::guess_format do NOT support tga
+    let format = image::guess_format(&buf)?;
+
+    return Ok(format);
+}
+
+enum ImageCodec {
+    NoMatch,
+    Png(png::PNGDecoder<io::Cursor<Vec<u8>>>),
+    Tga(tga::TGADecoder<io::Cursor<Vec<u8>>>),
+}
+
+fn new_img_context_from_decoder<T>(
+    decoder: &mut T,
+    info: ImageFileInfo,
+) -> Result<ImageContext, image::ImageError>
+where
+    T: image::ImageDecoder,
+{
+    let color = decoder.colortype()?;
+    let (w, h) = decoder.dimensions()?;
+    let row_len = decoder.row_len()?;
+
+    Ok(ImageContext {
+        w,
+        h,
+        color,
+        row_len,
+        info,
+    })
+}
+
 fn new_img_context(
     buf: Vec<u8>,
     info: ImageFileInfo,
-) -> Result<(ImageContext, png::PNGDecoder<io::Cursor<Vec<u8>>>), image::ImageError> {
-    let format = image::guess_format(&buf)?;
+) -> Result<(ImageContext, ImageCodec), image::ImageError> {
+    let format = guess_format(&info, &buf)?;
 
     // TODO: support other format
-    assert!(format == image::ImageFormat::PNG);
+    let mut codec = match format {
+        image::ImageFormat::PNG => ImageCodec::Png(png::PNGDecoder::new(io::Cursor::new(buf))),
+        image::ImageFormat::TGA => ImageCodec::Tga(tga::TGADecoder::new(io::Cursor::new(buf))),
+        _ => ImageCodec::NoMatch,
+    };
 
-    let mut codec = png::PNGDecoder::new(io::Cursor::new(buf));
+    if let ImageCodec::NoMatch = codec {
+        return Err(image::ImageError::UnsupportedError(
+            "Not support image type in unrust image loader".to_string(),
+        ));
+    }
 
-    let color = codec.colortype()?;
-    let (w, h) = codec.dimensions()?;
-    let row_len = codec.row_len()?;
+    let ctx = match codec {
+        ImageCodec::Png(ref mut decoder) => new_img_context_from_decoder(decoder, info)?,
+        ImageCodec::Tga(ref mut decoder) => new_img_context_from_decoder(decoder, info)?,
+        _ => unreachable!(),
+    };
 
-    Ok((
-        ImageContext {
-            w,
-            h,
-            color,
-            row_len,
-            info,
-        },
-        codec,
-    ))
+    Ok((ctx, codec))
 }
 
 impl Loadable for TextureImage {
@@ -172,9 +219,19 @@ impl Loadable for TextureImage {
                     reason: format!("{:?}", e),
                 })?;
 
-            let stream = image_rows_stream(codec, ctx.clone());
-            let buff_future = stream.fold(Vec::new(), |mut acc, mut buffer| {
-                acc.append(&mut buffer);
+            let stream = match codec {
+                ImageCodec::Tga(decoder) => image_rows_stream(decoder, ctx.clone()),
+                ImageCodec::Png(decoder) => image_rows_stream(decoder, ctx.clone()),
+                _ => unreachable!(),
+            };
+
+            //use std;
+            //let rows = std::iter::repeat(vec![]).take(num_rows).collect::<Vec<_>>();
+            //let num_rows = ctx.h as usize;
+            let rows = vec![];
+
+            let buff_future = stream.fold(rows, |mut acc, (buffer, _row_index)| {
+                acc.push(buffer);
                 Ok(acc)
             });
 
@@ -190,6 +247,8 @@ impl Loadable for TextureImage {
         let decoded = decoded.flatten().and_then(|r| r);
 
         let img = decoded.and_then(move |(decoded, ctx)| {
+            let decoded = decoded.into_iter().flat_map(|v| v).collect();
+
             let img = match ctx.color {
                 image::ColorType::RGBA(_) => {
                     image::ImageBuffer::from_raw(ctx.w, ctx.h, decoded).map(TextureImage::Rgba)

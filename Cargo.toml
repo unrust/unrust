@@ -20,9 +20,11 @@ features = ["nightly"]
 
 # Image related dependencies
 [dependencies.image]
-version = "*"
+# version = "*"
+git = "https://github.com/edwin0cheng/image"
+branch = "impl_tga_read_scanline"
 default-features = false
-features = ["png_codec"]
+features = ["png_codec", "tga"]
 
 [replace]
 "rustc-serialize:0.3.24" = { path = "wasm-rustc-serialize" }

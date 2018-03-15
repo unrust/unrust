@@ -1,6 +1,6 @@
 use engine::asset::loader::{Loadable, Loader};
 use engine::asset::{Asset, AssetError, AssetResult, AssetSystem, File, FileFuture, Resource};
-use engine::render::{Material, Mesh, MeshBuffer, MeshData, RenderQueue};
+use engine::render::{Material, Mesh, MeshBuffer, MeshData, RenderQueue, TextureWrap};
 use engine::core::Component;
 use std::sync::Arc;
 use std::borrow::Cow;
@@ -21,10 +21,18 @@ pub struct Prefab {
     pub components: Vec<Arc<Component>>,
 }
 
+fn parent_path(filename: &str) -> String {
+    let path = Path::new(filename);
+    let parent = path.parent();
+    parent
+        .map_or("".to_string(), |p| p.to_str().unwrap().to_string() + "/")
+        .to_string()
+}
+
 pub struct PrefabLoader {}
 
 impl PrefabLoader {
-    fn load_model<A>(asys: A, model: obj::Obj<SimplePolygon>) -> Prefab
+    fn load_model<A>(asys: A, parent: String, model: obj::Obj<SimplePolygon>) -> Prefab
     where
         A: AssetSystem + Clone + 'static,
     {
@@ -40,10 +48,13 @@ impl PrefabLoader {
         for o in model.objects {
             for g in o.groups {
                 let mut ambient = Vector3::new(0.2, 0.2, 0.2);
-                let mut diffuse = Vector3::new(0.2, 0.2, 0.2);
+                let mut diffuse = Vector3::new(1.0, 1.0, 1.0);
                 let mut specular = Vector3::new(0.2, 0.2, 0.2);
                 let mut shininess = 10.0;
                 let mut transparent = 1.0;
+                let mut diffuse_map = "default_white".to_string();
+                let mut ambient_map = "default_white".to_string();
+                let mut specular_map = "default_black".to_string();
 
                 if let Some(material) = g.material {
                     material.ka.map(|ka| ambient = ka.into());
@@ -51,6 +62,18 @@ impl PrefabLoader {
                     material.ks.map(|ks| specular = ks.into());
                     material.ns.map(|ns| shininess = ns);
                     material.d.map(|d| transparent = d);
+                    material
+                        .map_kd
+                        .as_ref()
+                        .map(|map_kd| diffuse_map = parent.clone() + &map_kd);
+                    material
+                        .map_ka
+                        .as_ref()
+                        .map(|map_ka| ambient_map = parent.clone() + &map_ka);
+                    material
+                        .map_ks
+                        .as_ref()
+                        .map(|map_ks| specular_map = parent.clone() + &map_ks);
                 }
 
                 let mut indices = Vec::new();
@@ -99,9 +122,25 @@ impl PrefabLoader {
                 };
 
                 let mut material = Material::new(shader_program.clone());
+
+                let ambient_tex = asys.new_texture(&ambient_map);
+                ambient_tex.wrap_u.set(TextureWrap::Repeat);
+                ambient_tex.wrap_v.set(TextureWrap::Repeat);
                 material.set("uMaterial.ambient", ambient);
+                material.set("uMaterial.ambient_tex", ambient_tex);
+
+                let mut diffuse_tex = asys.new_texture(&diffuse_map);
+                diffuse_tex.wrap_u.set(TextureWrap::Repeat);
+                diffuse_tex.wrap_v.set(TextureWrap::Repeat);
                 material.set("uMaterial.diffuse", diffuse);
+                material.set("uMaterial.diffuse_tex", diffuse_tex);
+
+                let mut specular_tex = asys.new_texture(&specular_map);
+                specular_tex.wrap_u.set(TextureWrap::Repeat);
+                specular_tex.wrap_v.set(TextureWrap::Repeat);
                 material.set("uMaterial.specular", specular);
+                material.set("uMaterial.specular_tex", specular_tex);
+
                 material.set("uMaterial.shininess", shininess);
                 material.set("uMaterial.transparent", transparent);
 
@@ -134,14 +173,6 @@ where
     files
 }
 
-fn parent_path(filename: &str) -> String {
-    let path = Path::new(filename);
-    let parent = path.parent();
-    parent
-        .map_or("".to_string(), |p| p.to_str().unwrap().to_string() + "/")
-        .to_string()
-}
-
 impl Loadable for Prefab {
     type Loader = PrefabLoader;
 
@@ -153,22 +184,22 @@ impl Loadable for Prefab {
         let allmat = {
             let asys = asys.clone();
             objfile.and_then(move |mut f| {
-                let parent = parent_path(&f.name());
                 let bytes = f.read_binary()?;
                 let mut r = BufReader::new(bytes.as_slice());
 
                 let mut model = obj::Obj::<SimplePolygon>::load_buf(&mut r)?;
+                let parent = parent_path(&f.name());
                 let files = join_all(get_mtl_files(asys, &parent, &mut model));
 
                 // attach the model to future
-                Ok(files.map(move |x| (x, model)))
+                Ok(files.map(move |x| (x, parent, model)))
             })
         };
 
         // TODO I don't know why it is needed !!
         let allmat = allmat.and_then(|r| r);
 
-        let final_future = allmat.and_then(move |(files, mut model)| {
+        let final_future = allmat.and_then(move |(files, parent, mut model)| {
             let mut materials = HashMap::new();
             for mut f in files {
                 let bytes = f.read_binary()?;
@@ -188,7 +219,7 @@ impl Loadable for Prefab {
                 }
             }
 
-            Ok(PrefabLoader::load_model(asys, model))
+            Ok(PrefabLoader::load_model(asys, parent, model))
         });
 
         // futurize

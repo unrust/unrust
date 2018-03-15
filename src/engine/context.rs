@@ -3,6 +3,7 @@ use std::sync::Arc;
 use engine::render::{CullMode, DepthTest, MaterialState, MeshBuffer, ShaderProgram, Texture};
 use std::collections::VecDeque;
 use engine::core::Component;
+use engine::engine::EngineStats;
 use webgl::{Culling, WebGLRenderingContext};
 use webgl;
 use engine::asset::AssetResult;
@@ -93,7 +94,6 @@ impl StateCache {
     }
 }
 
-#[derive(Default)]
 pub struct EngineContext {
     pub mesh_buffer: Weak<MeshBuffer>,
     pub prog: Weak<ShaderProgram>,
@@ -106,13 +106,36 @@ pub struct EngineContext {
     pub switch_prog: u32,
     pub switch_tex: u32,
 
+    pub stats: EngineStats,
+
     pub states: StateCache,
 }
 
+impl EngineContext {
+    pub fn new(stats: EngineStats) -> EngineContext {
+        EngineContext {
+            mesh_buffer: Default::default(),
+            prog: Default::default(),
+            textures: Default::default(),
+
+            main_light: Default::default(),
+            point_lights: Default::default(),
+
+            switch_mesh: 0,
+            switch_prog: 0,
+            switch_tex: 0,
+
+            stats: stats,
+
+            states: Default::default(),
+        }
+    }
+}
+
 macro_rules! impl_cacher {
-    ($k:ident, $t:ty) => {
+    ($k: ident, $t: ty) => {
         impl EngineCacher for $t {
-            fn get_cache<'a>(ctx: &'a mut EngineContext) -> &'a mut Weak<Self> {
+            fn get_cache(ctx: &mut EngineContext) -> &mut Weak<Self> {
                 &mut ctx.$k
             }
         }

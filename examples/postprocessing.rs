@@ -165,7 +165,7 @@ impl Actor for Crt {
         go.active = false;
 
         // Render current scene by camera using given frame buffer
-        world.engine().render_pass(&cam, ClearOption::default());
+        world.engine_mut().render_pass(&cam, ClearOption::default());
 
         // show only this crt
         self.cube.borrow_mut().active = false;

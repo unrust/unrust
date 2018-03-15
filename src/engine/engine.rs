@@ -32,6 +32,11 @@ pub trait IEngine {
     fn hidpi_factor(&self) -> f32;
 }
 
+#[derive(Default, Copy, Clone)]
+pub struct EngineStats {
+    pub surfaces_count: u32,
+}
+
 pub struct Engine<A>
 where
     A: AssetSystem,
@@ -45,6 +50,8 @@ where
     pub current_camera: RefCell<Option<Arc<Component>>>,
 
     pub gui_context: Rc<RefCell<imgui::Context>>,
+
+    pub stats: EngineStats,
 }
 
 struct RenderCommand {
@@ -97,6 +104,14 @@ impl RenderQueueList {
         qlist.insert(RenderQueue::UI, state);
 
         qlist
+    }
+
+    fn surface_count(&self) -> usize {
+        let mut n = 0;
+        for (_, q) in self.iter() {
+            n += q.commands.len();
+        }
+        n
     }
 }
 
@@ -387,14 +402,14 @@ where
     }
 
     pub fn render_pass_with_material(
-        &self,
+        &mut self,
         camera: &Camera,
         material: Option<&Material>,
         clear_option: ClearOption,
     ) {
         let objects = &self.objects;
 
-        let mut ctx: EngineContext = Default::default();
+        let mut ctx: EngineContext = EngineContext::new(self.stats);
 
         if let Some(ref rt) = camera.render_texture {
             rt.bind_frame_buffer(&self.gl);
@@ -431,6 +446,8 @@ where
             .unwrap()
             .sort_by_cam_distance();
 
+        ctx.stats.surfaces_count = render_q.surface_count() as u32;
+
         for (_, q) in render_q.iter() {
             self.render_commands(&mut ctx, &q, camera, material);
         }
@@ -438,9 +455,11 @@ where
         if let Some(ref rt) = camera.render_texture {
             rt.unbind_frame_buffer(&self.gl);
         }
+
+        self.stats = ctx.stats;
     }
 
-    pub fn render_pass(&self, camera: &Camera, clear_option: ClearOption) {
+    pub fn render_pass(&mut self, camera: &Camera, clear_option: ClearOption) {
         self.render_pass_with_material(camera, None, clear_option);
     }
 
@@ -499,6 +518,7 @@ where
             screen_size: size,
             hidpi: hidpi,
             current_camera: RefCell::new(None),
+            stats: Default::default(),
         }
     }
 

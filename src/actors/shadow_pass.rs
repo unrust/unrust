@@ -91,7 +91,7 @@ impl Actor for ShadowPass {
         cam.rect = Some(((0, 0), (1024, 1024)));
 
         // Render current scene by camera using given frame buffer
-        world.engine().render_pass_with_material(
+        world.engine_mut().render_pass_with_material(
             &cam,
             self.shadow_material.as_ref(),
             ClearOption::default(),

@@ -163,6 +163,10 @@ impl World {
         &self.engine
     }
 
+    pub fn engine_mut(&mut self) -> &mut AppEngine {
+        &mut self.engine
+    }
+
     pub fn current_camera<'a>(&self) -> Option<ComponentBorrow<Camera>> {
         if self.engine.main_camera().is_none() {
             return None;
@@ -198,11 +202,12 @@ impl World {
             imgui::label(
                 Native(0.0, 0.0) + Pixel(8.0, 8.0),
                 &format!(
-                    "fps: {} nobj: {} actors:{} lists:{}",
+                    "fps: {} nobj: {} actors:{} gobjs:{} surfaces:{}",
                     self.fps.fps,
                     self.engine().objects.len(),
                     self.watcher.len(),
                     self.main_tree.len(),
+                    self.engine().stats.surfaces_count,
                 ),
             );
 

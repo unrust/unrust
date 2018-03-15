@@ -153,7 +153,7 @@ impl Actor for MiniScreen {
             cam.rect = Some(((0, 0), (1024, 1024)));
 
             // Render current scene by camera using given frame buffer
-            world.engine().render_pass(&cam, ClearOption::default());
+            world.engine_mut().render_pass(&cam, ClearOption::default());
 
             // Clean up stuffs in camera, as later we could render normally
             cam.render_texture = None;

@@ -2,6 +2,7 @@
 #![feature(fnbox)]
 #![recursion_limit = "512"]
 #![feature(integer_atomics)]
+#![feature(conservative_impl_trait)]
 
 /* common */
 extern crate alga;

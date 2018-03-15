@@ -44,6 +44,8 @@ impl FileSystem for AppFileSystem {
             abs_filename = "static/".to_string() + filename;
         }
 
+        abs_filename = abs_filename.replace("\\", "/");
+
         let f = fs::FileSystem::open(&abs_filename)
             .map_err(|_| FileIoError::NoSuchFile(filename.to_string()));
 

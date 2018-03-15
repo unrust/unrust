@@ -3,15 +3,22 @@ use webgl;
 
 use image::{RgbImage, RgbaImage};
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use engine::asset::{Asset, AssetResult, AssetSystem, FileFuture, LoadableAsset, Resource};
 use std::path::Path;
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum TextureFiltering {
     Nearest,
     Linear,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum TextureWrap {
+    Repeat,
+    ClampToEdge,
+    MirroredRepeat,
 }
 
 #[derive(Debug)]
@@ -38,7 +45,11 @@ enum TextureKind {
 
 #[derive(Debug)]
 pub struct Texture {
-    pub filtering: TextureFiltering,
+    pub filtering: Cell<TextureFiltering>,
+    pub wrap_u: Cell<TextureWrap>,
+    pub wrap_v: Cell<TextureWrap>,
+    pub wrap_w: Cell<Option<TextureWrap>>,
+
     gl_state: RefCell<Option<TextureGLState>>,
     kind: TextureKind,
 }
@@ -60,15 +71,21 @@ impl Asset for Texture {
     fn new_from_resource(r: Self::Resource) -> Rc<Self> {
         return match r {
             TextureAsset::Single(res) => Rc::new(Texture {
-                filtering: TextureFiltering::Linear,
+                filtering: Cell::new(TextureFiltering::Linear),
+                wrap_u: Cell::new(TextureWrap::ClampToEdge),
+                wrap_v: Cell::new(TextureWrap::ClampToEdge),
+                wrap_w: Cell::new(None),
                 gl_state: RefCell::new(None),
                 kind: TextureKind::Image(res),
             }),
 
             TextureAsset::Cube(res) => Rc::new(Texture {
-                filtering: TextureFiltering::Linear,
+                filtering: Cell::new(TextureFiltering::Linear),
                 gl_state: RefCell::new(None),
                 kind: TextureKind::CubeMap(res),
+                wrap_u: Cell::new(TextureWrap::ClampToEdge),
+                wrap_v: Cell::new(TextureWrap::ClampToEdge),
+                wrap_w: Cell::new(Some(TextureWrap::ClampToEdge)),
             }),
         };
     }
@@ -136,8 +153,11 @@ struct TextureGLState {
 impl Texture {
     pub fn new_render_texture(width: u32, height: u32, attach: TextureAttachment) -> Rc<Self> {
         Rc::new(Texture {
-            filtering: TextureFiltering::Linear,
+            filtering: Cell::new(TextureFiltering::Linear),
             gl_state: RefCell::new(None),
+            wrap_u: Cell::new(TextureWrap::ClampToEdge),
+            wrap_v: Cell::new(TextureWrap::ClampToEdge),
+            wrap_w: Cell::new(None),
             kind: TextureKind::RenderTexture {
                 size: (width, height),
                 attach: attach,
@@ -169,7 +189,14 @@ impl Texture {
             return Ok(());
         }
 
-        let new_state = Some(texture_bind_buffer(gl, &self.filtering, &self.kind)?);
+        let new_state = Some(texture_bind_buffer(
+            gl,
+            &self.filtering.get(),
+            self.wrap_u.get(),
+            self.wrap_v.get(),
+            self.wrap_w.get(),
+            &self.kind,
+        )?);
 
         self.gl_state.replace(new_state);
 
@@ -201,6 +228,9 @@ fn unbind_texture(gl: &WebGLRenderingContext, kind: &TextureKind) {
 fn texture_bind_buffer(
     gl: &WebGLRenderingContext,
     texfilter: &TextureFiltering,
+    wrap_u: TextureWrap,
+    wrap_v: TextureWrap,
+    wrap_w: Option<TextureWrap>,
     kind: &TextureKind,
 ) -> AssetResult<TextureGLState> {
     let mut gl_tex_kind: webgl::TextureKind = webgl::TextureKind::Texture2d;
@@ -340,25 +370,34 @@ fn texture_bind_buffer(
         filtering = TextureMagFilter::Nearest as i32;
     }
 
+    let to_gl_wrap = |w: TextureWrap| match w {
+        TextureWrap::Repeat => webgl::TextureWrap::Repeat as i32,
+        TextureWrap::ClampToEdge => webgl::TextureWrap::ClampToEdge as i32,
+        TextureWrap::MirroredRepeat => webgl::TextureWrap::MirroredRepeat as i32,
+    };
+
     gl.tex_parameteri(gl_tex_kind, TextureParameter::TextureMagFilter, filtering);
     gl.tex_parameteri(gl_tex_kind, TextureParameter::TextureMinFilter, filtering);
+
     gl.tex_parameteri(
         gl_tex_kind,
         TextureParameter::TextureWrapS,
-        TextureWrap::ClampToEdge as i32,
+        to_gl_wrap(wrap_u),
     );
     gl.tex_parameteri(
         gl_tex_kind,
         TextureParameter::TextureWrapT,
-        TextureWrap::ClampToEdge as i32,
+        to_gl_wrap(wrap_v),
     );
 
     if let &TextureKind::CubeMap(..) = kind {
-        gl.tex_parameteri(
-            gl_tex_kind,
-            TextureParameter::TextureWrapR,
-            TextureWrap::ClampToEdge as i32,
-        );
+        if let Some(wrap_w) = wrap_w {
+            gl.tex_parameteri(
+                gl_tex_kind,
+                TextureParameter::TextureWrapR,
+                to_gl_wrap(wrap_w),
+            );
+        }
     }
 
     if let &TextureKind::RenderTexture { ref attach, .. } = kind {

@@ -247,7 +247,15 @@ where
                 "default_font_bitmap".into(),
                 Self::new_default_font_bitmap(),
             );
-            hm.insert("default_white".into(), Self::new_default_white_texture());
+            hm.insert(
+                "default_white".into(),
+                Self::new_default_color_texture([0xff, 0xff, 0xff, 0xff]),
+            );
+
+            hm.insert(
+                "default_black".into(),
+                Self::new_default_color_texture([0x0, 0x0, 0x0, 0xff]),
+            );
             hm.insert("default".into(), Self::new_default_texture());
         }
 
@@ -259,7 +267,7 @@ where
     }
 
     fn new_default_font_bitmap() -> Rc<Texture> {
-        let mut tex = Texture::new(TextureImage::Rgba(ImageBuffer::from_fn(128, 64, |x, y| {
+        let tex = Texture::new(TextureImage::Rgba(ImageBuffer::from_fn(128, 64, |x, y| {
             let cx: u32 = x / 8;
             let cy: u32 = y / 8;
             let c = &DEFAULT_FONT_DATA[(cx + cy * 16) as usize];
@@ -274,17 +282,17 @@ where
             }
         })));
 
-        Rc::get_mut(&mut tex).unwrap().filtering = TextureFiltering::Nearest;
+        tex.filtering.set(TextureFiltering::Nearest);
 
         tex
     }
 
-    fn new_default_white_texture() -> Rc<Texture> {
-        let mut tex = Texture::new(TextureImage::Rgba(ImageBuffer::from_fn(4, 4, |_, _| {
-            image::Rgba([0xff, 0xff, 0xff, 0xff])
+    fn new_default_color_texture(color: [u8; 4]) -> Rc<Texture> {
+        let tex = Texture::new(TextureImage::Rgba(ImageBuffer::from_fn(4, 4, |_, _| {
+            image::Rgba(color)
         })));
 
-        Rc::get_mut(&mut tex).unwrap().filtering = TextureFiltering::Nearest;
+        tex.filtering.set(TextureFiltering::Nearest);
 
         tex
     }

@@ -55,6 +55,7 @@ impl PrefabLoader {
                 let mut diffuse_map = "default_white".to_string();
                 let mut ambient_map = "default_white".to_string();
                 let mut specular_map = "default_black".to_string();
+                let mut mask = None;
 
                 if let Some(material) = g.material {
                     material.ka.map(|ka| ambient = ka.into());
@@ -74,6 +75,10 @@ impl PrefabLoader {
                         .map_ks
                         .as_ref()
                         .map(|map_ks| specular_map = parent.clone() + &map_ks);
+                    material
+                        .map_d
+                        .as_ref()
+                        .map(|map_d| mask = Some(parent.clone() + &map_d));
                 }
 
                 let mut indices = Vec::new();
@@ -144,7 +149,12 @@ impl PrefabLoader {
                 material.set("uMaterial.shininess", shininess);
                 material.set("uMaterial.transparent", transparent);
 
-                if transparent < 1.0 {
+                match mask {
+                    Some(ref f) => material.set("uMaterial.mask_tex", asys.new_texture(&f)),
+                    None => material.set("uMaterial.mask_tex", asys.new_texture("default_white")),
+                }
+
+                if transparent < 1.0 || mask.is_some() {
                     material.render_queue = RenderQueue::Transparent;
                 }
 

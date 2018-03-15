@@ -41,6 +41,7 @@ struct Material {
 
     float shininess;
     float transparent;
+    sampler2D mask_tex;
 };
 
 uniform vec3 uViewPos;
@@ -70,7 +71,7 @@ void main(void) {
 
     // float gamma = 2.2;    
     // gl_FragColor = vec4(pow(result, vec3(1.0/gamma)), uMaterial.transparent);           
-    gl_FragColor = vec4(result, uMaterial.transparent);           
+    gl_FragColor = vec4(result, uMaterial.transparent * texture2D(uMaterial.mask_tex, vTexCoords).r );           
 }
 
 vec3 CalcDirectionalLight(DirectionalLight light, vec3 normal, vec3 viewDir)

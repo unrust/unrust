@@ -114,7 +114,7 @@ impl Actor for MainScene {
 
             let dir = light.directional().unwrap().direction;
             let mut t = Isometry3::identity();
-            t.append_rotation_mut(&UnitQuaternion::new(Vector3::new(0.0, 0.02, 0.0)));
+            t.append_rotation_mut(&UnitQuaternion::new(Vector3::new(0.0, 0.01, 0.0)));
             let transformed = t * dir;
 
             light.directional_mut().unwrap().direction = transformed;

@@ -1,20 +1,61 @@
 extern crate unrust;
 
-use unrust::world::{Actor, Handle, World, WorldBuilder};
-use unrust::engine::{AssetError, Camera, Directional, GameObject, Light, Prefab};
+use unrust::world::{Actor, Handle, Processor, World, WorldBuilder};
+use unrust::engine::{AssetError, Camera, ComponentBased, Directional, GameObject, Light, Material,
+                     Point, Prefab};
 use unrust::world::events::*;
 use unrust::math::*;
 
 // GUI
 use unrust::imgui;
 
+use std::rc::Rc;
+
 pub struct MainScene {
     eye: Vector3<f32>,
     eye_dir: Vector3<f32>,
 
     dir_light: Handle<GameObject>,
+    point_light: Handle<GameObject>,
+
+    animate_light: bool,
 
     last_event: Option<AppEvent>,
+}
+
+pub struct MaterialFilter {
+    force_no_normal_map: bool,
+}
+
+impl ComponentBased for MaterialFilter {}
+
+impl MaterialFilter {
+    pub fn apply(&self, material: &Material) {
+        material.set("uNoNormalMap", self.force_no_normal_map);
+    }
+}
+
+impl Actor for MaterialFilter {}
+
+impl Processor for MaterialFilter {
+    fn new() -> MaterialFilter {
+        MaterialFilter {
+            force_no_normal_map: false,
+        }
+    }
+
+    fn apply_materials(&self, materials: &Vec<Rc<Material>>) {
+        for m in materials.iter() {
+            self.apply(&m);
+        }
+    }
+
+    fn watch_material() -> bool
+    where
+        Self: Sized,
+    {
+        return true;
+    }
 }
 
 // Actor is a trait object which would act like an component
@@ -25,7 +66,9 @@ impl MainScene {
             eye: Vector3::new(0.0, 200.06, -3.36),
             eye_dir: Vector3::new(-3.0, 0.0, -1.0).normalize(),
             last_event: None,
+            animate_light: false,
             dir_light: GameObject::empty(),
+            point_light: GameObject::empty(),
         })
     }
 }
@@ -49,6 +92,12 @@ impl Actor for MainScene {
             self.dir_light = go;
         }
 
+        {
+            let go = world.new_game_object();
+            go.borrow_mut().add_component(Light::new(Point::default()));
+            self.point_light = go;
+        }
+
         // Added the obj display
         {
             let go = world.new_game_object();
@@ -58,15 +107,24 @@ impl Actor for MainScene {
 
     fn update(&mut self, _go: &mut GameObject, world: &mut World) {
         // Handle Events
+        let normap_map_enabled;
+
         {
             let up = Vector3::y();
+            let right = self.eye_dir.cross(&up).normalize();
             let speed = 10.0;
 
             let mut reset = false;
+            let mut toggle_normal_map = false;
 
             for evt in world.events().iter() {
                 self.last_event = Some(evt.clone());
                 match evt {
+                    &AppEvent::KeyUp(ref key) => match key.code.as_str() {
+                        "KeyU" => toggle_normal_map = true,
+                        _ => (),
+                    },
+
                     &AppEvent::KeyDown(ref key) => {
                         match key.code.as_str() {
                             "KeyA" => self.eye_dir = Rotation3::new(up * 0.02) * self.eye_dir,
@@ -76,6 +134,11 @@ impl Actor for MainScene {
 
                             "KeyW" => self.eye = self.eye + self.eye_dir * speed,
                             "KeyS" => self.eye = self.eye + self.eye_dir * -speed,
+
+                            "KeyZ" => self.eye = self.eye - right * speed,
+                            "KeyX" => self.eye = self.eye + right * speed,
+
+                            "Space" => self.animate_light = !self.animate_light,
                             "Escape" => reset = true,
                             _ => (),
                         };
@@ -94,6 +157,18 @@ impl Actor for MainScene {
                 scene.borrow_mut().add_component(MainScene::new());
                 return;
             }
+
+            if toggle_normal_map {
+                let mf = world.find_component::<MaterialFilter>().unwrap();
+                let b = mf.borrow().force_no_normal_map;
+                mf.borrow_mut().force_no_normal_map = !b;
+            }
+
+            normap_map_enabled = {
+                let mf = world.find_component::<MaterialFilter>().unwrap();
+                let mf_borrow = mf.borrow();
+                !mf_borrow.force_no_normal_map
+            };
         }
 
         // Update Camera
@@ -107,8 +182,8 @@ impl Actor for MainScene {
             );
         }
 
-        // Update light
-        {
+        // Update Direction light
+        if self.animate_light {
             let dir_light_bor = self.dir_light.borrow_mut();
             let (mut light, _) = dir_light_bor.find_component_mut::<Light>().unwrap();
 
@@ -120,19 +195,31 @@ impl Actor for MainScene {
             light.directional_mut().unwrap().direction = transformed;
         }
 
+        // Update Point Light
+        {
+            let point_light_bor = self.point_light.borrow_mut();
+            let (mut light, _) = point_light_bor.find_component_mut::<Light>().unwrap();
+            light.point_mut().unwrap().linear = 0.0007;
+            light.point_mut().unwrap().quadratic = 0.00002;
+            light.point_mut().unwrap().position = self.eye;
+        }
+
         // GUI
         use imgui::Metric::*;
 
         imgui::pivot((1.0, 1.0));
         imgui::label(
             Native(1.0, 1.0) - Pixel(8.0, 8.0),
-            "[WASD EC] : control camera\n[Esc]  : reload all (include assets)",
+            "[WASD ZXEC] : control camera\n[Esc]  : reload all (include assets)",
         );
 
         imgui::pivot((1.0, 0.0));
         imgui::label(
             Native(1.0, 0.0) + Pixel(-8.0, 8.0),
-            &format!("last event: {:?}", self.last_event),
+            &format!(
+                "last event: {:?}\nnormal_map = {:?}",
+                self.last_event, normap_map_enabled
+            ),
         );
 
         imgui::pivot((0.0, 1.0));
@@ -172,6 +259,7 @@ pub fn main() {
     let mut world = WorldBuilder::new("sponza demo")
         .with_size((800, 600))
         .with_stats(true)
+        .with_processor::<MaterialFilter>()
         .build();
 
     // Add the main scene as component of scene game object

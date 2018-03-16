@@ -13,6 +13,8 @@ use std::io::BufReader;
 use std::collections::HashMap;
 
 type Vector3 = na::Vector3<f32>;
+type Vector2 = na::Vector2<f32>;
+
 use futures::prelude::*;
 use futures::future::*;
 
@@ -31,6 +33,97 @@ fn parent_path(filename: &str) -> String {
 
 pub struct PrefabLoader {}
 
+struct TangentSpace {
+    tangents: Option<Vec<f32>>,
+    bitangents: Option<Vec<f32>>,
+}
+
+fn compute_tangents(
+    v_array: &Vec<f32>,
+    uv_array: &Option<Vec<f32>>,
+    n_array: &Option<Vec<f32>>,
+    indices: &Vec<u16>,
+) -> TangentSpace {
+    if uv_array.is_none() || n_array.is_none() {
+        return TangentSpace {
+            tangents: None,
+            bitangents: None,
+        };
+    }
+
+    let uv_array = uv_array.as_ref().unwrap();
+    let n_array = n_array.as_ref().unwrap();
+
+    assert!(v_array.len() % 9 == 0);
+    assert!(uv_array.len() % 6 == 0);
+    assert!(n_array.len() % 9 == 0);
+    assert!(indices.len() % 3 == 0);
+
+    let mut tangents = Vec::with_capacity(v_array.len());
+    let mut bittangents = Vec::with_capacity(v_array.len());
+
+    let v_index = |i| i * 3;
+    let uv_index = |i| i * 2;
+    let n_index = |i| i * 3;
+
+    let mut i = 0;
+    while i < indices.len() {
+        let pos1 = Vector3::from_row_slice(&v_array[v_index(i + 0)..v_index(i + 1)]);
+        let pos2 = Vector3::from_row_slice(&v_array[v_index(i + 1)..v_index(i + 2)]);
+        let pos3 = Vector3::from_row_slice(&v_array[v_index(i + 2)..v_index(i + 3)]);
+
+        let uv1 = Vector2::from_row_slice(&uv_array[uv_index(i + 0)..uv_index(i + 1)]);
+        let uv2 = Vector2::from_row_slice(&uv_array[uv_index(i + 1)..uv_index(i + 2)]);
+        let uv3 = Vector2::from_row_slice(&uv_array[uv_index(i + 2)..uv_index(i + 3)]);
+
+        let edge1 = pos2 - pos1;
+        let edge2 = pos3 - pos1;
+        let delta_uv1 = uv2 - uv1;
+        let delta_uv2 = uv3 - uv1;
+
+        let r = 1.0 / (delta_uv1.x * delta_uv2.y - delta_uv2.x * delta_uv1.y);
+
+        let tangent = (edge1 * delta_uv2.y - edge2 * delta_uv1.y) * r;
+        let bitangent = (edge2 * delta_uv1.x - edge1 * delta_uv2.x) * r;
+
+        // Triangle share same tangent space
+        tangents.extend_from_slice(tangent.as_slice());
+        tangents.extend_from_slice(tangent.as_slice());
+        tangents.extend_from_slice(tangent.as_slice());
+
+        bittangents.extend_from_slice(bitangent.as_slice());
+        bittangents.extend_from_slice(bitangent.as_slice());
+        bittangents.extend_from_slice(bitangent.as_slice());
+
+        i += 3;
+    }
+
+    for i in 0..indices.len() {
+        let n = Vector3::from_row_slice(&n_array[n_index(i)..n_index(i + 1)]);
+        let mut t = Vector3::from_row_slice(&tangents[n_index(i)..n_index(i + 1)]);
+        let b = Vector3::from_row_slice(&bittangents[n_index(i)..n_index(i + 1)]);
+
+        // Gram-Schmidt orthogonalize
+        t = t - n * n.dot(&t);
+
+        if n.cross(&t).dot(&b) < 0.0 {
+            t = -t;
+        }
+
+        tangents[n_index(i) + 0] = t.x;
+        tangents[n_index(i) + 1] = t.y;
+        tangents[n_index(i) + 2] = t.z;
+    }
+
+    assert!(tangents.len() == v_array.len());
+    assert!(bittangents.len() == v_array.len());
+
+    return TangentSpace {
+        tangents: Some(tangents),
+        bitangents: Some(bittangents),
+    };
+}
+
 impl PrefabLoader {
     fn load_model<A>(asys: A, parent: String, model: obj::Obj<SimplePolygon>) -> Prefab
     where
@@ -40,8 +133,6 @@ impl PrefabLoader {
         let uvs: Vec<[f32; 2]> = model.texture;
         let normals: Vec<[f32; 3]> = model.normal;
 
-        let shader_program = asys.new_program("obj");
-
         // create the mesh componet
         let mut mesh = Mesh::new();
 
@@ -50,12 +141,13 @@ impl PrefabLoader {
                 let mut ambient = Vector3::new(0.2, 0.2, 0.2);
                 let mut diffuse = Vector3::new(1.0, 1.0, 1.0);
                 let mut specular = Vector3::new(0.2, 0.2, 0.2);
-                let mut shininess = 10.0;
+                let mut shininess = 0.2;
                 let mut transparent = 1.0;
                 let mut diffuse_map = "default_white".to_string();
                 let mut ambient_map = "default_white".to_string();
                 let mut specular_map = "default_black".to_string();
-                let mut mask = None;
+                let mut alpha_mask = None;
+                let mut normal_map: Option<String> = None;
 
                 if let Some(material) = g.material {
                     material.ka.map(|ka| ambient = ka.into());
@@ -78,22 +170,28 @@ impl PrefabLoader {
                     material
                         .map_d
                         .as_ref()
-                        .map(|map_d| mask = Some(parent.clone() + &map_d));
+                        .map(|map_d| alpha_mask = Some(parent.clone() + &map_d));
+
+                    material
+                        .map_bump
+                        .as_ref()
+                        .map(|map_bump| normal_map = Some(parent.clone() + &map_bump));
                 }
 
                 let mut indices = Vec::new();
-                let mut gv = Vec::new();
-                let mut gt = Vec::new();
-                let mut gn = Vec::new();
+                let mut v_array = Vec::new();
+                let mut uv_array = Vec::new();
+                let mut n_array = Vec::new();
 
                 let mut add_v = |index_tuple: obj::IndexTuple| {
                     indices.push(indices.len() as u16);
-                    gv.extend_from_slice(&vertices[index_tuple.0]);
+                    v_array.extend_from_slice(&vertices[index_tuple.0]);
                     index_tuple.1.map(|uv| {
-                        gt.extend_from_slice(&uvs[uv]);
+                        uv_array.push(uvs[uv][0]);
+                        uv_array.push(1.0 - uvs[uv][1]);
                     });
                     index_tuple.2.map(|n| {
-                        gn.extend_from_slice(&normals[n]);
+                        n_array.extend_from_slice(&normals[n]);
                     });
                 };
 
@@ -119,14 +217,40 @@ impl PrefabLoader {
                     }
                 }
 
-                let mesh_data = MeshData {
-                    indices: indices,
-                    vertices: gv,
-                    uvs: if gt.len() > 0 { Some(gt) } else { None },
-                    normals: if gn.len() > 0 { Some(gn) } else { None },
+                let uv_array = if uv_array.len() > 0 {
+                    Some(uv_array)
+                } else {
+                    None
+                };
+                let n_array = if n_array.len() > 0 {
+                    Some(n_array)
+                } else {
+                    None
                 };
 
-                let mut material = Material::new(shader_program.clone());
+                let tangent_space = match normal_map {
+                    Some(_) => compute_tangents(&v_array, &uv_array, &n_array, &indices),
+                    None => TangentSpace {
+                        tangents: None,
+                        bitangents: None,
+                    },
+                };
+
+                let mesh_data = MeshData {
+                    indices: indices,
+                    vertices: v_array,
+                    uvs: uv_array,
+                    tangents: tangent_space.tangents,
+                    bitangents: tangent_space.bitangents,
+                    normals: n_array,
+                };
+
+                let shader_program = match normal_map {
+                    Some(_) => asys.new_program("obj_nm"),
+                    None => asys.new_program("obj"),
+                };
+
+                let mut material = Material::new(shader_program);
 
                 let ambient_tex = asys.new_texture(&ambient_map);
                 ambient_tex.wrap_u.set(TextureWrap::Repeat);
@@ -149,12 +273,20 @@ impl PrefabLoader {
                 material.set("uMaterial.shininess", shininess);
                 material.set("uMaterial.transparent", transparent);
 
-                match mask {
+                normal_map.as_ref().map(|nm| {
+                    let n_tex = asys.new_texture(nm);
+                    n_tex.wrap_u.set(TextureWrap::Repeat);
+                    n_tex.wrap_v.set(TextureWrap::Repeat);
+
+                    material.set("uMaterial.normal_map", n_tex);
+                });
+
+                match alpha_mask {
                     Some(ref f) => material.set("uMaterial.mask_tex", asys.new_texture(&f)),
                     None => material.set("uMaterial.mask_tex", asys.new_texture("default_white")),
                 }
 
-                if transparent < 1.0 || mask.is_some() {
+                if transparent < 0.9999 || alpha_mask.is_some() {
                     material.render_queue = RenderQueue::Transparent;
                 }
 

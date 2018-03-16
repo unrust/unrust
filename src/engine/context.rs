@@ -165,11 +165,11 @@ impl EngineContext {
         Ok(())
     }
 
-    pub fn need_cache_tex(&self, new_tex: &Rc<Texture>) -> Option<u32> {
-        for &(u, ref tex) in self.textures.iter() {
+    pub fn need_cache_tex(&self, new_tex: &Rc<Texture>) -> Option<(usize, u32)> {
+        for (pos, &(u, ref tex)) in self.textures.iter().enumerate() {
             if let Some(ref p) = tex.upgrade() {
                 if Rc::ptr_eq(new_tex, p) {
-                    return Some(u);
+                    return Some((pos, u));
                 }
             }
         }
@@ -181,9 +181,12 @@ impl EngineContext {
     where
         F: FnOnce(&mut EngineContext, u32) -> AssetResult<()>,
     {
-        let found = self.need_cache_tex(new_tex);
-        if let Some(t) = found {
-            return Ok(t);
+        if let Some((pos, unit)) = self.need_cache_tex(new_tex) {
+            // move the used unit pos to the back
+            self.textures.remove(pos);
+            self.textures.push_back((unit, Rc::downgrade(&new_tex)));
+
+            return Ok(unit);
         }
 
         let mut unit = self.textures.len() as u32;

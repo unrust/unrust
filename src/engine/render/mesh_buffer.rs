@@ -27,7 +27,11 @@ struct MeshGLState {
     pub vao: WebGLVertexArray,
     pub vb: WebGLBuffer,
     pub uvb: Option<WebGLBuffer>,
+
     pub nb: Option<WebGLBuffer>,
+    pub tb: Option<WebGLBuffer>,
+    pub btb: Option<WebGLBuffer>,
+
     pub ib: WebGLBuffer,
 }
 
@@ -36,6 +40,10 @@ pub struct MeshData {
     pub vertices: Vec<f32>,
     pub uvs: Option<Vec<f32>>,
     pub normals: Option<Vec<f32>>,
+
+    pub tangents: Option<Vec<f32>>,
+    pub bitangents: Option<Vec<f32>>,
+
     pub indices: Vec<u16>,
 }
 
@@ -70,6 +78,22 @@ impl LoadableAsset for MeshBuffer {
     }
 }
 
+pub fn bind_buffer(
+    gl: &WebGLRenderingContext,
+    buffer: &WebGLBuffer,
+    program: &ShaderProgram,
+    name: &str,
+    asize: AttributeSize,
+) {
+    gl.bind_buffer(BufferKind::Array, buffer);
+
+    // Point an position attribute to the currently bound VBO
+    if let Some(coord) = program.attrib_loc(gl, name) {
+        gl.enable_vertex_attrib_array(coord);
+        gl.vertex_attrib_pointer(coord, asize, DataType::Float, false, 0, 0);
+    }
+}
+
 impl MeshBuffer {
     pub fn prepare(&self, gl: &WebGLRenderingContext) -> AssetResult<()> {
         if self.gl_state.borrow().is_some() {
@@ -81,6 +105,8 @@ impl MeshBuffer {
             &data.vertices,
             &data.uvs,
             &data.normals,
+            &data.tangents,
+            &data.bitangents,
             &data.indices,
             gl,
         )));
@@ -125,32 +151,28 @@ impl MeshBuffer {
         gl.bind_vertex_array(&state.vao);
 
         // Bind vertex buffer object
-        gl.bind_buffer(BufferKind::Array, &state.vb);
+        bind_buffer(
+            gl,
+            &state.vb,
+            program,
+            "aVertexPosition",
+            AttributeSize::Three,
+        );
 
-        // Point an position attribute to the currently bound VBO
-        if let Some(coord) = program.attrib_loc(gl, "aVertexPosition") {
-            gl.enable_vertex_attrib_array(coord);
-            gl.vertex_attrib_pointer(coord, AttributeSize::Three, DataType::Float, false, 0, 0);
+        if let Some(ref uvb) = state.uvb {
+            bind_buffer(gl, uvb, program, "aTextureCoord", AttributeSize::Two);
         }
 
         if let Some(ref nb) = state.nb {
-            gl.bind_buffer(BufferKind::Array, nb);
-            // Point an normal attribute to the currently bound VBO
-
-            if let Some(coord) = program.attrib_loc(gl, "aVertexNormal") {
-                gl.enable_vertex_attrib_array(coord);
-                gl.vertex_attrib_pointer(coord, AttributeSize::Three, DataType::Float, false, 0, 0);
-            }
+            bind_buffer(gl, nb, program, "aVertexNormal", AttributeSize::Three);
         }
 
-        if let Some(ref uvb) = state.uvb {
-            gl.bind_buffer(BufferKind::Array, uvb);
-            // Point an uv attribute to the currently bound VBO
+        if let Some(ref tb) = state.tb {
+            bind_buffer(gl, tb, program, "aVertexTangent", AttributeSize::Three);
+        }
 
-            if let Some(coord) = program.attrib_loc(gl, "aTextureCoord") {
-                gl.enable_vertex_attrib_array(coord);
-                gl.vertex_attrib_pointer(coord, AttributeSize::Two, DataType::Float, false, 0, 0);
-            }
+        if let Some(ref btb) = state.btb {
+            bind_buffer(gl, btb, program, "aVertexBitangent", AttributeSize::Three);
         }
 
         // Bind index buffer object
@@ -172,10 +194,30 @@ impl MeshBuffer {
     }
 }
 
+fn bind_f32_array(gl: &WebGLRenderingContext, data: &Vec<f32>) -> WebGLBuffer {
+    // Create an empty buffer object to store vertex buffer
+    let vb = gl.create_buffer();
+    {
+        // Bind appropriate array buffer to it
+        gl.bind_buffer(BufferKind::Array, &vb);
+
+        // Pass the vertex data to the buffer
+        let cv = data.clone();
+        gl.buffer_data(BufferKind::Array, &cv.into_bytes(), DrawMode::Static);
+
+        // Unbind the buffer
+        gl.unbind_buffer(BufferKind::Array);
+    }
+
+    vb
+}
+
 fn mesh_bind_buffer(
     vertices: &Vec<f32>,
     uvs: &Option<Vec<f32>>,
     normals: &Option<Vec<f32>>,
+    tangents: &Option<Vec<f32>>,
+    bitangents: &Option<Vec<f32>>,
     indices: &Vec<u16>,
     gl: &WebGLRenderingContext,
 ) -> MeshGLState {
@@ -183,60 +225,11 @@ fn mesh_bind_buffer(
     let vao = gl.create_vertex_array();
     gl.bind_vertex_array(&vao);
 
-    // Create an empty buffer object to store vertex buffer
-    let vertex_buffer = gl.create_buffer();
-    {
-        // Bind appropriate array buffer to it
-        gl.bind_buffer(BufferKind::Array, &vertex_buffer);
-
-        // Pass the vertex data to the buffer
-        let cv = vertices.clone();
-        gl.buffer_data(BufferKind::Array, &cv.into_bytes(), DrawMode::Static);
-
-        // Unbind the buffer
-        gl.unbind_buffer(BufferKind::Array);
-    }
-
-    // Create an empty buffer object to store uv buffer
-    let uv_buffer = match uvs {
-        &Some(ref uvs) => {
-            let uv_buffer = gl.create_buffer();
-            {
-                // Bind appropriate array buffer to it
-                gl.bind_buffer(BufferKind::Array, &uv_buffer);
-
-                // Pass the vertex data to the buffer
-                let uvv = uvs.clone();
-                gl.buffer_data(BufferKind::Array, &uvv.into_bytes(), DrawMode::Static);
-
-                // Unbind the buffer
-                gl.unbind_buffer(BufferKind::Array);
-
-                Some(uv_buffer)
-            }
-        }
-        _ => None,
-    };
-
-    // Create an Normal Buffer
-    let normal_buffer = match normals {
-        &Some(ref normals) => {
-            let normal_buffer = gl.create_buffer();
-            {
-                // Bind appropriate array buffer to it
-                gl.bind_buffer(BufferKind::Array, &normal_buffer);
-
-                let ns = normals.clone();
-                gl.buffer_data(BufferKind::Array, &ns.into_bytes(), DrawMode::Static);
-
-                // Unbind the buffer
-                gl.unbind_buffer(BufferKind::Array);
-
-                Some(normal_buffer)
-            }
-        }
-        _ => None,
-    };
+    let vertex_buffer = bind_f32_array(&gl, vertices);
+    let uv_buffer = uvs.as_ref().map(|ref data| bind_f32_array(gl, data));
+    let normal_buffer = normals.as_ref().map(|ref data| bind_f32_array(gl, data));
+    let tangent_buffer = tangents.as_ref().map(|ref data| bind_f32_array(gl, data));
+    let bitangent_buffer = bitangents.as_ref().map(|ref data| bind_f32_array(gl, data));
 
     // Create an empty buffer object to store Index buffer
     let index_buffer = gl.create_buffer();
@@ -256,7 +249,11 @@ fn mesh_bind_buffer(
         vao,
         vb: vertex_buffer,
         uvb: uv_buffer,
+
         nb: normal_buffer,
+        tb: tangent_buffer,
+        btb: bitangent_buffer,
+
         ib: index_buffer,
     }
 }

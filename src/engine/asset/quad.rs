@@ -28,6 +28,8 @@ impl QuadMesh {
             uvs: Some(uvs),
             normals: None,
             indices: indices,
+            tangents: None,
+            bitangents: None,
         }
     }
 }

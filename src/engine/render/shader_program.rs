@@ -1,8 +1,7 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use webgl::{ShaderKind as WebGLShaderKind, WebGLProgram, WebGLRenderingContext,
-            WebGLUniformLocation};
+use webgl::{ShaderKind as WebGLShaderKind, WebGLProgram, WebGLRenderingContext};
 use engine::asset::{Asset, AssetResult, AssetSystem, FileFuture, LoadableAsset, Resource};
 use engine::render::shader::{ShaderFs, ShaderVs};
 use engine::render::uniforms::*;
@@ -17,10 +16,7 @@ impl Asset for ShaderProgram {
             gl_state: RefCell::new(None),
 
             coord_map: Default::default(),
-            uniform_map: Default::default(),
-
-            pending_uniforms: Default::default(),
-            committed_unforms: Default::default(),
+            uniform_cache: Default::default(),
 
             vs_shader: vs,
             fs_shader: fs,
@@ -57,13 +53,11 @@ pub struct ShaderProgram {
     gl_state: RefCell<Option<ShaderProgramGLState>>,
 
     coord_map: RefCell<HashMap<String, Option<u32>>>,
-    uniform_map: RefCell<HashMap<String, Option<Rc<WebGLUniformLocation>>>>,
 
     vs_shader: Resource<ShaderVs>,
     fs_shader: Resource<ShaderFs>,
 
-    pending_uniforms: RefCell<HashMap<String, Box<UniformAdapter>>>,
-    committed_unforms: RefCell<HashMap<String, u64>>,
+    uniform_cache: UniformCache,
 }
 
 impl ShaderProgram {
@@ -75,7 +69,7 @@ impl ShaderProgram {
 
         // after use, we should clean up the committed uniform state.
         // https://www.khronos.org/registry/OpenGL-Refpages/gl4/html/glUniform.xhtml
-        self.committed_unforms.borrow_mut().clear();
+        //self.uniform_cache.clear();
 
         Ok(())
     }
@@ -112,60 +106,15 @@ impl ShaderProgram {
 
     pub fn set<T>(&self, s: &str, data: T)
     where
-        T: 'static + UniformAdapter,
+        T: Into<UniformAdapter>,
     {
-        let mut unis = self.pending_uniforms.borrow_mut();
-        let mut commited = self.committed_unforms.borrow_mut();
-
-        // Check if the data is committed
-        if let Some(cs) = commited.get(s) {
-            if *cs == data.to_hash() {
-                return;
-            }
-
-            commited.remove(s.into());
-        }
-
-        unis.insert(s.into(), Box::new(data));
+        self.uniform_cache.set(s, data);
     }
 
     pub fn commit(&self, gl: &WebGLRenderingContext) {
-        let unis = self.pending_uniforms.borrow();
-        let mut commited = self.committed_unforms.borrow_mut();
-
-        for (s, data) in &*unis {
-            if !commited.contains_key(s) {
-                if let Some(u) = self.get_uniform(gl, s) {
-                    data.set(gl, &u);
-                }
-
-                commited.insert(s.clone(), data.to_hash());
-            }
-        }
-    }
-
-    fn get_uniform(&self, gl: &WebGLRenderingContext, s: &str) -> Option<Rc<WebGLUniformLocation>> {
-        let mut m = self.uniform_map.borrow_mut();
-        let gl_state = self.gl_state.borrow();
-
-        match m.get(s) {
-            Some(u) => u.as_ref().map(|x| x.clone()),
-            None => {
-                let uloc = gl.get_uniform_location(&gl_state.as_ref().unwrap().prog, s.into());
-
-                match uloc {
-                    None => {
-                        m.insert(s.into(), None);
-                        None
-                    }
-                    Some(uloc) => {
-                        let p = Rc::new(uloc);
-                        m.insert(s.into(), Some(p.clone()));
-                        Some(p)
-                    }
-                }
-            }
-        }
+        self.gl_state.borrow().as_ref().map(|ref gl_state| {
+            self.uniform_cache.commit(gl, &gl_state.prog);
+        });
     }
 }
 

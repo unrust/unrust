@@ -26,6 +26,8 @@ impl SkyboxMesh {
             uvs: None,
             normals: None,
             indices: indices,
+            tangents: None,
+            bitangents: None,
         }
     }
 }

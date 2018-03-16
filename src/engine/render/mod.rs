@@ -18,6 +18,8 @@ pub enum RenderQueue {
     UI = 5000,
 }
 
+pub mod mesh_util;
+
 pub use self::camera::Camera;
 pub use self::shader::{ShaderFs, ShaderKind, ShaderVs};
 pub use self::shader_program::ShaderProgram;

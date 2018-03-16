@@ -35,6 +35,8 @@ pub trait IEngine {
 #[derive(Default, Copy, Clone)]
 pub struct EngineStats {
     pub surfaces_count: u32,
+    pub opaque_count: u32,
+    pub transparent_count: u32,
 }
 
 pub struct Engine<A>
@@ -447,6 +449,12 @@ where
             .sort_by_cam_distance();
 
         ctx.stats.surfaces_count = render_q.surface_count() as u32;
+        ctx.stats.transparent_count = render_q
+            .get(&RenderQueue::Transparent)
+            .unwrap()
+            .commands
+            .len() as u32;
+        ctx.stats.opaque_count = render_q.get(&RenderQueue::Opaque).unwrap().commands.len() as u32;
 
         for (_, q) in render_q.iter() {
             self.render_commands(&mut ctx, &q, camera, material);

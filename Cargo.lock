@@ -234,7 +234,7 @@ dependencies = [
 [[package]]
 name = "image"
 version = "0.18.0"
-source = "git+https://github.com/edwin0cheng/image?branch=impl_tga_read_scanline#b56739436f4b3a918a7a02189ce9b9fb9f4a9dca"
+source = "git+https://github.com/edwin0cheng/image?branch=impl_tga_read_scanline#4d4ea0b0e6f2f729be36ceb43b86d9f955e48f72"
 dependencies = [
  "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "enum_primitive 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",

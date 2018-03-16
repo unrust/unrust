@@ -202,12 +202,14 @@ impl World {
             imgui::label(
                 Native(0.0, 0.0) + Pixel(8.0, 8.0),
                 &format!(
-                    "fps: {} nobj: {} actors:{} gobjs:{} surfaces:{}",
+                    "fps: {} nobj: {} actors:{} gobjs:{} sf:{} oc:{} tc:{}",
                     self.fps.fps,
                     self.engine().objects.len(),
                     self.watcher.len(),
                     self.main_tree.len(),
                     self.engine().stats.surfaces_count,
+                    self.engine().stats.opaque_count,
+                    self.engine().stats.transparent_count,
                 ),
             );
 

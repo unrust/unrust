@@ -109,6 +109,8 @@ fn make_text_mesh_data(s: &str, size: (u32, u32), hidpi: f32) -> MeshData {
         uvs: Some(uvs),
         normals: None,
         indices: indices,
+        tangents: None,
+        bitangents: None,
     }
 }
 
@@ -140,6 +142,8 @@ fn make_quad_mesh_data(size: (f32, f32)) -> MeshData {
         uvs: Some(uvs),
         normals: None,
         indices: indices,
+        tangents: None,
+        bitangents: None,
     }
 }
 

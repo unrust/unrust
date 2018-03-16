@@ -256,6 +256,27 @@ where
                 "default_black".into(),
                 Self::new_default_color_texture([0x0, 0x0, 0x0, 0xff]),
             );
+
+            hm.insert(
+                "default_blue".into(),
+                Self::new_default_color_texture([0x0, 0x0, 0xff, 0xff]),
+            );
+
+            hm.insert(
+                "default_normal_map".into(),
+                Self::new_default_color_texture([0xff >> 1, 0xff >> 1, 0xff, 0xff]),
+            );
+
+            hm.insert(
+                "default_red".into(),
+                Self::new_default_color_texture([0xff, 0x0, 0x0, 0xff]),
+            );
+
+            hm.insert(
+                "default_green".into(),
+                Self::new_default_color_texture([0x0, 0xff, 0x0, 0xff]),
+            );
+
             hm.insert("default".into(), Self::new_default_texture());
         }
 

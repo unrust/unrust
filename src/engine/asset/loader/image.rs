@@ -208,7 +208,7 @@ impl Loadable for TextureImage {
 
         let decoded = img_buf.and_then(|(whole_buf, file_name)| {
             let info = ImageFileInfo {
-                file_name,
+                file_name: file_name.clone(),
                 orig_len: whole_buf.len(),
             };
 
@@ -219,24 +219,42 @@ impl Loadable for TextureImage {
                     reason: format!("{:?}", e),
                 })?;
 
-            let stream = match codec {
-                ImageCodec::Tga(decoder) => image_rows_stream(decoder, ctx.clone()),
-                ImageCodec::Png(decoder) => image_rows_stream(decoder, ctx.clone()),
+            let mut iter = 1..;
+            let f0: Box<FnMut(u32) -> u32> = Box::new(|row_index: u32| -> u32 { row_index });
+            let f1: Box<FnMut(u32) -> u32> =
+                Box::new(move |_: u32| -> u32 { iter.next().unwrap() });
+
+            let (mut indexer, stream) = match codec {
+                ImageCodec::Tga(decoder) => (f0, image_rows_stream(decoder, ctx.clone())),
+                ImageCodec::Png(decoder) => (f1, image_rows_stream(decoder, ctx.clone())),
                 _ => unreachable!(),
             };
 
-            //use std;
-            //let rows = std::iter::repeat(vec![]).take(num_rows).collect::<Vec<_>>();
-            //let num_rows = ctx.h as usize;
-            let rows = vec![];
+            use std;
+            let num_rows = ctx.h as usize;
+            let row_len = ctx.row_len;
+            let rows = std::iter::repeat(vec![]).take(num_rows).collect::<Vec<_>>();
+            let err_filename = file_name.clone();
 
-            let buff_future = stream.fold(rows, |mut acc, (buffer, _row_index)| {
-                acc.push(buffer);
+            let buff_future = stream.fold(rows, move |mut acc, (buffer, row_index)| {
+                debug_assert!(
+                    (row_index as usize) <= num_rows && row_index > 0,
+                    format!(
+                        "row_index is wrong: {:?} {:?} {}",
+                        row_index, num_rows, &err_filename
+                    )
+                );
+                debug_assert!(buffer.len() == row_len as usize);
+
+                // we flip the image vertically because opengl is use bottom left as (0,0)
+                acc[indexer(row_index) as usize - 1] = buffer;
                 Ok(acc)
             });
 
             Ok(buff_future.map(move |buf| match ctx.color {
-                image::ColorType::RGBA(8) | image::ColorType::RGB(8) => Ok((buf, ctx)),
+                image::ColorType::RGBA(8)
+                | image::ColorType::RGB(8)
+                | image::ColorType::Gray(8) => Ok((buf, ctx)),
                 _ => Err(make_invalid_format(
                     &ctx.info,
                     image::ImageError::UnsupportedColor(ctx.color),
@@ -246,8 +264,17 @@ impl Loadable for TextureImage {
 
         let decoded = decoded.flatten().and_then(|r| r);
 
-        let img = decoded.and_then(move |(decoded, ctx)| {
-            let decoded = decoded.into_iter().flat_map(|v| v).collect();
+        let img = decoded.and_then(move |(decoded_array, ctx)| {
+            assert!(decoded_array.len() == (ctx.h as usize));
+            let mut decoded = Vec::new();
+            for mut row in decoded_array.into_iter() {
+                assert!(
+                    row.len() == ctx.row_len,
+                    format!("row.len = {}, ctx.row_len = {}", row.len(), ctx.row_len)
+                );
+                decoded.append(&mut row);
+            }
+            let decoded_len = decoded.len();
 
             let img = match ctx.color {
                 image::ColorType::RGBA(_) => {
@@ -256,6 +283,15 @@ impl Loadable for TextureImage {
                 image::ColorType::RGB(_) => {
                     image::ImageBuffer::from_raw(ctx.w, ctx.h, decoded).map(TextureImage::Rgb)
                 }
+                image::ColorType::Gray(_) => {
+                    let raw =
+                        image::ImageBuffer::<image::Luma<u8>, _>::from_raw(ctx.w, ctx.h, decoded);
+                    debug_assert!(raw.is_some());
+
+                    raw.map(image::DynamicImage::ImageLuma8)
+                        .map(|img| TextureImage::Rgb(img.to_rgb()))
+                }
+
                 _ => unreachable!(),
             };
 
@@ -263,7 +299,10 @@ impl Loadable for TextureImage {
                 Some(img) => Ok(img),
                 None => Err(make_invalid_format(
                     &ctx.info,
-                    image::ImageError::DimensionError,
+                    image::ImageError::UnsupportedError(format!(
+                        "Unknown ctx.w = {}, ctx.h = {} decode.len = {}, row_len = {}",
+                        ctx.w, ctx.h, decoded_len, ctx.row_len
+                    )),
                 )),
             }
         });

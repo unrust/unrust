@@ -289,6 +289,7 @@ fn texture_bind_buffer(
             ];
 
             // Test if all resources are ready.
+            assert!(img_res.len() == 6);
             for res in img_res.iter() {
                 res.try_borrow()?;
             }

@@ -121,6 +121,8 @@ impl CubeMesh {
             uvs: Some(uvs),
             normals: Some(normals),
             indices: indices,
+            tangents: None,
+            bitangents: None,
         }
     }
 }
@@ -160,6 +162,8 @@ impl PlaneMesh {
             uvs: Some(uvs),
             normals: Some(normals),
             indices: indices,
+            tangents: None,
+            bitangents: None,
         }
     }
 }

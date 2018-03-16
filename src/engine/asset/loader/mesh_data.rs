@@ -51,6 +51,8 @@ impl Loader<MeshData> for MeshDataLoader {
             vertices,
             uvs: Some(uvs),
             normals: Some(normals),
+            tangents: None,
+            bitangents: None,
         })
     }
 }

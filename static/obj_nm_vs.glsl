@@ -7,7 +7,6 @@
 attribute vec3 aVertexPosition;
 attribute vec3 aVertexNormal;
 attribute vec3 aVertexTangent;
-attribute vec3 aVertexBitangent;
 
 attribute vec2 aTextureCoord;
 
@@ -26,8 +25,7 @@ void main(void) {
     vFragPos = vec3(uMMatrix * vec4(aVertexPosition, 1.0));            
     
     vec3 T = normalize(mat3(uMMatrix) * aVertexTangent);
-    vec3 N = normalize(mat3(uMMatrix) * aVertexNormal);
-    //vec3 B = normalize(mat3(uNMatrix) * aVertexBitangent);
+    vec3 N = normalize(mat3(uMMatrix) * aVertexNormal);    
     vec3 B = cross(T,N);
     
     vNormal = mat3(uNMatrix) * aVertexNormal;   

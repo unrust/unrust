@@ -17,6 +17,12 @@ pub struct SoundDriver<T> {
 const BUFFER_SIZE: u32 = 2048;
 const AUDIO_LATENCY: f64 = 0.1;
 
+enum GameStatus {
+    Running,
+    Paused,
+    Resumed(f64),
+}
+
 impl<T> SoundDriver<T> {
     pub fn get_error(&self) -> SoundError {
         self.err
@@ -54,8 +60,8 @@ impl<T> SoundDriver<T> {
     }
     // -1 => game paused
     // >0 => pause duration
-    fn get_pause_status(&self) -> Option<f64> {
-        return js! {
+    fn get_pause_status(&self) -> GameStatus {
+        let value: Option<f64> = js! {
             var duration = window.endPause-window.startPause;
             if (duration > 0) {
                 window.endPause = 0;
@@ -68,6 +74,10 @@ impl<T> SoundDriver<T> {
             }
         }.try_into()
             .unwrap();
+        match value {
+            None => GameStatus::Running,
+            Some(v) => if v == -1.0 {GameStatus::Paused} else {GameStatus::Resumed(v)}
+        }
     }
     pub fn send_event(&mut self, event: T) {
         if let Some(ref mut gen) = self.generator {
@@ -75,12 +85,10 @@ impl<T> SoundDriver<T> {
         }
     }
     pub fn frame(&mut self) {
-        if let Some(pause_duration) = self.get_pause_status() {
-            if pause_duration == -1.0 {
-                return;
-            } else {
-                self.start_audio += pause_duration;
-            }
+        match self.get_pause_status() {
+            GameStatus::Paused => {return;}
+            GameStatus::Resumed(duration) =>  self.start_audio += duration,
+            GameStatus::Running => (),
         }
         let now: f64 = js! {
             return @{&self.ctx}.currentTime;

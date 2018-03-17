@@ -104,8 +104,6 @@ impl<T: Send + 'static> SoundDriver<T> {
                     }
                 })
             });
-        } else {
-            App::print("error : no event loop\n");
         }
     }
 }

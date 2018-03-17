@@ -5,6 +5,7 @@ use unrust::engine::{AssetError, Camera, ComponentBased, Directional, GameObject
                      Point, Prefab};
 use unrust::world::events::*;
 use unrust::math::*;
+use unrust::actors::SkyBox;
 
 // GUI
 use unrust::imgui;
@@ -28,13 +29,6 @@ pub struct MaterialFilter {
 }
 
 impl ComponentBased for MaterialFilter {}
-
-impl MaterialFilter {
-    pub fn apply(&self, material: &Material) {
-        material.set("uNoNormalMap", self.force_no_normal_map);
-    }
-}
-
 impl Actor for MaterialFilter {}
 
 impl Processor for MaterialFilter {
@@ -46,7 +40,7 @@ impl Processor for MaterialFilter {
 
     fn apply_materials(&self, materials: &Vec<Rc<Material>>) {
         for m in materials.iter() {
-            self.apply(&m);
+            m.set("uNoNormalMap", self.force_no_normal_map);
         }
     }
 
@@ -210,7 +204,7 @@ impl Actor for MainScene {
         imgui::pivot((1.0, 1.0));
         imgui::label(
             Native(1.0, 1.0) - Pixel(8.0, 8.0),
-            "[WASD ZXEC] : control camera\n[Esc]  : reload all (include assets)",
+            "[WASD ZXEC] : control camera\n[u] : Toggle normal map\n[Esc] : reload all (include assets)",
         );
 
         imgui::pivot((1.0, 0.0));
@@ -260,6 +254,7 @@ pub fn main() {
         .with_size((800, 600))
         .with_stats(true)
         .with_processor::<MaterialFilter>()
+        .with_processor::<SkyBox>()
         .build();
 
     // Add the main scene as component of scene game object

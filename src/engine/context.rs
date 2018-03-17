@@ -55,12 +55,23 @@ impl StateCache {
     }
 
     fn apply_depth_write(&mut self, gl: &WebGLRenderingContext, b: bool) {
-        gl.depth_mask(b);
+        if let Some(curr_b) = self.state.depth_write {
+            if curr_b == b {
+                return;
+            }
+        }
 
+        gl.depth_mask(b);
         self.state.depth_write = Some(b);
     }
 
     fn apply_depth_test(&mut self, gl: &WebGLRenderingContext, ct: &DepthTest) {
+        if let Some(s) = self.state.depth_test {
+            if s == *ct {
+                return;
+            }
+        }
+
         if let &DepthTest::Never = ct {
             gl.disable(webgl::Flag::DepthTest as i32);
         } else {
@@ -72,6 +83,12 @@ impl StateCache {
     }
 
     fn apply_cull(&mut self, gl: &WebGLRenderingContext, cm: &CullMode) {
+        if let Some(s) = self.state.cull {
+            if s == *cm {
+                return;
+            }
+        }
+
         match cm {
             &CullMode::Off => {
                 gl.disable(Culling::CullFace as i32);

@@ -3,7 +3,8 @@ use engine::render::{Material, Mesh};
 use engine::engine::IEngine;
 use engine::render::Texture;
 
-use super::Metric;
+use super::{Metric, TextAlign};
+use super::internal::ImguiState;
 
 use std::fmt::Debug;
 use engine::render::{MeshBuffer, MeshData, RenderQueue};
@@ -12,6 +13,7 @@ use engine::asset::Asset;
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::any::Any;
+use std::cmp;
 
 use na::{Translation3, Vector3};
 
@@ -34,7 +36,7 @@ impl PartialEq for Widget {
     }
 }
 
-fn make_text_mesh_data(s: &str, size: (u32, u32), hidpi: f32) -> MeshData {
+fn make_text_mesh_data(s: &str, size: (u32, u32), hidpi: f32, align: TextAlign) -> MeshData {
     let mut vertices = vec![];
     let mut uvs = vec![];
     let mut indices = vec![];
@@ -51,7 +53,15 @@ fn make_text_mesh_data(s: &str, size: (u32, u32), hidpi: f32) -> MeshData {
 
     let lines: Vec<&str> = s.split('\n').collect();
 
+    let max_len = lines.iter().fold(0, |acc, line| cmp::max(acc, line.len()));
+
     for line in lines.into_iter() {
+        let x_offset = match align {
+            TextAlign::Left => 0.0,
+            TextAlign::Right => (max_len - line.len()) as f32 * gw,
+            TextAlign::Center => (max_len - line.len()) as f32 * gw * 0.5,
+        };
+
         for (cidx, c) in line.chars().enumerate() {
             let mut c: u8 = c as u8;
             if c >= 128 {
@@ -61,7 +71,7 @@ fn make_text_mesh_data(s: &str, size: (u32, u32), hidpi: f32) -> MeshData {
             let g_row = (c / nrow) as f32;
             let g_col = (c % nrow) as f32;
 
-            let gx = (cidx as f32) * gw;
+            let gx = (cidx as f32) * gw + x_offset;
 
             vertices.append(&mut vec![
                 gx + 0.0, // 0
@@ -198,16 +208,16 @@ fn to_pixel_pos(px: f32, py: f32, ssize: &(u32, u32), hidpi: f32) -> (f32, f32) 
 pub struct Label {
     id: u32,
     pos: Metric,
-    pivot: Metric,
+    state: ImguiState,
     s: String,
 }
 
 impl Label {
-    pub fn new(id: u32, pos: Metric, pivot: Metric, s: String) -> Label {
+    pub fn new(id: u32, pos: Metric, state: ImguiState, s: String) -> Label {
         Self {
             id: id,
             pos: pos,
-            pivot: pivot,
+            state,
             s: s,
         }
     }
@@ -230,7 +240,7 @@ impl Widget for Label {
         {
             let hidpi = engine.hidpi_factor();
             let mut gomut = go.borrow_mut();
-            let meshdata = make_text_mesh_data(&self.s, ssize, hidpi);
+            let meshdata = make_text_mesh_data(&self.s, ssize, hidpi, self.state.text_align);
 
             let mut mesh = Mesh::new();
             let mut material = Material::new(db.new_program("default_ui"));
@@ -242,7 +252,7 @@ impl Widget for Label {
             let mut gtran = gomut.transform.global();
             gtran.append_translation_mut(&compute_translate(
                 &self.pos,
-                &self.pivot,
+                &self.state.pivot,
                 &ssize,
                 hidpi,
                 mesh.bounds().unwrap(),
@@ -274,10 +284,6 @@ impl PartialEq for ImageTexture {
     fn eq(&self, other: &ImageTexture) -> bool {
         Rc::ptr_eq(&self.0, &other.0)
     }
-
-    fn ne(&self, other: &ImageTexture) -> bool {
-        !Rc::ptr_eq(&self.0, &other.0)
-    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -290,12 +296,18 @@ pub struct Image {
 }
 
 impl Image {
-    pub fn new(id: u32, pos: Metric, size: Metric, pivot: Metric, texture: Rc<Texture>) -> Image {
+    pub fn new(
+        id: u32,
+        pos: Metric,
+        size: Metric,
+        state: ImguiState,
+        texture: Rc<Texture>,
+    ) -> Image {
         Self {
             id: id,
             pos: pos,
             size: size,
-            pivot: pivot,
+            pivot: state.pivot,
             texture: ImageTexture(texture),
         }
     }

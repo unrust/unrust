@@ -88,10 +88,31 @@ impl Sub for Metric {
     }
 }
 
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum TextAlign {
+    Left,
+    Right,
+    Center,
+}
+
+impl Default for TextAlign {
+    fn default() -> TextAlign {
+        TextAlign::Left
+    }
+}
+
+mod internal {
+    #[derive(Default, Debug, PartialEq, Copy, Clone)]
+    pub struct ImguiState {
+        pub pivot: super::Metric,
+        pub text_align: super::TextAlign,
+    }
+}
+
 #[derive(Default, Debug)]
 struct ImguiRaw {
     id: u32,
-    pivot: Metric,
+    state: internal::ImguiState,
     render_list: Vec<Arc<widgets::Widget>>,
 }
 
@@ -119,7 +140,7 @@ pub fn begin() {
 
 fn add_widget<F, T>(f: F)
 where
-    F: FnOnce(u32, Metric) -> T,
+    F: FnOnce(u32, internal::ImguiState) -> T,
     T: widgets::Widget + 'static,
 {
     let imgui = imgui_inst();
@@ -127,30 +148,35 @@ where
     inner.id += 1;
 
     let id: u32 = inner.id;
-    let pivot: Metric = inner.pivot;
+    let state = inner.state;
 
     if id as usize >= inner.render_list.len() {
-        inner.render_list.push(Arc::new(f(id, pivot)));
+        inner.render_list.push(Arc::new(f(id, state)));
     }
 }
 
 /// Pivot controls how to place the ui element
-/// It si
-
 pub fn pivot(p: (f32, f32)) {
     let imgui = imgui_inst();
     let mut inner = imgui.inner.lock().unwrap();
-    inner.pivot = Metric::Native(p.0, p.1);
+    inner.state.pivot = Metric::Native(p.0, p.1);
+}
+
+/// Text align setting
+pub fn text_align(align: TextAlign) {
+    let imgui = imgui_inst();
+    let mut inner = imgui.inner.lock().unwrap();
+    inner.state.text_align = align;
 }
 
 /// Label
 pub fn label(pos: Metric, s: &str) {
-    add_widget(|id, pivot| widgets::Label::new(id, pos, pivot, s.into()));
+    add_widget(|id, state| widgets::Label::new(id, pos, state, s.into()));
 }
 
 /// Image
 pub fn image(pos: Metric, size: Metric, tex: Rc<Texture>) {
-    add_widget(|id, pivot| widgets::Image::new(id, pos, size, pivot, tex));
+    add_widget(|id, state| widgets::Image::new(id, pos, size, state, tex));
 }
 
 type WidgetGoMap = HashMap<u32, (Arc<widgets::Widget>, Rc<RefCell<GameObject>>)>;

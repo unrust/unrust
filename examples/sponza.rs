@@ -200,23 +200,27 @@ impl Actor for MainScene {
 
         // GUI
         use imgui::Metric::*;
+        use imgui::TextAlign::*;
 
         imgui::pivot((1.0, 1.0));
+        imgui::text_align(Left);
         imgui::label(
             Native(1.0, 1.0) - Pixel(8.0, 8.0),
-            "[WASD ZXEC] : control camera\n[u] : Toggle normal map\n[Esc] : reload all (include assets)",
+            "[WASD ZXEC] : control camera\n[Space] : Toggle light animation\n[U] : Toggle normal map\n[Esc] : reload all (include assets)",
         );
 
         imgui::pivot((1.0, 0.0));
+        imgui::text_align(Right);
         imgui::label(
             Native(1.0, 0.0) + Pixel(-8.0, 8.0),
             &format!(
-                "last event: {:?}\nnormal_map = {:?}",
-                self.last_event, normap_map_enabled
+                "last event: {:?}\nnormal_map = {:?}\nlight animation={:?}",
+                self.last_event, normap_map_enabled, self.animate_light
             ),
         );
 
         imgui::pivot((0.0, 1.0));
+        imgui::text_align(Left);
         imgui::label(Native(0.0, 1.0) + Pixel(8.0, -8.0), "Sponza Demo");
     }
 }

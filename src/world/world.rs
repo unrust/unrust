@@ -198,35 +198,34 @@ impl World {
         self.fps.step();
 
         if self.shown_stats {
-            imgui::pivot((0.0, 0.0));
-            imgui::label(
-                Native(0.0, 0.0) + Pixel(8.0, 8.0),
-                &format!(
-                    "fps: {} nobj: {} actors:{} gobjs:{} sf:{} oc:{} tc:{}",
-                    self.fps.fps,
-                    self.engine().objects.len(),
-                    self.watcher.len(),
-                    self.main_tree.len(),
-                    self.engine().stats.surfaces_count,
-                    self.engine().stats.opaque_count,
-                    self.engine().stats.transparent_count,
-                ),
-            );
-
             let loading_files = self.engine().asset_system().loading_files();
 
+            let mut loading_stats = "".to_string();
             if loading_files.len() > 0 {
                 let files: Vec<String> = loading_files
                     .into_iter()
                     .map(|s| format!("loading {} ...", s))
                     .collect();
 
-                imgui::pivot((0.0, 0.0));
-                imgui::label(
-                    Native(0.0, 0.0) + Pixel(8.0, 24.0),
-                    &format!("{}", files.join("\n")),
-                );
+                loading_stats = format!("{}", files.join("\n"));
             }
+
+            imgui::pivot((0.0, 0.0));
+            imgui::label(
+                Native(0.0, 0.0) + Pixel(8.0, 8.0),
+                &format!(
+                    "fps: {} dt: {:0.2}ms\nnobj: {} actors:{} gobjs:{} sf:{} oc:{} tc:{}\n{}",
+                    self.fps.fps,
+                    self.fps.delta_time() * 1000.0,
+                    self.engine().objects.len(),
+                    self.watcher.len(),
+                    self.main_tree.len(),
+                    self.engine().stats.surfaces_count,
+                    self.engine().stats.opaque_count,
+                    self.engine().stats.transparent_count,
+                    loading_stats
+                ),
+            );
         }
     }
 

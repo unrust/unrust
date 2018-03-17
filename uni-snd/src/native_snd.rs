@@ -4,7 +4,7 @@ use std::sync::mpsc::{channel, Sender};
 
 use cpal;
 use uni_app::App;
-use super::SoundGenerator;
+use super::{SoundError,SoundGenerator};
 
 pub struct SoundDriver<T: Send + 'static> {
     event_loop: Option<cpal::EventLoop>,
@@ -12,14 +12,20 @@ pub struct SoundDriver<T: Send + 'static> {
     stream_id: Option<cpal::StreamId>,
     tx: Option<Sender<T>>,
     generator: Option<Box<SoundGenerator<T>>>,
+    err: SoundError,
 }
 
 impl<T: Send + 'static> SoundDriver<T> {
+    pub fn get_error(&self) -> SoundError {
+        self.err
+    }
+
     pub fn new(generator: Box<SoundGenerator<T>>) -> Self {
         let device = cpal::default_output_device();
         let mut event_loop = None;
         let mut format = None;
         let mut stream_id = None;
+        let mut err=SoundError::NoError;
         if let Some(ref dev) = device {
             match dev.default_output_format() {
                 Ok(fmt) => {
@@ -27,6 +33,7 @@ impl<T: Send + 'static> SoundDriver<T> {
                     match evt.build_output_stream(dev, &fmt) {
                         Ok(str) => stream_id = Some(str),
                         Err(e) => {
+                            err=SoundError::OutputStream;
                             App::print(format!("error : could not build output stream : {}\n", e))
                         }
                     }
@@ -38,12 +45,16 @@ impl<T: Send + 'static> SoundDriver<T> {
                     format = Some(fmt);
                     event_loop = Some(evt);
                 }
-                Err(e) => App::print(format!(
-                    "error : could not get default output format : {:?}\n",
-                    e
-                )),
+                Err(e) => {
+                    err=SoundError::UnknownStreamFormat;
+                    App::print(format!(
+                        "error : could not get default output format : {:?}\n",
+                        e
+                    ));
+                },
             }
         } else {
+            err=SoundError::NoDevice;
             App::print("warning : no sound device detected\n");
         }
         Self {
@@ -52,6 +63,7 @@ impl<T: Send + 'static> SoundDriver<T> {
             stream_id,
             tx: None,
             generator: Some(generator),
+            err,
         }
     }
     pub fn send_event(&mut self, event: T) {

@@ -100,7 +100,7 @@ impl<T: Send + 'static> SoundDriver<T> {
                         } => for elem in buffer.iter_mut() {
                             *elem = generator.next_value();
                         },
-                        _ => App::print(format!("unsupported stream data\n")),
+                        _ => panic!("unsupported stream data"),
                     }
                 })
             });

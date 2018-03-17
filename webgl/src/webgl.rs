@@ -676,7 +676,7 @@ impl GLContext {
         }
     }
 
-    pub fn uniform_1fv(&self, location: &WebGLUniformLocation, count: usize, value: &[f32]) {
+    pub fn uniform_1fv(&self, location: &WebGLUniformLocation, _count: usize, value: &[f32]) {
         js!{
             var ctx = Module.gl.get(@{self.reference});
             var loc = Module.gl.get(@{location.deref()});

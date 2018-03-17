@@ -1,4 +1,6 @@
 extern crate unrust;
+#[macro_use]
+extern crate bitflags;
 
 use unrust::world::{Actor, Handle, Processor, World, WorldBuilder};
 use unrust::engine::{AssetError, Camera, ComponentBased, Directional, GameObject, Light, Material,
@@ -12,14 +14,119 @@ use unrust::imgui;
 
 use std::rc::Rc;
 
-pub struct MainScene {
+bitflags! {
+    struct Movement: u32 {
+        const TURN_LEFT = 1;
+        const TURN_RIGHT = 1 << 2;
+        const FORWARD = 1 << 3;
+        const BACKWARD = 1 << 4;
+        const UP = 1 << 5;
+        const DOWN = 1 << 6;
+        const LEFT = 1 << 7;
+        const RIGHT = 1 << 8;
+    }
+}
+
+struct FirstPersonControl {
     eye: Vector3<f32>,
     eye_dir: Vector3<f32>,
+    state: Movement,
+    handlers: Vec<(Movement, String, Box<Fn(&mut FirstPersonControl)>)>,
+}
 
+impl FirstPersonControl {
+    fn add<F>(&mut self, mv: Movement, key: &str, f: F)
+    where
+        F: Fn(&mut FirstPersonControl) + 'static,
+    {
+        self.handlers.push((mv, key.to_string(), Box::new(f)));
+    }
+
+    fn new() -> FirstPersonControl {
+        let mut m = FirstPersonControl {
+            state: Movement::empty(),
+            handlers: Vec::new(),
+            eye: Vector3::new(0.0, 200.06, -3.36),
+            eye_dir: Vector3::new(-3.0, 0.0, -1.0).normalize(),
+        };
+
+        let speed = 8.0;
+        let up = Vector3::y();
+
+        m.add(Movement::TURN_LEFT, "KeyA", move |s| {
+            s.eye_dir = Rotation3::new(up * 0.01) * s.eye_dir;
+        });
+        m.add(Movement::TURN_RIGHT, "KeyD", move |s| {
+            s.eye_dir = Rotation3::new(up * -0.01) * s.eye_dir
+        });
+        m.add(Movement::UP, "KeyE", move |s| {
+            s.eye = s.eye + up * speed;
+        });
+        m.add(Movement::DOWN, "KeyC", move |s| {
+            s.eye = s.eye + up * -speed;
+        });
+        m.add(Movement::FORWARD, "KeyW", move |s| {
+            s.eye = s.eye + s.eye_dir * speed;
+        });
+        m.add(Movement::BACKWARD, "KeyS", move |s| {
+            s.eye = s.eye + s.eye_dir * -speed;
+        });
+        m.add(Movement::LEFT, "KeyZ", move |s| {
+            let right = s.eye_dir.cross(&up).normalize();
+            s.eye = s.eye - right * speed;
+        });
+        m.add(Movement::RIGHT, "KeyX", move |s| {
+            let right = s.eye_dir.cross(&up).normalize();
+            s.eye = s.eye + right * speed;
+        });
+        m
+    }
+
+    fn key_down(&mut self, input: &str) {
+        for &(ref mv, ref key, _) in self.handlers.iter() {
+            if input == key {
+                self.state.insert(*mv)
+            }
+        }
+    }
+
+    fn key_up(&mut self, input: &str) {
+        for &(ref mv, ref key, _) in self.handlers.iter() {
+            if input == key {
+                self.state.remove(*mv)
+            }
+        }
+    }
+
+    fn update_camera(&mut self, cam: &mut Camera) {
+        let mut handlers = Vec::new();
+        handlers.append(&mut self.handlers);
+
+        for &(ref mv, _, ref h) in handlers.iter() {
+            if self.state.contains(*mv) {
+                h(self);
+            }
+        }
+
+        self.handlers.append(&mut handlers);
+
+        // Update Camera
+        {
+            cam.lookat(
+                &Point3::from_coordinates(self.eye),
+                &Point3::from_coordinates(self.eye + self.eye_dir * 10.0),
+                &Vector3::new(0.0, 1.0, 0.0),
+            );
+        }
+    }
+}
+
+pub struct MainScene {
     dir_light: Handle<GameObject>,
     point_light: Handle<GameObject>,
 
     animate_light: bool,
+    camera_control: FirstPersonControl,
 
     last_event: Option<AppEvent>,
 }
@@ -57,12 +164,11 @@ impl Processor for MaterialFilter {
 impl MainScene {
     fn new() -> Box<Actor> {
         Box::new(MainScene {
-            eye: Vector3::new(0.0, 200.06, -3.36),
-            eye_dir: Vector3::new(-3.0, 0.0, -1.0).normalize(),
             last_event: None,
-            animate_light: false,
+            animate_light: true,
             dir_light: GameObject::empty(),
             point_light: GameObject::empty(),
+            camera_control: FirstPersonControl::new(),
         })
     }
 }
@@ -104,38 +210,25 @@ impl Actor for MainScene {
         let normap_map_enabled;
 
         {
-            let up = Vector3::y();
-            let right = self.eye_dir.cross(&up).normalize();
-            let speed = 10.0;
-
             let mut reset = false;
             let mut toggle_normal_map = false;
 
             for evt in world.events().iter() {
                 self.last_event = Some(evt.clone());
                 match evt {
-                    &AppEvent::KeyUp(ref key) => match key.code.as_str() {
-                        "KeyU" => toggle_normal_map = true,
-                        _ => (),
-                    },
-
-                    &AppEvent::KeyDown(ref key) => {
+                    &AppEvent::KeyUp(ref key) => {
+                        self.camera_control.key_up(key.code.as_str());
                         match key.code.as_str() {
-                            "KeyA" => self.eye_dir = Rotation3::new(up * 0.02) * self.eye_dir,
-                            "KeyD" => self.eye_dir = Rotation3::new(up * -0.02) * self.eye_dir,
-                            "KeyE" => self.eye = self.eye + up * speed,
-                            "KeyC" => self.eye = self.eye + up * -speed,
-
-                            "KeyW" => self.eye = self.eye + self.eye_dir * speed,
-                            "KeyS" => self.eye = self.eye + self.eye_dir * -speed,
-
-                            "KeyZ" => self.eye = self.eye - right * speed,
-                            "KeyX" => self.eye = self.eye + right * speed,
-
+                            "KeyU" => toggle_normal_map = true,
                             "Space" => self.animate_light = !self.animate_light,
                             "Escape" => reset = true,
+
                             _ => (),
-                        };
+                        }
+                    }
+
+                    &AppEvent::KeyDown(ref key) => {
+                        self.camera_control.key_down(key.code.as_str());
                     }
 
                     _ => (),
@@ -165,15 +258,10 @@ impl Actor for MainScene {
             };
         }
 
-        // Update Camera
+        // Update Movement
         {
             let cam = world.current_camera().unwrap();
-
-            cam.borrow_mut().lookat(
-                &Point3::from_coordinates(self.eye),
-                &Point3::from_coordinates(self.eye + self.eye_dir * 10.0),
-                &Vector3::new(0.0, 1.0, 0.0),
-            );
+            self.camera_control.update_camera(&mut cam.borrow_mut());
         }
 
         // Update Direction light
@@ -195,7 +283,7 @@ impl Actor for MainScene {
             let (mut light, _) = point_light_bor.find_component_mut::<Light>().unwrap();
             light.point_mut().unwrap().linear = 0.0007;
             light.point_mut().unwrap().quadratic = 0.00002;
-            light.point_mut().unwrap().position = self.eye;
+            light.point_mut().unwrap().position = self.camera_control.eye;
         }
 
         // GUI

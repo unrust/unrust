@@ -33,3 +33,6 @@ features = ["png_codec", "tga"]
 # see https://github.com/rust-lang/rust/issues/47643
 # [profile.dev]
 # incremental = false
+
+[dev-dependencies]
+bitflags = "1.0"

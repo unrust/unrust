@@ -1055,6 +1055,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "uni-pad"
+version = "0.1.0"
+dependencies = [
+ "stdweb 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "uni-app 0.1.0",
+]
+
+[[package]]
 name = "uni-snd"
 version = "0.1.0"
 dependencies = [
@@ -1101,6 +1109,7 @@ dependencies = [
  "obj 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "uni-app 0.1.0",
  "uni-glsl 0.1.0",
+ "uni-pad 0.1.0",
  "uni-snd 0.1.0",
  "webgl 0.1.0",
 ]

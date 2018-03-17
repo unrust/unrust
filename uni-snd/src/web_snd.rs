@@ -4,19 +4,24 @@ use stdweb::web::TypedArray;
 
 use uni_app::App;
 
-use super::SoundGenerator;
+use super::{SoundError,SoundGenerator};
 
 pub struct SoundDriver<T> {
     generator: Option<Box<SoundGenerator<T>>>,
     ctx: stdweb::Value,
     start_audio: f64,
     buffer: [f32; BUFFER_SIZE as usize * 2],
+    err: SoundError,
 }
 
 const BUFFER_SIZE: u32 = 2048;
 const AUDIO_LATENCY: f64 = 0.1;
 
 impl<T> SoundDriver<T> {
+    pub fn get_error(&self) -> SoundError {
+        self.err
+    }
+
     pub fn new(generator: Box<SoundGenerator<T>>) -> Self {
         let ctx = js! {
             if (AudioContext) {
@@ -25,11 +30,13 @@ impl<T> SoundDriver<T> {
                 return undefined;
             }
         };
+        let err= if ctx == stdweb::Value::Undefined {SoundError::NoDevice} else {SoundError::NoError};
         Self {
             generator: Some(generator),
             ctx,
             start_audio: 0.0,
             buffer: [0.0; BUFFER_SIZE as usize * 2],
+            err,
         }
     }
     pub fn send_event(&mut self, event: T) {

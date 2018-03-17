@@ -21,6 +21,14 @@ pub mod snd;
 
 pub use self::snd::*;
 
+#[derive(Debug,Clone,Copy)]
+pub enum SoundError {
+    NoError,
+    NoDevice,
+    OutputStream,
+    UnknownStreamFormat,
+}
+
 pub trait SoundGenerator<T>: Send {
     fn init(&mut self, sample_rate: f32);
     fn handle_event(&mut self, evt: T);

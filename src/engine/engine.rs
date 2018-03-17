@@ -77,6 +77,15 @@ impl RenderQueueState {
             bdist.partial_cmp(&adist).unwrap()
         });
     }
+
+    fn sort_by_cam_distance_reverse(&mut self) {
+        self.commands.sort_unstable_by(|a, b| {
+            let adist: f32 = a.cam_distance;
+            let bdist: f32 = b.cam_distance;
+
+            adist.partial_cmp(&bdist).unwrap()
+        });
+    }
 }
 
 #[derive(Default)]
@@ -236,12 +245,17 @@ where
 
         let light_com = ctx.main_light.as_ref().unwrap();
         let light = light_com.try_as::<Light>().unwrap();
+
         light.borrow().bind("uDirectionalLight", &prog);
+        // So shader needs to have a vs stage light
+        light.borrow().bind("uDirectionalLightVS", &prog);
 
         for (i, plight_com) in ctx.point_lights.iter().enumerate() {
             let plight = plight_com.try_as::<Light>().unwrap();
             let name = format!("uPointLights[{}]", i);
+            plight.borrow().bind(&name, &prog);
 
+            let name = format!("uPointLightsVS[{}]", i);
             plight.borrow().bind(&name, &prog);
         }
     }
@@ -447,6 +461,12 @@ where
                 }
             });
         }
+
+        // Sort the opaque queue
+        render_q
+            .get_mut(&RenderQueue::Opaque)
+            .unwrap()
+            .sort_by_cam_distance_reverse();
 
         // Sort the transparent queue
         render_q

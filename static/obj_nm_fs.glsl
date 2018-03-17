@@ -8,16 +8,12 @@ out vec4 FragColor;
 #define UNI_POINT_LIGHTS 4
 
 struct DirectionalLight {
-    vec3 direction;
-  
     vec3 ambient;
     vec3 diffuse;
     vec3 specular;
 };
 
 struct PointLight {
-    vec3 position;
-    
     float constant;
     float linear;
     float quadratic;
@@ -27,6 +23,15 @@ struct PointLight {
     vec3 specular;
 
     float rate;
+};
+
+struct DirectionalLightVS {
+    vec3 direction;
+};
+
+struct PointLightVS {
+    vec3 position;
+    vec3 direction;
 };
 
 struct Material {
@@ -52,20 +57,24 @@ struct MaterialColor {
     vec3 specular;
 };
 
-uniform vec3 uViewPos;
 uniform Material uMaterial;
 
 varying vec3 vFragPos;
 varying vec2 vTexCoords;       
 varying mat3 vTBN;
 varying vec3 vNormal;
+varying vec3 vViewDirTgt;
+
+varying DirectionalLightVS vDirectionalLightTgt;
+varying PointLightVS vPointLightsTgt[UNI_POINT_LIGHTS];
 
 // Lights
 uniform DirectionalLight uDirectionalLight;
 uniform PointLight uPointLights[UNI_POINT_LIGHTS];
 
-vec3 CalcDirectionalLight(DirectionalLight light, vec3 normal, vec3 viewDir, MaterialColor color);
-vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir, MaterialColor color);
+
+vec3 CalcDirectionalLight(DirectionalLight light, DirectionalLightVS lightTgt, vec3 normal, vec3 viewDir, MaterialColor color);
+vec3 CalcPointLight(PointLight light, PointLightVS lightTgt, vec3 normal, vec3 fragPos, vec3 viewDir, MaterialColor color);
 
 uniform bool uNoNormalMap;
 
@@ -82,13 +91,11 @@ vec3 decode_normalmap(vec3 n) {
 void main(void) {
     vec3 norm = normalize(vNormal);
 
-    if(!uNoNormalMap) {
+    //if(!uNoNormalMap) 
+    {
         norm = texture2D(uMaterial.normal_map, vTexCoords ).rgb;
-        norm = decode_normalmap(norm);
-        norm = normalize(vTBN * norm); 
+        norm = decode_normalmap(norm);        
     }
-    
-    vec3 viewDir = normalize(uViewPos - vFragPos);
 
     // Presample the color
     MaterialColor color;
@@ -97,11 +104,11 @@ void main(void) {
     color.specular = uMaterial.specular * vec3(texture2D(uMaterial.specular_tex, vTexCoords));
 
     // Directional Light
-    vec3 result = CalcDirectionalLight(uDirectionalLight, norm, viewDir, color);
+    vec3 result = CalcDirectionalLight(uDirectionalLight, vDirectionalLightTgt, norm, vViewDirTgt, color);
     
     // Point Lights
     for(int i = 0; i < UNI_POINT_LIGHTS; i++)
-        result += CalcPointLight(uPointLights[i], norm, vFragPos, viewDir, color);
+        result += CalcPointLight(uPointLights[i], vPointLightsTgt[i], norm, vFragPos, vViewDirTgt, color);
 
     // float gamma = 2.2;    
     // gl_FragColor = vec4(pow(result, vec3(1.0/gamma)), uMaterial.transparent);           
@@ -109,12 +116,12 @@ void main(void) {
 
 }
 
-vec3 CalcDirectionalLight(DirectionalLight light, vec3 normal, vec3 viewDir, MaterialColor color)
+vec3 CalcDirectionalLight(DirectionalLight light, DirectionalLightVS lightTgt, vec3 normal, vec3 viewDir, MaterialColor color)
 {
     // Ambient
     vec3 ambient = light.ambient * color.ambient;
 
-    vec3 lightDir = normalize(-light.direction);  
+    vec3 lightDir = normalize(-lightTgt.direction);  
     float diff = max(dot(normal, lightDir), 0.0);
     vec3 diffuse = light.diffuse * diff * color.diffuse;
 
@@ -128,9 +135,9 @@ vec3 CalcDirectionalLight(DirectionalLight light, vec3 normal, vec3 viewDir, Mat
     return ambient + diffuse + specular;
 }
 
-vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir, MaterialColor color)
+vec3 CalcPointLight(PointLight light, PointLightVS lightTgt, vec3 normal, vec3 fragPos, vec3 viewDir, MaterialColor color)
 {
-    vec3 lightDir = normalize(light.position - fragPos);
+    vec3 lightDir = lightTgt.direction;
     
     // diffuse shading
     float diff = max(dot(normal, lightDir), 0.0);
@@ -141,7 +148,7 @@ vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir, M
     float spec = pow(max(dot(normal, halfwayDir), 0.0), uMaterial.shininess);
     
     // attenuation
-    float distance = length(light.position - fragPos);
+    float distance = length(lightTgt.position - fragPos);
     float d = (light.constant + light.linear * distance + light.quadratic * (distance * distance));
     float attenuation = 1.0 / max(d, 0.001);
     

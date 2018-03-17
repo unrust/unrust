@@ -80,7 +80,6 @@ impl From<Directional> for Light {
 
 impl Directional {
     fn bind(&self, lightname: &str, prog: &ShaderProgram) {
-        // We must have at least one direction light.
         prog.set(&format!("{}.direction", lightname), self.direction);
         prog.set(&format!("{}.ambient", lightname), self.ambient);
         prog.set(&format!("{}.diffuse", lightname), self.diffuse);
@@ -122,7 +121,6 @@ impl Default for Point {
 
 impl Point {
     fn bind(&self, lightname: &str, prog: &ShaderProgram) {
-        // We must have at least one direction light.
         prog.set(&format!("{}.position", lightname), self.position);
 
         prog.set(&format!("{}.ambient", lightname), self.ambient);

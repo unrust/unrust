@@ -1,3 +1,4 @@
+extern crate uni_pad;
 extern crate unrust;
 
 use unrust::world::{Actor, World, WorldBuilder};
@@ -5,6 +6,7 @@ use unrust::engine::{Directional, GameObject, Light, Material, Mesh};
 use unrust::world::events::*;
 use unrust::math::*;
 use unrust::actors::FirstPersonCamera;
+use uni_pad::{gamepad_axis, gamepad_button};
 
 // GUI
 use unrust::imgui;
@@ -97,7 +99,12 @@ impl Actor for MainScene {
         imgui::pivot((1.0, 1.0));
         imgui::label(
             Native(1.0, 1.0) - Pixel(8.0, 8.0),
-            "[WASD ZXEC] : control camera\n[Esc] : reload all (include assets)",
+            &format!("[WASD ZXEC] : control camera\n[Esc] : reload all (include assets)\ngamepad: {:?} buttons {} {} {} {}",
+                gamepad_axis(0),
+                gamepad_button(0, 0),
+                gamepad_button(0, 1),
+                gamepad_button(0, 2),
+                gamepad_button(0, 3))
         );
 
         imgui::pivot((1.0, 0.0));

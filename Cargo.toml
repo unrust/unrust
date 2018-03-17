@@ -9,6 +9,7 @@ webgl = {path="webgl"}
 uni-app = {path="uni-app"}
 uni-glsl = {path="uni-glsl"}
 uni-snd = {path="uni-snd"}
+uni-pad = {path="uni-pad"}
 futures = "0.1"
 obj = "0.8.2"
 bitflags = "1.0"

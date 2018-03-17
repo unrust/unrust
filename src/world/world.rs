@@ -15,6 +15,7 @@ use world::Actor;
 use world::processor::{IProcessorBuilder, Processor};
 
 use uni_app::{now, App, AppConfig, AppEvent};
+use uni_pad as pad;
 use std::default::Default;
 use std::marker::PhantomData;
 
@@ -97,6 +98,8 @@ impl<'a> WorldBuilder<'a> {
         );
         let events = app.events.clone();
         let main_tree = engine.new_scene_tree();
+
+        pad::gamepad_init();
 
         let watcher = self.watcher_builder
             .add_watcher(ActorWatcher::<Box<Actor>>::new())

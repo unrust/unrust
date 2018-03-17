@@ -152,6 +152,7 @@ impl_cacher!(mesh_buffer, MeshBuffer);
 const MAX_TEXTURE_UNITS: u32 = 8;
 
 impl EngineContext {
+    #[cfg_attr(feature = "flame_it", flame)]
     pub fn prepare_cache<T, F>(&mut self, new_p: &Rc<T>, bind: F) -> AssetResult<()>
     where
         T: EngineCacher,
@@ -165,6 +166,7 @@ impl EngineContext {
         Ok(())
     }
 
+    #[cfg_attr(feature = "flame_it", flame)]
     pub fn need_cache_tex(&self, new_tex: &Rc<Texture>) -> Option<(usize, u32)> {
         for (pos, &(u, ref tex)) in self.textures.iter().enumerate() {
             if let Some(ref p) = tex.upgrade() {
@@ -177,6 +179,7 @@ impl EngineContext {
         None
     }
 
+    #[cfg_attr(feature = "flame_it", flame)]
     pub fn prepare_cache_tex<F>(&mut self, new_tex: &Rc<Texture>, bind_func: F) -> AssetResult<u32>
     where
         F: FnOnce(&mut EngineContext, u32) -> AssetResult<()>,
@@ -209,6 +212,7 @@ impl EngineContext {
         })
     }
 
+    #[cfg_attr(feature = "flame_it", flame)]
     fn need_cache<T>(&mut self, new_p: &Rc<T>) -> bool
     where
         T: EngineCacher,

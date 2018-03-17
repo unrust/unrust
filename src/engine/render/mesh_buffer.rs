@@ -181,6 +181,7 @@ impl MeshBuffer {
         Ok(())
     }
 
+    #[cfg_attr(feature = "flame_it", flame)]
     pub fn render(&self, gl: &WebGLRenderingContext) {
         let data = self.data.try_borrow().unwrap();
 

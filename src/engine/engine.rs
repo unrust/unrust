@@ -161,6 +161,7 @@ where
         SceneTree::new()
     }
 
+    #[cfg_attr(feature = "flame_it", flame)]
     pub fn clear(&self, option: ClearOption) {
         if let Some(col) = option.color {
             self.gl.clear_color(col.0, col.1, col.2, col.3);
@@ -183,6 +184,7 @@ where
         self.gui_context.borrow_mut().reset();
     }
 
+    #[cfg_attr(feature = "flame_it", flame)]
     fn setup_material(&self, ctx: &mut EngineContext, material: &Material) -> AssetResult<()> {
         ctx.prepare_cache(&material.program, |ctx| {
             material.program.bind(&self.gl)?;
@@ -205,6 +207,7 @@ where
         Ok(())
     }
 
+    #[cfg_attr(feature = "flame_it", flame)]
     fn setup_camera(&self, ctx: &mut EngineContext, modelm: Matrix4<f32>, camera: &Camera) {
         let prog = ctx.prog.upgrade().unwrap();
         // setup_camera
@@ -225,6 +228,7 @@ where
         prog.set("uViewPos", camera.eye());
     }
 
+    #[cfg_attr(feature = "flame_it", flame)]
     fn setup_light(&self, ctx: &EngineContext) {
         // Setup light
 
@@ -242,6 +246,7 @@ where
         }
     }
 
+    #[cfg_attr(feature = "flame_it", flame)]
     fn render_commands(
         &self,
         ctx: &mut EngineContext,
@@ -403,6 +408,7 @@ where
         }
     }
 
+    #[cfg_attr(feature = "flame_it", flame)]
     pub fn render_pass_with_material(
         &mut self,
         camera: &Camera,
@@ -467,6 +473,7 @@ where
         self.stats = ctx.stats;
     }
 
+    #[cfg_attr(feature = "flame_it", flame)]
     pub fn render_pass(&mut self, camera: &Camera, clear_option: ClearOption) {
         self.render_pass_with_material(camera, None, clear_option);
     }
@@ -485,6 +492,7 @@ where
         None
     }
 
+    #[cfg_attr(feature = "flame_it", flame)]
     pub fn render(&mut self, clear_option: ClearOption) {
         imgui::pre_render(self);
 

@@ -146,6 +146,51 @@ where
     }
 }
 
+#[cfg(not(feature = "flame_it"))]
+mod profile {
+    use super::*;
+    pub fn dump(_evt: &AppEvent) {}
+
+    pub fn clear() {}
+}
+
+#[cfg(feature = "flame_it")]
+mod profile {
+    use super::*;
+    use std::cell::Cell;
+
+    thread_local!(
+        static NEED_DUMP: Cell<bool> = Cell::new(false);
+    );
+
+    pub fn dump(evt: &AppEvent) {
+        if let &AppEvent::KeyUp(ref k) = evt {
+            if k.ctrl && k.code == "KeyP" {
+                NEED_DUMP.with(|flag| {
+                    flag.set(true);
+                });
+            }
+        }
+    }
+
+    pub fn clear() {
+        use flame;
+        NEED_DUMP.with(|flag| {
+            if flag.get() {
+                use flame;
+                use std::fs::File;
+
+                flame::dump_html(&mut File::create("flame-graph.html").unwrap()).unwrap();
+                println!("flame-graph.html was dumped.");
+
+                flag.set(false);
+            }
+        });
+
+        flame::clear();
+    }
+}
+
 impl World {
     pub fn root(&self) -> Ref<GameObject> {
         self.main_tree.root()
@@ -177,17 +222,21 @@ impl World {
         return Some(ComponentBorrow::<Camera>::new(c));
     }
 
+    #[cfg_attr(feature = "flame_it", flame)]
     fn pre_render(&mut self) {
         let watcher = self.watcher.clone();
         watcher.pre_render(self);
     }
 
+    #[cfg_attr(feature = "flame_it", flame)]
     fn step(&mut self) {
         for evt in self.events.borrow().iter() {
             match evt {
                 &AppEvent::Resized(size) => self.engine.resize(size),
                 _ => (),
             }
+
+            profile::dump(evt);
         }
 
         let watcher = self.watcher.clone();
@@ -252,21 +301,42 @@ impl World {
         }
     }
 
+    #[cfg_attr(feature = "flame_it", flame)]
+    fn begin(&mut self) {
+        self.engine.begin();
+    }
+
+    #[cfg_attr(feature = "flame_it", flame)]
+    fn end(&mut self) {
+        self.engine.end();
+    }
+
+    #[cfg_attr(feature = "flame_it", flame)]
+    fn render(&mut self) {
+        self.engine.render(ClearOption::default());
+    }
+
+    pub fn run_frame(&mut self, _app: &mut App) {
+        self.begin();
+
+        self.step();
+
+        self.pre_render();
+
+        // Render
+        self.render();
+
+        // End
+        self.end();
+
+        profile::clear();
+    }
+
     pub fn event_loop(mut self) {
         let app = self.app.take().unwrap();
 
-        app.run(move |_app: &mut App| {
-            self.engine.begin();
-
-            self.step();
-
-            self.pre_render();
-
-            // Render
-            self.engine.render(ClearOption::default());
-
-            // End
-            self.engine.end();
+        app.run(move |app: &mut App| {
+            self.run_frame(app);
         });
     }
 

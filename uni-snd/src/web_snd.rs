@@ -4,7 +4,7 @@ use stdweb::web::TypedArray;
 
 use uni_app::App;
 
-use super::{SoundError,SoundGenerator};
+use super::{SoundError, SoundGenerator};
 
 pub struct SoundDriver<T> {
     generator: Option<Box<SoundGenerator<T>>>,
@@ -24,13 +24,26 @@ impl<T> SoundDriver<T> {
 
     pub fn new(generator: Box<SoundGenerator<T>>) -> Self {
         let ctx = js! {
+            window.startPause=0;
+            window.endPause=0;
+            document.addEventListener("visibilitychange", (e) => {
+                if (document.hidden) {
+                    window.startPause = performance.now() / 1000.0;
+                } else {
+                    window.endPause = performance.now() / 1000.0;
+                }
+            }, false);
             if (AudioContext) {
                 return new AudioContext();
             } else {
                 return undefined;
             }
         };
-        let err= if ctx == stdweb::Value::Undefined {SoundError::NoDevice} else {SoundError::NoError};
+        let err = if ctx == stdweb::Value::Undefined {
+            SoundError::NoDevice
+        } else {
+            SoundError::NoError
+        };
         Self {
             generator: Some(generator),
             ctx,
@@ -39,12 +52,35 @@ impl<T> SoundDriver<T> {
             err,
         }
     }
+    // -1 => game paused
+    // >0 => pause duration
+    fn get_pause_status(&self) -> f64 {
+        return js! {
+            var duration = window.endPause-window.startPause;
+            if (duration > 0) {
+                window.endPause = 0;
+                window.startPause=0;
+                return duration;
+            } else if (window.startPause > 0) {
+                return -1;
+            } else {
+                return 0;
+            }
+        }.try_into()
+            .unwrap();
+    }
     pub fn send_event(&mut self, event: T) {
         if let Some(ref mut gen) = self.generator {
             gen.handle_event(event);
         }
     }
     pub fn frame(&mut self) {
+        let pause_duration = self.get_pause_status();
+        if pause_duration == -1.0 {
+            return;
+        } else if pause_duration > 0.0 {
+            self.start_audio += pause_duration;
+        }
         let now: f64 = js! {
             return @{&self.ctx}.currentTime;
         }.try_into()

@@ -138,18 +138,22 @@ impl UniformCache {
     }
 
     pub fn commit(&self, gl: &WebGLRenderingContext, prog: &WebGLProgram) {
-        let unis = self.pending_uniforms.borrow();
-        let mut commited = self.committed_unforms.borrow_mut();
+        {
+            let unis = self.pending_uniforms.borrow();
+            let mut commited = self.committed_unforms.borrow_mut();
 
-        for (s, data) in &*unis {
-            if !commited.contains_key(s) {
-                if let Some(u) = self.get_uniform(gl, prog, s) {
-                    data.set(gl, &u);
+            for (s, data) in &*unis {
+                if !commited.contains_key(s) {
+                    if let Some(u) = self.get_uniform(gl, prog, s) {
+                        data.set(gl, &u);
+                    }
+
+                    commited.insert(s.clone(), data.clone());
                 }
-
-                commited.insert(s.clone(), data.clone());
             }
         }
+
+        self.pending_uniforms.borrow_mut().clear();
     }
 
     fn get_uniform(

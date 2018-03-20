@@ -77,11 +77,11 @@ impl GLContext {
 
     pub fn new<'a>(canvas: &Element) -> GLContext {
         let gl = js!{
-            var gl = (@{canvas}).getContext("webgl2");
+            var gl = (@{canvas}).getContext("webgl2", {alpha:false});
             var version = 2;
 
             if (!gl) {
-                gl = (@{canvas}).getContext("webgl");
+                gl = (@{canvas}).getContext("webgl", {alpha:false});
                 version = 1;
             }
 

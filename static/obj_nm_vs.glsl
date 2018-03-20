@@ -2,6 +2,20 @@
 #define attribute in
 #define varying out
 #define texture2D texture
+#else 
+highp mat3 transpose(in highp mat3 inMatrix) {
+    highp vec3 i0 = inMatrix[0];
+    highp vec3 i1 = inMatrix[1];
+    highp vec3 i2 = inMatrix[2];
+
+    highp mat3 outMatrix = mat3(
+                 vec3(i0.x, i1.x, i2.x),
+                 vec3(i0.y, i1.y, i2.y),
+                 vec3(i0.z, i1.z, i2.z)
+                 );
+
+    return outMatrix;
+}
 #endif
 
 #define UNI_POINT_LIGHTS 4
@@ -36,8 +50,8 @@ struct PointLightVS {
 uniform DirectionalLightVS uDirectionalLightVS;
 uniform PointLightVS uPointLightsVS[UNI_POINT_LIGHTS];
 
-varying DirectionalLightVS vDirectionalLightTgt;
-varying PointLightVS vPointLightsTgt[UNI_POINT_LIGHTS];
+varying vec3 vDirectionalLightDirTgt;
+varying vec3 vPointLightDirsTgt[UNI_POINT_LIGHTS];
 varying vec3 vViewDirTgt;
 
 void main(void) {
@@ -52,11 +66,10 @@ void main(void) {
     vNormal = TBN * aVertexNormal;   
     vTexCoords = aTextureCoord;
 
-    vDirectionalLightTgt.direction = TBN * uDirectionalLightVS.direction;
+    vDirectionalLightDirTgt = TBN * uDirectionalLightVS.direction;
 
     for(int i = 0; i < UNI_POINT_LIGHTS; i++){
-        vPointLightsTgt[i].position = uPointLightsVS[i].position;
-        vPointLightsTgt[i].direction = TBN * uPointLightsVS[i].direction;
+        vPointLightDirsTgt[i] = TBN * uPointLightsVS[i].direction;
     }
 
     vFragPos = vWorldPos;    

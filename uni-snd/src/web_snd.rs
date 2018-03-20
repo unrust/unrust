@@ -54,7 +54,7 @@ impl<T> SoundDriver<T> {
     }
     // -1 => game paused
     // >0 => pause duration
-    fn get_pause_status(&self) -> f64 {
+    fn get_pause_status(&self) -> Option<f64> {
         return js! {
             var duration = window.endPause-window.startPause;
             if (duration > 0) {
@@ -64,7 +64,7 @@ impl<T> SoundDriver<T> {
             } else if (window.startPause > 0) {
                 return -1;
             } else {
-                return 0;
+                return undefined;
             }
         }.try_into()
             .unwrap();
@@ -75,11 +75,12 @@ impl<T> SoundDriver<T> {
         }
     }
     pub fn frame(&mut self) {
-        let pause_duration = self.get_pause_status();
-        if pause_duration == -1.0 {
-            return;
-        } else if pause_duration > 0.0 {
-            self.start_audio += pause_duration;
+        if let Some(pause_duration) = self.get_pause_status() {
+            if pause_duration == -1.0 {
+                return;
+            } else {
+                self.start_audio += pause_duration;
+            }
         }
         let now: f64 = js! {
             return @{&self.ctx}.currentTime;

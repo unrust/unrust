@@ -237,17 +237,16 @@ impl Loadable for TextureImage {
             let err_filename = file_name.clone();
 
             let buff_future = stream.fold(rows, move |mut acc, (buffer, row_index)| {
+                let idx = indexer(row_index) as usize - 1;
+
                 debug_assert!(
-                    (row_index as usize) <= num_rows && row_index > 0,
-                    format!(
-                        "row_index is wrong: {:?} {:?} {}",
-                        row_index, num_rows, &err_filename
-                    )
+                    (idx as usize) < num_rows,
+                    format!("idx is wrong: {:?} {:?} {}", idx, num_rows, &err_filename)
                 );
                 debug_assert!(buffer.len() == row_len as usize);
 
                 // we flip the image vertically because opengl is use bottom left as (0,0)
-                acc[indexer(row_index) as usize - 1] = buffer;
+                acc[idx] = buffer;
                 Ok(acc)
             });
 

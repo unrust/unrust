@@ -189,7 +189,7 @@ impl EngineContext {
     }
 
     #[cfg_attr(feature = "flame_it", flame)]
-    pub fn need_cache_tex(&self, new_tex: &Rc<Texture>) -> Option<(usize, u32)> {
+    pub fn find_cache_tex(&self, new_tex: &Rc<Texture>) -> Option<(usize, u32)> {
         for (pos, &(u, ref tex)) in self.textures.iter().enumerate() {
             if let Some(ref p) = tex.upgrade() {
                 if Rc::ptr_eq(new_tex, p) {
@@ -206,7 +206,7 @@ impl EngineContext {
     where
         F: FnOnce(&mut EngineContext, u32) -> AssetResult<()>,
     {
-        if let Some((pos, unit)) = self.need_cache_tex(new_tex) {
+        if let Some((pos, unit)) = self.find_cache_tex(new_tex) {
             // move the used unit pos to the back
             self.textures.remove(pos);
             self.textures.push_back((unit, Rc::downgrade(&new_tex)));
@@ -228,10 +228,25 @@ impl EngineContext {
             }
         }
 
-        bind_func(self, unit).map(|_| {
+        debug_assert!(
+            self.textures
+                .iter()
+                .position(|&(u, _)| u == (unit as u32))
+                .is_none(),
+            format!("{:?}", self.textures)
+        );
+
+        let result = bind_func(self, unit).map(|_| {
             self.textures.push_back((unit, Rc::downgrade(new_tex)));
             unit
-        })
+        });
+
+        if result.is_err() {
+            // add the unit to the front
+            self.textures.push_front((unit, Weak::new()));
+        }
+
+        result
     }
 
     #[cfg_attr(feature = "flame_it", flame)]

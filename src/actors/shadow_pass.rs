@@ -11,7 +11,7 @@ use math::*;
 pub struct ShadowPass {
     rt: Rc<RenderTexture>,
     light_cache: Option<Arc<Component>>,
-    shadow_material: Option<Material>,
+    shadow_material: Option<Rc<Material>>,
 }
 
 fn compute_light_matrix(com: &Arc<Component>) -> Matrix4<f32> {
@@ -61,7 +61,7 @@ impl Actor for ShadowPass {
         let db = &mut world.asset_system();
 
         let shadow_mat = Material::new(db.new_program("unrust/shadow"));
-        self.shadow_material = Some(shadow_mat);
+        self.shadow_material = Some(Rc::new(shadow_mat));
     }
 
     fn update(&mut self, _go: &mut GameObject, world: &mut World) {

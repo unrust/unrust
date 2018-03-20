@@ -11,6 +11,7 @@ use obj;
 use obj::SimplePolygon;
 use std::io::BufReader;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 type Vector3 = na::Vector3<f32>;
 type Vector2 = na::Vector2<f32>;
@@ -124,6 +125,97 @@ fn compute_tangents(
     };
 }
 
+fn obj_mtl<A>(asys: &A, parent: &String, gm: &obj::Material) -> (bool, Rc<Material>)
+where
+    A: AssetSystem + Clone + 'static,
+{
+    let mut ambient = Vector3::new(0.2, 0.2, 0.2);
+    let mut diffuse = Vector3::new(1.0, 1.0, 1.0);
+    let mut specular = Vector3::new(0.2, 0.2, 0.2);
+    let mut shininess = 0.2;
+    let mut transparent = 1.0;
+    let mut diffuse_map = "default_white".to_string();
+    let mut ambient_map = "default_white".to_string();
+    let mut specular_map = "default_black".to_string();
+    let mut alpha_mask = None;
+    let mut normal_map: Option<String> = None;
+
+    let material = gm;
+    material.ka.map(|ka| ambient = ka.into());
+    material.kd.map(|kd| diffuse = kd.into());
+    material.ks.map(|ks| specular = ks.into());
+    material.ns.map(|ns| shininess = ns);
+    material.d.map(|d| transparent = d);
+    material
+        .map_kd
+        .as_ref()
+        .map(|map_kd| diffuse_map = parent.clone() + &map_kd);
+    material
+        .map_ka
+        .as_ref()
+        .map(|map_ka| ambient_map = parent.clone() + &map_ka);
+    material
+        .map_ks
+        .as_ref()
+        .map(|map_ks| specular_map = parent.clone() + &map_ks);
+    material
+        .map_d
+        .as_ref()
+        .map(|map_d| alpha_mask = Some(parent.clone() + &map_d));
+
+    material
+        .map_bump
+        .as_ref()
+        .map(|map_bump| normal_map = Some(parent.clone() + &map_bump));
+
+    let shader_program = match normal_map {
+        Some(_) => asys.new_program("obj_nm"),
+        None => asys.new_program("obj"),
+    };
+
+    let mut material = Material::new(shader_program);
+
+    let ambient_tex = asys.new_texture(&ambient_map);
+    ambient_tex.wrap_u.set(TextureWrap::Repeat);
+    ambient_tex.wrap_v.set(TextureWrap::Repeat);
+    material.set("uMaterial.ambient", ambient);
+    material.set("uMaterial.ambient_tex", ambient_tex);
+
+    let diffuse_tex = asys.new_texture(&diffuse_map);
+    diffuse_tex.wrap_u.set(TextureWrap::Repeat);
+    diffuse_tex.wrap_v.set(TextureWrap::Repeat);
+    material.set("uMaterial.diffuse", diffuse);
+    material.set("uMaterial.diffuse_tex", diffuse_tex);
+
+    let specular_tex = asys.new_texture(&specular_map);
+    specular_tex.wrap_u.set(TextureWrap::Repeat);
+    specular_tex.wrap_v.set(TextureWrap::Repeat);
+    material.set("uMaterial.specular", specular);
+    material.set("uMaterial.specular_tex", specular_tex);
+
+    material.set("uMaterial.shininess", shininess);
+    material.set("uMaterial.transparent", transparent);
+
+    normal_map.as_ref().map(|nm| {
+        let n_tex = asys.new_texture(nm);
+        n_tex.wrap_u.set(TextureWrap::Repeat);
+        n_tex.wrap_v.set(TextureWrap::Repeat);
+
+        material.set("uMaterial.normal_map", n_tex);
+    });
+
+    match alpha_mask {
+        Some(ref f) => material.set("uMaterial.mask_tex", asys.new_texture(&f)),
+        None => material.set("uMaterial.mask_tex", asys.new_texture("default_white")),
+    }
+
+    if transparent < 0.9999 || alpha_mask.is_some() {
+        material.render_queue = RenderQueue::Transparent;
+    }
+
+    (normal_map.is_some(), Rc::new(material))
+}
+
 impl PrefabLoader {
     fn load_model<A>(asys: A, parent: String, model: obj::Obj<SimplePolygon>) -> Prefab
     where
@@ -136,47 +228,24 @@ impl PrefabLoader {
         // create the mesh componet
         let mut mesh = Mesh::new();
 
+        let mut material_map: HashMap<String, (bool, Rc<Material>)> = HashMap::new();
+
         for o in model.objects {
             for g in o.groups {
-                let mut ambient = Vector3::new(0.2, 0.2, 0.2);
-                let mut diffuse = Vector3::new(1.0, 1.0, 1.0);
-                let mut specular = Vector3::new(0.2, 0.2, 0.2);
-                let mut shininess = 0.2;
-                let mut transparent = 1.0;
-                let mut diffuse_map = "default_white".to_string();
-                let mut ambient_map = "default_white".to_string();
-                let mut specular_map = "default_black".to_string();
-                let mut alpha_mask = None;
-                let mut normal_map: Option<String> = None;
-
-                if let Some(material) = g.material {
-                    material.ka.map(|ka| ambient = ka.into());
-                    material.kd.map(|kd| diffuse = kd.into());
-                    material.ks.map(|ks| specular = ks.into());
-                    material.ns.map(|ns| shininess = ns);
-                    material.d.map(|d| transparent = d);
-                    material
-                        .map_kd
-                        .as_ref()
-                        .map(|map_kd| diffuse_map = parent.clone() + &map_kd);
-                    material
-                        .map_ka
-                        .as_ref()
-                        .map(|map_ka| ambient_map = parent.clone() + &map_ka);
-                    material
-                        .map_ks
-                        .as_ref()
-                        .map(|map_ks| specular_map = parent.clone() + &map_ks);
-                    material
-                        .map_d
-                        .as_ref()
-                        .map(|map_d| alpha_mask = Some(parent.clone() + &map_d));
-
-                    material
-                        .map_bump
-                        .as_ref()
-                        .map(|map_bump| normal_map = Some(parent.clone() + &map_bump));
+                if g.material.is_none() {
+                    continue;
                 }
+                let material = g.material.as_ref().unwrap();
+                let entry = material_map.get(&material.name);
+
+                let (has_normal_map, material) = match entry {
+                    Some(&(b, ref mat)) => (b, mat.clone()),
+                    None => {
+                        let r = obj_mtl(&asys, &parent, &material);
+                        material_map.insert(material.name.clone(), (r.0, r.1.clone()));
+                        r
+                    }
+                };
 
                 let mut indices = Vec::new();
                 let mut v_array = Vec::new();
@@ -228,12 +297,13 @@ impl PrefabLoader {
                     None
                 };
 
-                let tangent_space = match normal_map {
-                    Some(_) => compute_tangents(&v_array, &uv_array, &n_array, &indices),
-                    None => TangentSpace {
+                let tangent_space = if has_normal_map {
+                    compute_tangents(&v_array, &uv_array, &n_array, &indices)
+                } else {
+                    TangentSpace {
                         tangents: None,
                         bitangents: None,
-                    },
+                    }
                 };
 
                 let mesh_data = MeshData {
@@ -244,51 +314,6 @@ impl PrefabLoader {
                     bitangents: tangent_space.bitangents,
                     normals: n_array,
                 };
-
-                let shader_program = match normal_map {
-                    Some(_) => asys.new_program("obj_nm"),
-                    None => asys.new_program("obj"),
-                };
-
-                let mut material = Material::new(shader_program);
-
-                let ambient_tex = asys.new_texture(&ambient_map);
-                ambient_tex.wrap_u.set(TextureWrap::Repeat);
-                ambient_tex.wrap_v.set(TextureWrap::Repeat);
-                material.set("uMaterial.ambient", ambient);
-                material.set("uMaterial.ambient_tex", ambient_tex);
-
-                let mut diffuse_tex = asys.new_texture(&diffuse_map);
-                diffuse_tex.wrap_u.set(TextureWrap::Repeat);
-                diffuse_tex.wrap_v.set(TextureWrap::Repeat);
-                material.set("uMaterial.diffuse", diffuse);
-                material.set("uMaterial.diffuse_tex", diffuse_tex);
-
-                let mut specular_tex = asys.new_texture(&specular_map);
-                specular_tex.wrap_u.set(TextureWrap::Repeat);
-                specular_tex.wrap_v.set(TextureWrap::Repeat);
-                material.set("uMaterial.specular", specular);
-                material.set("uMaterial.specular_tex", specular_tex);
-
-                material.set("uMaterial.shininess", shininess);
-                material.set("uMaterial.transparent", transparent);
-
-                normal_map.as_ref().map(|nm| {
-                    let n_tex = asys.new_texture(nm);
-                    n_tex.wrap_u.set(TextureWrap::Repeat);
-                    n_tex.wrap_v.set(TextureWrap::Repeat);
-
-                    material.set("uMaterial.normal_map", n_tex);
-                });
-
-                match alpha_mask {
-                    Some(ref f) => material.set("uMaterial.mask_tex", asys.new_texture(&f)),
-                    None => material.set("uMaterial.mask_tex", asys.new_texture("default_white")),
-                }
-
-                if transparent < 0.9999 || alpha_mask.is_some() {
-                    material.render_queue = RenderQueue::Transparent;
-                }
 
                 mesh.add_surface(
                     MeshBuffer::new_from_resource(Resource::new(mesh_data)),

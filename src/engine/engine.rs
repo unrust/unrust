@@ -194,7 +194,15 @@ where
     }
 
     #[cfg_attr(feature = "flame_it", flame)]
-    fn setup_material(&self, ctx: &mut EngineContext, material: &Material) -> AssetResult<()> {
+    fn setup_material(&self, ctx: &mut EngineContext, material: &Rc<Material>) -> AssetResult<()> {
+        if let Some(ref last_material) = ctx.last_material_bound {
+            if let Some(last_material) = last_material.upgrade() {
+                if Rc::ptr_eq(&last_material, &material) {
+                    return Ok(());
+                }
+            }
+        }
+
         ctx.prepare_cache(&material.program, |ctx| {
             material.program.bind(&self.gl)?;
             ctx.switch_prog += 1;
@@ -212,6 +220,8 @@ where
         })?;
 
         self.setup_light(ctx);
+
+        ctx.last_material_bound = Some(Rc::downgrade(&material));
 
         Ok(())
     }
@@ -238,10 +248,19 @@ where
     }
 
     #[cfg_attr(feature = "flame_it", flame)]
-    fn setup_light(&self, ctx: &EngineContext) {
+    fn setup_light(&self, ctx: &mut EngineContext) {
         // Setup light
-
         let prog = ctx.prog.upgrade().unwrap();
+
+        if let Some(ref last_prog) = ctx.last_light_bound {
+            if let Some(last_prog) = last_prog.upgrade() {
+                if Rc::ptr_eq(&prog, &last_prog) {
+                    return;
+                }
+            }
+        }
+
+        ctx.last_light_bound = Some(ctx.prog.clone());
 
         let light_com = ctx.main_light.as_ref().unwrap();
         let light = light_com.try_as::<Light>().unwrap();
@@ -266,14 +285,14 @@ where
         ctx: &mut EngineContext,
         q: &RenderQueueState,
         camera: &Camera,
-        material: Option<&Material>,
+        material: Option<&Rc<Material>>,
     ) {
         let gl = &self.gl;
 
         for cmd in q.commands.iter() {
             let mat = match material.as_ref() {
                 Some(&m) => &m,
-                None => &*cmd.surface.material,
+                None => &cmd.surface.material,
             };
 
             ctx.states.apply_defaults();
@@ -426,7 +445,7 @@ where
     pub fn render_pass_with_material(
         &mut self,
         camera: &Camera,
-        material: Option<&Material>,
+        material: Option<&Rc<Material>>,
         clear_option: ClearOption,
     ) {
         let objects = &self.objects;

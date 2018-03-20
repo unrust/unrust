@@ -1,6 +1,7 @@
 use std::rc::{Rc, Weak};
 use std::sync::Arc;
-use engine::render::{CullMode, DepthTest, MaterialState, MeshBuffer, ShaderProgram, Texture};
+use engine::render::{CullMode, DepthTest, Material, MaterialState, MeshBuffer, ShaderProgram,
+                     Texture};
 use std::collections::VecDeque;
 use engine::core::Component;
 use engine::engine::EngineStats;
@@ -124,8 +125,10 @@ pub struct EngineContext {
     pub switch_tex: u32,
 
     pub stats: EngineStats,
-
     pub states: StateCache,
+
+    pub last_light_bound: Option<Weak<ShaderProgram>>,
+    pub last_material_bound: Option<Weak<Material>>,
 }
 
 impl EngineContext {
@@ -145,6 +148,8 @@ impl EngineContext {
             stats: stats,
 
             states: Default::default(),
+            last_light_bound: None,
+            last_material_bound: None,
         }
     }
 }

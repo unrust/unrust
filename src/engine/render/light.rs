@@ -80,10 +80,10 @@ impl From<Directional> for Light {
 
 impl Directional {
     fn bind(&self, lightname: &str, prog: &ShaderProgram) {
-        prog.set(&format!("{}.direction", lightname), self.direction);
-        prog.set(&format!("{}.ambient", lightname), self.ambient);
-        prog.set(&format!("{}.diffuse", lightname), self.diffuse);
-        prog.set(&format!("{}.specular", lightname), self.specular);
+        prog.set(&(lightname.to_string() + ".direction"), self.direction);
+        prog.set(&(lightname.to_string() + ".ambient"), self.ambient);
+        prog.set(&(lightname.to_string() + ".diffuse"), self.diffuse);
+        prog.set(&(lightname.to_string() + ".specular"), self.specular);
     }
 }
 
@@ -121,16 +121,16 @@ impl Default for Point {
 
 impl Point {
     fn bind(&self, lightname: &str, prog: &ShaderProgram) {
-        prog.set(&format!("{}.position", lightname), self.position);
+        prog.set(&(lightname.to_string() + ".position"), self.position);
 
-        prog.set(&format!("{}.ambient", lightname), self.ambient);
-        prog.set(&format!("{}.diffuse", lightname), self.diffuse);
-        prog.set(&format!("{}.specular", lightname), self.specular);
+        prog.set(&(lightname.to_string() + ".ambient"), self.ambient);
+        prog.set(&(lightname.to_string() + ".diffuse"), self.diffuse);
+        prog.set(&(lightname.to_string() + ".specular"), self.specular);
 
-        prog.set(&format!("{}.constant", lightname), self.constant);
-        prog.set(&format!("{}.linear", lightname), self.linear);
-        prog.set(&format!("{}.quadratic", lightname), self.quadratic);
+        prog.set(&(lightname.to_string() + ".constant"), self.constant);
+        prog.set(&(lightname.to_string() + ".linear"), self.linear);
+        prog.set(&(lightname.to_string() + ".quadratic"), self.quadratic);
 
-        prog.set(&format!("{}.rate", lightname), 1.0);
+        prog.set(&(lightname.to_string() + ".rate"), 1.0);
     }
 }

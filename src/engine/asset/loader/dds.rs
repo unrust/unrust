@@ -21,6 +21,7 @@ pub struct DDSImage {
 #[derive(Debug, Clone)]
 pub struct DDS {
     pub format: DDSFormat,
+    pub has_alpha: bool,
     pub images: Vec<DDSImage>,
 }
 
@@ -58,6 +59,7 @@ struct DDSHeader {
 
 const DDPF_FOURCC: u32 = 0x4;
 const DDSD_MIPMAPCOUNT: u32 = 0x20000;
+const DDPF_ALPHAPIXELS: u32 = 0x1;
 
 impl DDSReader {
     pub fn read(buff: Vec<u8>, file_name: &String) -> AssetResult<DDS> {
@@ -117,6 +119,8 @@ impl DDSReader {
             mipmap_count = 1.max(header.dw_mipmapcount);
         }
 
+        let has_alpha = header.dd_spf.dw_flags & DDPF_ALPHAPIXELS != 0;
+
         let mut width = header.dw_width;
         let mut height = header.dw_height;
         let mut data_offset: usize = (header.dw_size + 4) as usize;
@@ -134,10 +138,14 @@ impl DDSReader {
             });
 
             data_offset = data_offset + (data_length as usize);
-            width = width >> 1;
-            height = height >> 1;
+            width = 1.max(width >> 1);
+            height = 1.max(height >> 1);
         }
 
-        Ok(DDS { format, images })
+        Ok(DDS {
+            format,
+            images,
+            has_alpha,
+        })
     }
 }

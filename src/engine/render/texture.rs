@@ -283,11 +283,17 @@ fn texture_bind_buffer(
                 TextureImage::DXT1(dds) => {
                     size = (dds.images[0].width, dds.images[0].height);
 
+                    let format = if dds.has_alpha {
+                        TextureCompression::RgbaDxt1
+                    } else {
+                        TextureCompression::RgbDxt1
+                    };
+
                     for (i, img) in dds.images.iter().enumerate() {
                         gl.compressed_tex_image2d(
                             TextureBindPoint::Texture2d,
                             i as u8,
-                            TextureCompression::RgbaDxt1,
+                            format,
                             img.width as u16,
                             img.height as u16,
                             &img.data,
@@ -345,6 +351,8 @@ fn texture_bind_buffer(
             gl.active_texture(0);
             gl.bind_texture_cube(&tex);
 
+            let mut need_gen_mipmap = false;
+
             for (i, teximg) in imgs.iter().enumerate() {
                 match teximg {
                     &TextureImage::Rgba(ref img) => {
@@ -358,8 +366,7 @@ fn texture_bind_buffer(
                             PixelType::UnsignedByte, // type
                             &*img,                   // data
                         );
-                        gl.generate_mipmap_cube();
-                        has_midmap = true;
+                        need_gen_mipmap = true;
                     }
                     &TextureImage::Rgb(ref img) => {
                         size = (img.width(), img.height());
@@ -372,8 +379,7 @@ fn texture_bind_buffer(
                             PixelType::UnsignedByte, // type
                             &*img,                   // data
                         );
-                        has_midmap = true;
-                        gl.generate_mipmap_cube();
+                        need_gen_mipmap = true;
                     }
 
                     &TextureImage::DXT1(ref dds) => {
@@ -410,6 +416,11 @@ fn texture_bind_buffer(
                         has_midmap = dds.images.len() > 1;
                     }
                 }
+            }
+
+            if need_gen_mipmap {
+                gl.generate_mipmap_cube();
+                has_midmap = true;
             }
 
             gl_tex_kind = webgl::TextureKind::TextureCubeMap;

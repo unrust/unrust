@@ -437,8 +437,8 @@ impl GLContext {
                 width as _,
                 height as _,
                 0,
-                (data.len() - 128) as _, //gl::UNSIGNED_BYTE as _,
-                &data[128] as *const u8 as _,
+                data.len() as _, //gl::UNSIGNED_BYTE as _,
+                data.as_ptr() as _,
             );
         }
     }

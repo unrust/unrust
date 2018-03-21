@@ -121,7 +121,7 @@ impl Actor for Cube {
         let db = &mut world.asset_system();
 
         let material = Material::new(db.new_program("phong"));
-        material.set("uMaterial.diffuse", db.new_texture("tex_a.png"));
+        material.set("uMaterial.diffuse", db.new_texture("tex_r.dds"));
         material.set("uMaterial.shininess", 32.0);
 
         let mut mesh = Mesh::new();

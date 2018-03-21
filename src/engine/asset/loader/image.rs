@@ -6,10 +6,14 @@ use image::tga;
 use image;
 
 use futures::prelude::*;
+use futures::future;
+
 use std::io;
 use std::fmt::Debug;
 use uni_app;
 use std::path::Path;
+
+use super::dds::{DDSFormat, DDSReader};
 
 pub struct ImageLoader {}
 
@@ -187,6 +191,128 @@ fn new_img_context(
     Ok((ctx, codec))
 }
 
+fn load_future_uncompressed<T>(img_buf: T) -> Box<Future<Item = TextureImage, Error = AssetError>>
+where
+    T: Future<Item = (Vec<u8>, String), Error = AssetError> + 'static,
+{
+    let decoded = img_buf.and_then(|(whole_buf, file_name)| {
+        let info = ImageFileInfo {
+            file_name: file_name.clone(),
+            orig_len: whole_buf.len(),
+        };
+
+        let (ctx, codec) =
+            new_img_context(whole_buf, info.clone()).map_err(|e| AssetError::InvalidFormat {
+                path: info.file_name.clone(),
+                len: info.orig_len,
+                reason: format!("{:?}", e),
+            })?;
+
+        let mut iter = 1..;
+        let f0: Box<FnMut(u32) -> u32> = Box::new(|row_index: u32| -> u32 { row_index });
+        let f1: Box<FnMut(u32) -> u32> = Box::new(move |_: u32| -> u32 { iter.next().unwrap() });
+
+        let (mut indexer, stream) = match codec {
+            ImageCodec::Tga(decoder) => (f0, image_rows_stream(decoder, ctx.clone())),
+            ImageCodec::Png(decoder) => (f1, image_rows_stream(decoder, ctx.clone())),
+            _ => unreachable!(),
+        };
+
+        use std;
+        let num_rows = ctx.h as usize;
+        let row_len = ctx.row_len;
+        let rows = std::iter::repeat(vec![]).take(num_rows).collect::<Vec<_>>();
+        let err_filename = file_name.clone();
+
+        let buff_future = stream.fold(rows, move |mut acc, (buffer, row_index)| {
+            let idx = indexer(row_index) as usize - 1;
+
+            debug_assert!(
+                (idx as usize) < num_rows,
+                format!("idx is wrong: {:?} {:?} {}", idx, num_rows, &err_filename)
+            );
+            debug_assert!(buffer.len() == row_len as usize);
+
+            // we flip the image vertically because opengl is use bottom left as (0,0)
+            acc[idx] = buffer;
+            Ok(acc)
+        });
+
+        Ok(buff_future.map(move |buf| match ctx.color {
+            image::ColorType::RGBA(8) | image::ColorType::RGB(8) | image::ColorType::Gray(8) => {
+                Ok((buf, ctx))
+            }
+            _ => Err(make_invalid_format(
+                &ctx.info,
+                image::ImageError::UnsupportedColor(ctx.color),
+            )),
+        }))
+    });
+
+    let decoded = decoded.flatten().and_then(|r| r);
+
+    let img = decoded.and_then(move |(decoded_array, ctx)| {
+        assert!(decoded_array.len() == (ctx.h as usize));
+        let mut decoded = Vec::new();
+        for mut row in decoded_array.into_iter() {
+            assert!(
+                row.len() == ctx.row_len,
+                format!("row.len = {}, ctx.row_len = {}", row.len(), ctx.row_len)
+            );
+            decoded.append(&mut row);
+        }
+        let decoded_len = decoded.len();
+
+        let img = match ctx.color {
+            image::ColorType::RGBA(_) => {
+                image::ImageBuffer::from_raw(ctx.w, ctx.h, decoded).map(TextureImage::Rgba)
+            }
+            image::ColorType::RGB(_) => {
+                image::ImageBuffer::from_raw(ctx.w, ctx.h, decoded).map(TextureImage::Rgb)
+            }
+            image::ColorType::Gray(_) => {
+                let raw = image::ImageBuffer::<image::Luma<u8>, _>::from_raw(ctx.w, ctx.h, decoded);
+                debug_assert!(raw.is_some());
+
+                raw.map(image::DynamicImage::ImageLuma8)
+                    .map(|img| TextureImage::Rgb(img.to_rgb()))
+            }
+
+            _ => unreachable!(),
+        };
+
+        match img {
+            Some(img) => Ok(img),
+            None => Err(make_invalid_format(
+                &ctx.info,
+                image::ImageError::UnsupportedError(format!(
+                    "Unknown ctx.w = {}, ctx.h = {} decode.len = {}, row_len = {}",
+                    ctx.w, ctx.h, decoded_len, ctx.row_len
+                )),
+            )),
+        }
+    });
+
+    // futurize
+    Box::new(img)
+}
+
+static DDS_MAGIC_BYTES: &'static [u8] = b"DDS ";
+
+fn load_future_dds<T>(img_buf: T) -> Box<Future<Item = TextureImage, Error = AssetError>>
+where
+    T: Future<Item = (Vec<u8>, String), Error = AssetError> + 'static,
+{
+    let img = img_buf.and_then(|(whole_buf, file_name)| {
+        DDSReader::read(whole_buf, &file_name).map(|dds| match dds.format {
+            DDSFormat::DXT1 => TextureImage::DXT1(dds),
+            DDSFormat::DXT5 => TextureImage::DXT5(dds),
+        })
+    });
+
+    Box::new(img)
+}
+
 impl Loadable for TextureImage {
     type Loader = ImageLoader;
 
@@ -195,118 +321,21 @@ impl Loadable for TextureImage {
         Self: 'static,
         A: AssetSystem + Clone + 'static,
     {
-        let img_buf = {
-            objfile.then(move |mut f| match f {
-                Ok(ref mut file) => {
-                    let buf = file.read_binary()
-                        .map_err(|_| AssetError::ReadBufferFail(file.name()))?;
-                    Ok((buf, file.name()))
-                }
-                Err(e) => Err(AssetError::FileIoError(e)),
-            })
-        };
-
-        let decoded = img_buf.and_then(|(whole_buf, file_name)| {
-            let info = ImageFileInfo {
-                file_name: file_name.clone(),
-                orig_len: whole_buf.len(),
-            };
-
-            let (ctx, codec) =
-                new_img_context(whole_buf, info.clone()).map_err(|e| AssetError::InvalidFormat {
-                    path: info.file_name.clone(),
-                    len: info.orig_len,
-                    reason: format!("{:?}", e),
-                })?;
-
-            let mut iter = 1..;
-            let f0: Box<FnMut(u32) -> u32> = Box::new(|row_index: u32| -> u32 { row_index });
-            let f1: Box<FnMut(u32) -> u32> =
-                Box::new(move |_: u32| -> u32 { iter.next().unwrap() });
-
-            let (mut indexer, stream) = match codec {
-                ImageCodec::Tga(decoder) => (f0, image_rows_stream(decoder, ctx.clone())),
-                ImageCodec::Png(decoder) => (f1, image_rows_stream(decoder, ctx.clone())),
-                _ => unreachable!(),
-            };
-
-            use std;
-            let num_rows = ctx.h as usize;
-            let row_len = ctx.row_len;
-            let rows = std::iter::repeat(vec![]).take(num_rows).collect::<Vec<_>>();
-            let err_filename = file_name.clone();
-
-            let buff_future = stream.fold(rows, move |mut acc, (buffer, row_index)| {
-                let idx = indexer(row_index) as usize - 1;
-
-                debug_assert!(
-                    (idx as usize) < num_rows,
-                    format!("idx is wrong: {:?} {:?} {}", idx, num_rows, &err_filename)
-                );
-                debug_assert!(buffer.len() == row_len as usize);
-
-                // we flip the image vertically because opengl is use bottom left as (0,0)
-                acc[idx] = buffer;
-                Ok(acc)
-            });
-
-            Ok(buff_future.map(move |buf| match ctx.color {
-                image::ColorType::RGBA(8)
-                | image::ColorType::RGB(8)
-                | image::ColorType::Gray(8) => Ok((buf, ctx)),
-                _ => Err(make_invalid_format(
-                    &ctx.info,
-                    image::ImageError::UnsupportedColor(ctx.color),
-                )),
-            }))
+        let img_buf = objfile.then(move |mut f| match f {
+            Ok(ref mut file) => {
+                let buf = file.read_binary()
+                    .map_err(|_| AssetError::ReadBufferFail(file.name()))?;
+                Ok((buf, file.name()))
+            }
+            Err(e) => Err(AssetError::FileIoError(e)),
         });
 
-        let decoded = decoded.flatten().and_then(|r| r);
-
-        let img = decoded.and_then(move |(decoded_array, ctx)| {
-            assert!(decoded_array.len() == (ctx.h as usize));
-            let mut decoded = Vec::new();
-            for mut row in decoded_array.into_iter() {
-                assert!(
-                    row.len() == ctx.row_len,
-                    format!("row.len = {}, ctx.row_len = {}", row.len(), ctx.row_len)
-                );
-                decoded.append(&mut row);
+        Box::new(img_buf.and_then(|(whole_buf, file_name)| {
+            if whole_buf.starts_with(DDS_MAGIC_BYTES) {
+                return load_future_dds(future::result(Ok((whole_buf, file_name))));
             }
-            let decoded_len = decoded.len();
 
-            let img = match ctx.color {
-                image::ColorType::RGBA(_) => {
-                    image::ImageBuffer::from_raw(ctx.w, ctx.h, decoded).map(TextureImage::Rgba)
-                }
-                image::ColorType::RGB(_) => {
-                    image::ImageBuffer::from_raw(ctx.w, ctx.h, decoded).map(TextureImage::Rgb)
-                }
-                image::ColorType::Gray(_) => {
-                    let raw =
-                        image::ImageBuffer::<image::Luma<u8>, _>::from_raw(ctx.w, ctx.h, decoded);
-                    debug_assert!(raw.is_some());
-
-                    raw.map(image::DynamicImage::ImageLuma8)
-                        .map(|img| TextureImage::Rgb(img.to_rgb()))
-                }
-
-                _ => unreachable!(),
-            };
-
-            match img {
-                Some(img) => Ok(img),
-                None => Err(make_invalid_format(
-                    &ctx.info,
-                    image::ImageError::UnsupportedError(format!(
-                        "Unknown ctx.w = {}, ctx.h = {} decode.len = {}, row_len = {}",
-                        ctx.w, ctx.h, decoded_len, ctx.row_len
-                    )),
-                )),
-            }
-        });
-
-        // futurize
-        Box::new(img)
+            load_future_uncompressed(future::result(Ok((whole_buf, file_name))))
+        }))
     }
 }

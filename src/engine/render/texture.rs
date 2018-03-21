@@ -5,7 +5,7 @@ use image::{RgbImage, RgbaImage};
 
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
-use engine::asset::{Asset, AssetResult, AssetSystem, FileFuture, LoadableAsset, Resource};
+use engine::asset::{Asset, AssetResult, AssetSystem, FileFuture, LoadableAsset, Resource, DDS};
 use std::path::Path;
 
 #[derive(Debug, Copy, Clone)]
@@ -25,6 +25,8 @@ pub enum TextureWrap {
 pub enum TextureImage {
     Rgba(RgbaImage),
     Rgb(RgbImage),
+    DXT1(DDS),
+    DXT5(DDS),
 }
 
 #[derive(Debug)]
@@ -239,9 +241,9 @@ fn texture_bind_buffer(
     let (tex, size, has_midmap) = match kind {
         &TextureKind::Image(ref img_res) => {
             let teximg = img_res.try_into()?;
-
             let tex = gl.create_texture();
             let size: (u32, u32);
+            let has_midmap;
 
             gl.active_texture(0);
             gl.bind_texture(&tex);
@@ -260,6 +262,7 @@ fn texture_bind_buffer(
                     );
 
                     gl.generate_mipmap();
+                    has_midmap = true;
                 }
                 TextureImage::Rgb(img) => {
                     size = (img.width(), img.height());
@@ -274,14 +277,50 @@ fn texture_bind_buffer(
                     );
 
                     gl.generate_mipmap();
+                    has_midmap = true;
+                }
+
+                TextureImage::DXT1(dds) => {
+                    size = (dds.images[0].width, dds.images[0].height);
+
+                    for (i, img) in dds.images.iter().enumerate() {
+                        gl.compressed_tex_image2d(
+                            TextureBindPoint::Texture2d,
+                            i as u8,
+                            TextureCompression::RgbaDxt1,
+                            img.width as u16,
+                            img.height as u16,
+                            &img.data,
+                        );
+                    }
+
+                    has_midmap = dds.images.len() > 1;
+                }
+
+                TextureImage::DXT5(dds) => {
+                    size = (dds.images[0].width, dds.images[0].height);
+
+                    for (i, img) in dds.images.iter().enumerate() {
+                        gl.compressed_tex_image2d(
+                            TextureBindPoint::Texture2d,
+                            i as u8,
+                            TextureCompression::RgbaDxt5,
+                            img.width as u16,
+                            img.height as u16,
+                            &img.data,
+                        );
+                    }
+
+                    has_midmap = dds.images.len() > 1;
                 }
             }
 
-            (tex, size, true)
+            (tex, size, has_midmap)
         }
         &TextureKind::CubeMap(ref img_res) => {
             let mut imgs = Vec::new();
             let mut size: (u32, u32) = (0, 0);
+            let mut has_midmap: bool = false;
 
             let bindpoints = [
                 TextureBindPoint::TextureCubeMapPositiveX,
@@ -319,6 +358,8 @@ fn texture_bind_buffer(
                             PixelType::UnsignedByte, // type
                             &*img,                   // data
                         );
+                        gl.generate_mipmap_cube();
+                        has_midmap = true;
                     }
                     &TextureImage::Rgb(ref img) => {
                         size = (img.width(), img.height());
@@ -331,14 +372,49 @@ fn texture_bind_buffer(
                             PixelType::UnsignedByte, // type
                             &*img,                   // data
                         );
+                        has_midmap = true;
+                        gl.generate_mipmap_cube();
+                    }
+
+                    &TextureImage::DXT1(ref dds) => {
+                        size = (dds.images[0].width, dds.images[0].height);
+
+                        for (i, img) in dds.images.iter().enumerate() {
+                            gl.compressed_tex_image2d(
+                                bindpoints[i],
+                                i as u8,
+                                TextureCompression::RgbaDxt1,
+                                img.width as u16,
+                                img.height as u16,
+                                &img.data,
+                            );
+                        }
+
+                        has_midmap = dds.images.len() > 1;
+                    }
+
+                    &TextureImage::DXT5(ref dds) => {
+                        size = (dds.images[0].width, dds.images[0].height);
+
+                        for (i, img) in dds.images.iter().enumerate() {
+                            gl.compressed_tex_image2d(
+                                bindpoints[i],
+                                i as u8,
+                                TextureCompression::RgbaDxt5,
+                                img.width as u16,
+                                img.height as u16,
+                                &img.data,
+                            );
+                        }
+
+                        has_midmap = dds.images.len() > 1;
                     }
                 }
             }
 
             gl_tex_kind = webgl::TextureKind::TextureCubeMap;
-            gl.generate_mipmap_cube();
 
-            (tex, size, true)
+            (tex, size, has_midmap)
         }
 
         &TextureKind::RenderTexture { size, ref attach } => {

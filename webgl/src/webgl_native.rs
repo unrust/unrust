@@ -441,6 +441,8 @@ impl GLContext {
                 data.as_ptr() as _,
             );
         }
+
+        check_gl_error("compressed_tex_image2d");
     }
 
     pub fn get_program_parameter(&self, program: &WebGLProgram, pname: ShaderParameter) -> i32 {
@@ -541,7 +543,7 @@ impl GLContext {
             gl::GenerateMipmap(gl::TEXTURE_CUBE_MAP);
         }
 
-        check_gl_error("generate_mipmap");
+        check_gl_error("generate_mipmap_cube");
     }
 
     pub fn active_texture(&self, active: u32) {

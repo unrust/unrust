@@ -70,22 +70,40 @@ struct RenderQueueState {
 }
 
 impl RenderQueueState {
-    fn sort_by_cam_distance(&mut self) {
+    fn sort_by_cam_distance(&mut self) -> &mut Self {
         self.commands.sort_unstable_by(|a, b| {
             let adist: f32 = a.cam_distance;
             let bdist: f32 = b.cam_distance;
 
             bdist.partial_cmp(&adist).unwrap()
         });
+
+        self
     }
 
-    fn sort_by_cam_distance_reverse(&mut self) {
-        self.commands.sort_unstable_by(|a, b| {
+    fn sort_by_cam_distance_reverse(&mut self) -> &mut Self {
+        self.commands.sort_by(|a, b| {
             let adist: f32 = a.cam_distance;
             let bdist: f32 = b.cam_distance;
 
             adist.partial_cmp(&bdist).unwrap()
         });
+
+        self
+    }
+
+    fn sort_by_material(&mut self) -> &mut Self {
+        self.commands.sort_by(|a, b| {
+            let prog_a: &Material = &a.surface.material;
+            let prog_b: &Material = &b.surface.material;
+
+            let adist = prog_a as *const Material;
+            let bdist = prog_b as *const Material;
+
+            adist.partial_cmp(&bdist).unwrap()
+        });
+
+        self
     }
 }
 
@@ -97,22 +115,26 @@ impl RenderQueueList {
         let mut qlist = RenderQueueList::default();
 
         // Opaque Queue
-        let state = RenderQueueState::default();
+        let mut state = RenderQueueState::default();
+        state.states.alpha_blending = Some(false);
         qlist.insert(RenderQueue::Opaque, state);
 
         // Skybox Queue
         let mut state = RenderQueueState::default();
         state.states.depth_write = Some(false);
+        state.states.alpha_blending = Some(false);
         state.states.depth_test = Some(DepthTest::LessEqual);
         qlist.insert(RenderQueue::Skybox, state);
 
         // Transparent Queue
         let mut state = RenderQueueState::default();
+        state.states.alpha_blending = Some(true);
         state.states.depth_write = Some(false);
         qlist.insert(RenderQueue::Transparent, state);
 
         // UI Queue
-        let state = RenderQueueState::default();
+        let mut state = RenderQueueState::default();
+        state.states.alpha_blending = Some(true);
         qlist.insert(RenderQueue::UI, state);
 
         qlist
@@ -325,7 +347,11 @@ where
                 Ok(_) => {
                     self.setup_camera(ctx, cmd.model_m, camera);
                     prog.commit(gl);
-                    cmd.surface.buffer.render(gl);
+                    // if let RenderQueue::UI = mat.render_queue
+                    {
+                        cmd.surface.buffer.render(gl);
+                    }
+
                     cmd.surface.buffer.unbind(gl);
                 }
                 Err(ref err) => match *err {
@@ -435,6 +461,7 @@ where
             for surface in mesh.surfaces.iter() {
                 let m = compute_model_m(&*object);
 
+                // TODO: should use a material flag to skip
                 match surface.material.render_queue {
                     RenderQueue::Skybox | RenderQueue::UI => (),
                     _ => {
@@ -444,6 +471,8 @@ where
                         }
 
                         let p = m.transform_point(&Point3::new(0.0, 0.0, 0.0));
+
+                        // TODO: local scale only ?? should be using global scale??
                         let scale = get_max_scale(&object.transform.local_scale());
                         let scaled_r = bounds.unwrap().r * scale;
 
@@ -513,7 +542,8 @@ where
         render_q
             .get_mut(&RenderQueue::Opaque)
             .unwrap()
-            .sort_by_cam_distance_reverse();
+            .sort_by_cam_distance_reverse()
+            .sort_by_material();
 
         // Sort the transparent queue
         render_q

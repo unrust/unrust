@@ -10,6 +10,7 @@ use std::rc::Rc;
 use std::cell::Cell;
 use std::f32::{MAX, MIN};
 use na::Vector3;
+use std::rc::Weak;
 
 trait IntoBytes {
     fn into_bytes(self) -> Vec<u8>;
@@ -35,6 +36,21 @@ struct MeshGLState {
     pub btb: Option<WebGLBuffer>,
 
     pub ib: WebGLBuffer,
+
+    pub gl: WebGLRenderingContext,
+}
+
+impl Drop for MeshGLState {
+    fn drop(&mut self) {
+        self.gl.delete_buffer(&self.vb);
+        self.uvb.as_ref().map(|b| self.gl.delete_buffer(&b));
+        self.nb.as_ref().map(|b| self.gl.delete_buffer(&b));
+        self.tb.as_ref().map(|b| self.gl.delete_buffer(&b));
+        self.btb.as_ref().map(|b| self.gl.delete_buffer(&b));
+        self.gl.delete_buffer(&self.ib);
+
+        self.gl.delete_vertex_array(&self.vao);
+    }
 }
 
 #[derive(Default, Debug)]
@@ -53,6 +69,8 @@ pub struct MeshBuffer {
     data: Resource<MeshData>,
     gl_state: RefCell<Option<MeshGLState>>,
     bounds: Cell<Option<MeshBound>>,
+
+    buffer_bound: RefCell<Weak<ShaderProgram>>,
 }
 
 impl Asset for MeshBuffer {
@@ -63,6 +81,7 @@ impl Asset for MeshBuffer {
             data: r,
             gl_state: Default::default(),
             bounds: Default::default(),
+            buffer_bound: RefCell::new(Weak::new()),
         })
     }
 }
@@ -149,7 +168,7 @@ impl MeshBuffer {
         }
     }
 
-    pub fn bind(&self, gl: &WebGLRenderingContext, program: &ShaderProgram) -> AssetResult<()> {
+    pub fn bind(&self, gl: &WebGLRenderingContext, program: &Rc<ShaderProgram>) -> AssetResult<()> {
         self.prepare(gl)?;
 
         let state_option = self.gl_state.borrow();
@@ -157,6 +176,14 @@ impl MeshBuffer {
 
         /*======= Associating shaders to buffer objects =======*/
         gl.bind_vertex_array(&state.vao);
+
+        if gl.is_webgl2 {
+            if let Some(p) = self.buffer_bound.borrow().upgrade() {
+                if Rc::ptr_eq(&p, &program) {
+                    return Ok(());
+                }
+            }
+        }
 
         // Bind vertex buffer object
         bind_buffer(
@@ -186,6 +213,8 @@ impl MeshBuffer {
         // Bind index buffer object
         gl.bind_buffer(BufferKind::ElementArray, &state.ib);
 
+        *self.buffer_bound.borrow_mut() = Rc::downgrade(program);
+
         Ok(())
     }
 
@@ -196,10 +225,12 @@ impl MeshBuffer {
         gl.draw_elements(Primitives::Triangles, data.indices.len(), DataType::U16, 0);
     }
 
-    pub fn unbind(&self, gl: &WebGLRenderingContext) {
-        let state_option = self.gl_state.borrow();
-        let state = state_option.as_ref().unwrap();
-        gl.unbind_vertex_array(&state.vao);
+    pub fn unbind(&self, _gl: &WebGLRenderingContext) {
+        //let state_option = self.gl_state.borrow();
+        //let state = state_option.as_ref().unwrap();
+
+        // Normally we do not need to unbind a vertex array
+        //gl.unbind_vertex_array(&state.vao);
     }
 }
 
@@ -264,5 +295,6 @@ fn mesh_bind_buffer(
         btb: bitangent_buffer,
 
         ib: index_buffer,
+        gl: gl.clone(),
     }
 }

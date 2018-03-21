@@ -236,7 +236,7 @@ fn texture_bind_buffer(
     let mut gl_tex_kind: webgl::TextureKind = webgl::TextureKind::Texture2d;
     let mut force_nearest_filtering = false;
 
-    let (tex, size) = match kind {
+    let (tex, size, has_midmap) = match kind {
         &TextureKind::Image(ref img_res) => {
             let teximg = img_res.try_into()?;
 
@@ -258,6 +258,8 @@ fn texture_bind_buffer(
                         PixelType::UnsignedByte,     // type
                         &*img,                       // data
                     );
+
+                    gl.generate_mipmap();
                 }
                 TextureImage::Rgb(img) => {
                     size = (img.width(), img.height());
@@ -270,10 +272,12 @@ fn texture_bind_buffer(
                         PixelType::UnsignedByte,     // type
                         &*img,                       // data
                     );
+
+                    gl.generate_mipmap();
                 }
             }
 
-            (tex, size)
+            (tex, size, true)
         }
         &TextureKind::CubeMap(ref img_res) => {
             let mut imgs = Vec::new();
@@ -332,8 +336,9 @@ fn texture_bind_buffer(
             }
 
             gl_tex_kind = webgl::TextureKind::TextureCubeMap;
+            gl.generate_mipmap_cube();
 
-            (tex, size)
+            (tex, size, true)
         }
 
         &TextureKind::RenderTexture { size, ref attach } => {
@@ -358,17 +363,35 @@ fn texture_bind_buffer(
                 &[],                         // data
             );
 
-            (tex, size)
+            (tex, size, false)
         }
     };
 
-    let mut filtering: i32 = match texfilter {
-        &TextureFiltering::Nearest => TextureMagFilter::Nearest as i32,
-        _ => TextureMagFilter::Linear as i32,
+    let mut filtering: (i32, i32) = match texfilter {
+        &TextureFiltering::Nearest => (
+            TextureMinFilter::Nearest as i32,
+            TextureMagFilter::Nearest as i32,
+        ),
+        _ => {
+            if has_midmap {
+                (
+                    TextureMinFilter::LinearMipmapLinear as i32,
+                    TextureMagFilter::Linear as i32,
+                )
+            } else {
+                (
+                    TextureMinFilter::Linear as i32,
+                    TextureMagFilter::Linear as i32,
+                )
+            }
+        }
     };
 
     if force_nearest_filtering {
-        filtering = TextureMagFilter::Nearest as i32;
+        filtering = (
+            TextureMinFilter::Nearest as i32,
+            TextureMagFilter::Nearest as i32,
+        )
     }
 
     let to_gl_wrap = |w: TextureWrap| match w {
@@ -377,8 +400,8 @@ fn texture_bind_buffer(
         TextureWrap::MirroredRepeat => webgl::TextureWrap::MirroredRepeat as i32,
     };
 
-    gl.tex_parameteri(gl_tex_kind, TextureParameter::TextureMagFilter, filtering);
-    gl.tex_parameteri(gl_tex_kind, TextureParameter::TextureMinFilter, filtering);
+    gl.tex_parameteri(gl_tex_kind, TextureParameter::TextureMinFilter, filtering.0);
+    gl.tex_parameteri(gl_tex_kind, TextureParameter::TextureMagFilter, filtering.1);
 
     gl.tex_parameteri(
         gl_tex_kind,

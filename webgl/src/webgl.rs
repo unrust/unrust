@@ -7,10 +7,10 @@ use common::*;
 
 pub type Reference = i32;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct GLContext {
     pub reference: Reference,
-    is_webgl2: bool,
+    pub is_webgl2: bool,
 }
 
 pub type WebGLContext<'a> = &'a CanvasElement;
@@ -140,6 +140,16 @@ impl GLContext {
         WebGLBuffer(value)
     }
 
+    pub fn delete_buffer(&self, buffer: &WebGLBuffer) {
+        self.log("delete_buffer");
+        js! {
+            @(no_return)
+            var ctx = Module.gl.get(@{self.reference});
+            var b = Module.gl.get(@{buffer.deref()});
+            ctx.deleteBuffer(b);
+        };
+    }
+
     pub fn buffer_data(&self, kind: BufferKind, data: &[u8], draw: DrawMode) {
         self.log("buffer_data");
 
@@ -234,6 +244,7 @@ impl GLContext {
     pub fn use_program(&self, program: &WebGLProgram) {
         self.log("use_program");
         js! {
+            @(no_return)
             var ctx = Module.gl.get(@{&self.reference});
             var h = Module.gl.get(@{program.deref()});
             ctx.useProgram(h.prog)
@@ -297,18 +308,18 @@ impl GLContext {
         offset: u32,
     ) {
         self.log("vertex_attribute_pointer");
-        let params = js! { return [@{location},@{size as u16},@{kind as i32},@{normalized}] };
         js! {
-            var p = @{params};
+            @(no_return)
             var ctx = Module.gl.get(@{&self.reference});
 
-            ctx.vertexAttribPointer(p[0],p[1],p[2],p[3],@{stride},@{offset});
+            ctx.vertexAttribPointer(@{location},@{size as u16},@{kind as i32},@{normalized},@{stride},@{offset});
         };
     }
 
     pub fn enable_vertex_attrib_array(&self, location: u32) {
         self.log("enabled_vertex_attrib_array");
         js! {
+            @(no_return)
             var ctx = Module.gl.get(@{&self.reference});
             ctx.enableVertexAttribArray(@{location})
         };
@@ -318,6 +329,7 @@ impl GLContext {
         self.log("clear_color");
 
         js! {
+            @(no_return)
             var p = [@{r},@{g},@{b},@{a}];
             var ctx = Module.gl.get(@{&self.reference});
             ctx.clearColor(p[0],p[1],p[2],p[3]);
@@ -327,6 +339,7 @@ impl GLContext {
     pub fn enable(&self, flag: i32) {
         self.log("enable");
         js! {
+            @(no_return)
             var ctx = Module.gl.get(@{&self.reference});
             ctx.enable(@{flag as i32});
         };
@@ -335,6 +348,7 @@ impl GLContext {
     pub fn disable(&self, flag: i32) {
         self.log("disable");
         js! {
+            @(no_return)
             var ctx = Module.gl.get(@{&self.reference});
             ctx.disable(@{flag as i32});
         };
@@ -343,6 +357,7 @@ impl GLContext {
     pub fn cull_face(&self, flag: Culling) {
         self.log("cull_face");
         js! {
+            @(no_return)
             var ctx = Module.gl.get(@{&self.reference});
             ctx.cullFace(@{flag as i32});
         };
@@ -352,6 +367,7 @@ impl GLContext {
         self.log("depth_mask");
 
         js! {
+            @(no_return)
             var ctx = Module.gl.get(@{&self.reference});
             ctx.depthMask(@{b});
         }
@@ -361,6 +377,7 @@ impl GLContext {
         self.log("depth_func");
 
         js! {
+            @(no_return)
             var ctx = Module.gl.get(@{&self.reference});
             ctx.depthFunc(@{d as i32});
         }
@@ -369,6 +386,7 @@ impl GLContext {
     pub fn clear(&self, bit: BufferBit) {
         self.log("clear");
         js! {
+            @(no_return)
             var ctx = Module.gl.get(@{&self.reference});
             ctx.clear(@{bit as i32})
         };
@@ -378,6 +396,7 @@ impl GLContext {
         self.log("viewport");
         let params = js! { return [@{x},@{y},@{width},@{height}] };
         js! {
+            @(no_return)
             var ctx = Module.gl.get(@{&self.reference});
             var p = @{params};
             ctx.viewport(p[0],p[1],p[2],p[3]);
@@ -395,6 +414,7 @@ impl GLContext {
     pub fn draw_arrays(&self, mode: Primitives, count: usize) {
         self.log("draw_arrays");
         js! {
+            @(no_return)
             var ctx = Module.gl.get(@{&self.reference});
             ctx.drawArrays(@{mode as i32},0,@{count as i32});
         };
@@ -403,8 +423,27 @@ impl GLContext {
     pub fn pixel_storei(&self, storage: PixelStorageMode, value: i32) {
         self.log("pixel_storei");
         js!{
+            @(no_return)
             var ctx = Module.gl.get(@{&self.reference});
             ctx.pixelStorei(@{storage as i32},@{value});
+        }
+    }
+
+    pub fn generate_mipmap(&self) {
+        self.log("generate_mipmap");
+        js! {
+            @(no_return)
+            var ctx = Module.gl.get(@{&self.reference});
+            ctx.generateMipmap(ctx.TEXTURE_2D);
+        }
+    }
+
+    pub fn generate_mipmap_cube(&self) {
+        self.log("generate_mipmap_cube");
+        js! {
+            @(no_return)
+            var ctx = Module.gl.get(@{&self.reference});
+            ctx.generateMipmap(ctx.TEXTURE_CUBE_MAP);
         }
     }
 
@@ -661,7 +700,7 @@ impl GLContext {
         let array = unsafe { mem::transmute::<&[[f32; 3]; 3], &[f32; 9]>(value) as &[f32] };
         js!{
             var ctx = Module.gl.get(@{self.reference});
-            var loc = Module.gl.get(@{location.deref()});
+            var loc = Module.gl.get(@{location.reference});
             ctx.uniformMatrix3fv(loc,false,@{&array})
         }
     }
@@ -671,40 +710,44 @@ impl GLContext {
         let array = unsafe { mem::transmute::<&[[f32; 2]; 2], &[f32; 4]>(value) as &[f32] };
         js!{
             var ctx = Module.gl.get(@{self.reference});
-            var loc = Module.gl.get(@{location.deref()});
+            var loc = Module.gl.get(@{location.reference});
             ctx.uniformMatrix2fv(loc,false,@{&array})
         }
     }
 
     pub fn uniform_1fv(&self, location: &WebGLUniformLocation, _count: usize, value: &[f32]) {
         js!{
+            @(no_return)
             var ctx = Module.gl.get(@{self.reference});
-            var loc = Module.gl.get(@{location.deref()});
+            var loc = Module.gl.get(@{location.reference});
             ctx.uniformMatrix1fv(loc,false,@{value})
         }
     }
 
     pub fn uniform_1i(&self, location: &WebGLUniformLocation, value: i32) {
         js!{
+            @(no_return)
             var ctx = Module.gl.get(@{self.reference});
-            var loc = Module.gl.get(@{location.deref()});
+            var loc = Module.gl.get(@{location.reference});
             ctx.uniform1i(loc,@{value})
         }
     }
 
     pub fn uniform_1f(&self, location: &WebGLUniformLocation, value: f32) {
         js!{
+            @(no_return)
             var ctx = Module.gl.get(@{self.reference});
-            var loc = Module.gl.get(@{location.deref()});
+            var loc = Module.gl.get(@{location.reference});
             ctx.uniform1f(loc,@{value});
         }
     }
 
     pub fn uniform_2f(&self, location: &WebGLUniformLocation, value: (f32, f32)) {
         js!{
+            @(no_return)
             var p = [@{value.0},@{value.1}];
             var ctx = Module.gl.get(@{self.reference});
-            var loc = Module.gl.get(@{location.deref()});
+            var loc = Module.gl.get(@{location.reference});
 
             ctx.uniform2f(loc,p[0],p[1])
         }
@@ -712,9 +755,10 @@ impl GLContext {
 
     pub fn uniform_3f(&self, location: &WebGLUniformLocation, value: (f32, f32, f32)) {
         js!{
+            @(no_return)
             var p = [@{value.0},@{value.1},@{value.2}];
             var ctx = Module.gl.get(@{self.reference});
-            var loc = Module.gl.get(@{location.deref()});
+            var loc = Module.gl.get(@{location.reference});
 
             ctx.uniform3f(loc,p[0],p[1],p[2])
         }
@@ -722,9 +766,10 @@ impl GLContext {
 
     pub fn uniform_4f(&self, location: &WebGLUniformLocation, value: (f32, f32, f32, f32)) {
         js!{
+            @(no_return)
             var p = [@{value.0},@{value.1},@{value.2},@{value.3}];
             var ctx = Module.gl.get(@{self.reference});
-            var loc = Module.gl.get(@{location.deref()});
+            var loc = Module.gl.get(@{location.reference});
 
             ctx.uniform4f(loc,p[0],p[1],p[2],p[3])
         }
@@ -743,23 +788,36 @@ impl GLContext {
         WebGLVertexArray(val.try_into().unwrap())
     }
 
+    pub fn delete_vertex_array(&self, vao: &WebGLVertexArray) {
+        self.log("delete_vertex_array");
+        js! {
+            @(no_return)
+            var ctx = Module.gl.get(@{self.reference});
+            if (ctx.deleteVertexArray) {
+                var vao = Module.gl.get(@{vao.0});
+                ctx.deleteVertexArray(vao);
+            }
+        };
+    }
+
     pub fn bind_vertex_array(&self, vao: &WebGLVertexArray) {
         self.log("bind_vertex_array");
-        js! {
-            var ctx = Module.gl.get(@{self.reference});
+        js_raw!({
+            var ctx = Module.gl.get(@{0});
             if (ctx.bindVertexArray) {
-                var vao = Module.gl.get(@{vao.deref()});
+                var vao = Module.gl.get(@{1});
                 ctx.bindVertexArray(vao);
             }
-        }
+        }, [self.reference, vao.0] );
     }
 
     pub fn unbind_vertex_array(&self, vao: &WebGLVertexArray) {
         self.log("unbind_vertex_array");
         js! {
+            @(no_return)
             var ctx = Module.gl.get(@{self.reference});
             if (ctx.unbindVertexArray) {
-                var vao = Module.gl.get(@{vao.deref()});
+                var vao = Module.gl.get(@{vao.0});
                 ctx.unbindVertexArray(vao);
             }
         }

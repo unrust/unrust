@@ -64,6 +64,7 @@ impl Default for DepthTest {
 #[derive(Copy, Clone, Eq, PartialEq, Default)]
 pub struct MaterialState {
     pub cull: Option<CullMode>,
+    pub alpha_blending: Option<bool>,
     pub depth_write: Option<bool>,
     pub depth_test: Option<DepthTest>,
 }

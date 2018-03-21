@@ -105,55 +105,56 @@ impl UniformAdapter {
     }
 }
 
+#[derive(Debug)]
+struct UniformAdapterEntry {
+    adapter: UniformAdapter,
+    commited: bool,
+}
+
 #[derive(Default, Debug)]
 pub struct UniformCache {
-    pending_uniforms: RefCell<HashMap<String, UniformAdapter>>,
-    committed_unforms: RefCell<HashMap<String, UniformAdapter>>,
+    uniform_entries: RefCell<HashMap<String, UniformAdapterEntry>>,
     uniform_map: RefCell<HashMap<String, Option<Rc<WebGLUniformLocation>>>>,
 }
 
 impl UniformCache {
-    // pub fn clear(&self) {
-    //     self.committed_unforms.borrow_mut().clear();
-    // }
-
     pub fn set<T>(&self, s: &str, data: T)
     where
         T: Into<UniformAdapter>,
     {
-        let mut unis = self.pending_uniforms.borrow_mut();
-        let mut commited = self.committed_unforms.borrow_mut();
+        let mut entries = self.uniform_entries.borrow_mut();
         let adapter = data.into();
 
-        // Check if the data is committed
-        if let Some(c) = commited.get(s) {
-            if *c == adapter {
-                return;
-            }
-
-            commited.remove(s.into());
-        }
-
-        unis.insert(s.into(), adapter);
+        entries
+            .entry(s.to_owned())
+            .and_modify(|e| {
+                if e.adapter != adapter {
+                    *e = UniformAdapterEntry {
+                        adapter: adapter.clone(),
+                        commited: false,
+                    };
+                }
+            })
+            .or_insert_with(|| UniformAdapterEntry {
+                adapter: adapter,
+                commited: false,
+            });
     }
 
     pub fn commit(&self, gl: &WebGLRenderingContext, prog: &WebGLProgram) {
         {
-            let unis = self.pending_uniforms.borrow();
-            let mut commited = self.committed_unforms.borrow_mut();
+            let mut entries = self.uniform_entries.borrow_mut();
 
-            for (s, data) in &*unis {
-                if !commited.contains_key(s) {
-                    if let Some(u) = self.get_uniform(gl, prog, s) {
-                        data.set(gl, &u);
+            for (key, entry) in entries.iter_mut() {
+                if !entry.commited {
+                    if let Some(u) = self.get_uniform(gl, prog, key) {
+                        entry.adapter.set(gl, &u);
                     }
 
-                    commited.insert(s.clone(), data.clone());
+                    entry.commited = true;
                 }
             }
         }
-
-        self.pending_uniforms.borrow_mut().clear();
     }
 
     fn get_uniform(

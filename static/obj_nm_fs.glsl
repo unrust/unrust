@@ -102,9 +102,10 @@ void main(void) {
     for(int i = 0; i < UNI_POINT_LIGHTS; i++)
         result += CalcPointLight(uPointLights[i], vPointLightDirsTgt[i], norm, vFragPos, vViewDirTgt, color);
 
-    // float gamma = 2.2;    
-    // gl_FragColor = vec4(pow(result, vec3(1.0/gamma)), uMaterial.transparent);           
+    //float gamma = 2.2;    
+    //gl_FragColor = vec4(pow(result, vec3(1.0/gamma)), uMaterial.transparent);           
     gl_FragColor = vec4(result, uMaterial.transparent * texture2D(uMaterial.mask_tex, vTexCoords).r );           
+    //gl_FragColor = vec4(color.ambient * color.diffuse * color.specular * norm,  texture2D(uMaterial.mask_tex, vTexCoords).r);
 }
 
 vec3 CalcDirectionalLight(DirectionalLight light, vec3 lightDirTgt, vec3 normal, vec3 viewDir, MaterialColor color)

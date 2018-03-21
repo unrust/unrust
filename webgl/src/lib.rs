@@ -36,7 +36,7 @@ pub mod common {
     type Reference = super::webgl::Reference;
     type GLContext = super::webgl::GLContext;
 
-    #[derive(Debug)]
+    #[derive(Debug, Clone)]
     pub struct WebGLRenderingContext {
         pub common: GLContext,
     }

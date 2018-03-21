@@ -5,7 +5,7 @@ use engine::render::{CullMode, DepthTest, Material, MaterialState, MeshBuffer, S
 use std::collections::VecDeque;
 use engine::core::Component;
 use engine::engine::EngineStats;
-use webgl::{Culling, WebGLRenderingContext};
+use webgl::{Culling, Flag, WebGLRenderingContext};
 use webgl;
 use engine::asset::AssetResult;
 
@@ -39,6 +39,7 @@ impl StateCache {
         self.curr = MaterialState {
             cull: Some(CullMode::Back),
             depth_test: Some(DepthTest::Less),
+            alpha_blending: Some(false),
             depth_write: Some(true),
         }
     }
@@ -47,12 +48,17 @@ impl StateCache {
         ms.cull.map(|s| self.curr.cull = Some(s));
         ms.depth_test.map(|s| self.curr.depth_test = Some(s));
         ms.depth_write.map(|s| self.curr.depth_write = Some(s));
+        ms.alpha_blending
+            .map(|s| self.curr.alpha_blending = Some(s));
     }
 
     pub fn commit(&mut self, gl: &WebGLRenderingContext) {
         self.curr.cull.map(|s| self.apply_cull(gl, &s));
         self.curr.depth_test.map(|s| self.apply_depth_test(gl, &s));
         self.curr.depth_write.map(|s| self.apply_depth_write(gl, s));
+        self.curr
+            .alpha_blending
+            .map(|s| self.apply_alpha_blending(gl, s));
     }
 
     fn apply_depth_write(&mut self, gl: &WebGLRenderingContext, b: bool) {
@@ -64,6 +70,22 @@ impl StateCache {
 
         gl.depth_mask(b);
         self.state.depth_write = Some(b);
+    }
+
+    fn apply_alpha_blending(&mut self, gl: &WebGLRenderingContext, b: bool) {
+        if let Some(curr_b) = self.state.alpha_blending {
+            if curr_b == b {
+                return;
+            }
+        }
+
+        if b {
+            gl.enable(Flag::Blend as i32);
+        } else {
+            gl.disable(Flag::Blend as i32);
+        }
+
+        self.state.alpha_blending = Some(b);
     }
 
     fn apply_depth_test(&mut self, gl: &WebGLRenderingContext, ct: &DepthTest) {

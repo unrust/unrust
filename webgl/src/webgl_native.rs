@@ -11,9 +11,10 @@ use std::str;
 
 pub type Reference = u32;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct GLContext {
     pub reference: Reference,
+    pub is_webgl2: bool,
 }
 
 pub fn check_gl_error(msg: &str) {
@@ -70,7 +71,10 @@ impl GLContext {
             get_string(gl::SHADING_LANGUAGE_VERSION)
         );
         println!("vendor {}", get_string(gl::VENDOR));
-        GLContext { reference: 0 }
+        GLContext {
+            reference: 0,
+            is_webgl2: true,
+        }
     }
 
     pub fn print<T: Into<String>>(msg: T) {
@@ -84,6 +88,13 @@ impl GLContext {
         }
         check_gl_error("create_buffer");
         buffer
+    }
+
+    pub fn delete_buffer(&self, buffer: &WebGLBuffer) {
+        unsafe {
+            gl::DeleteBuffers(1, &buffer.0);
+        }
+        check_gl_error("delete_buffer");
     }
 
     pub fn bind_buffer(&self, kind: BufferKind, buffer: &WebGLBuffer) {
@@ -517,6 +528,22 @@ impl GLContext {
         }
     }
 
+    pub fn generate_mipmap(&self) {
+        unsafe {
+            gl::GenerateMipmap(gl::TEXTURE_2D);
+        }
+
+        check_gl_error("generate_mipmap");
+    }
+
+    pub fn generate_mipmap_cube(&self) {
+        unsafe {
+            gl::GenerateMipmap(gl::TEXTURE_CUBE_MAP);
+        }
+
+        check_gl_error("generate_mipmap");
+    }
+
     pub fn active_texture(&self, active: u32) {
         unsafe {
             gl::ActiveTexture(gl::TEXTURE0 + active);
@@ -661,6 +688,13 @@ impl GLContext {
         vao
     }
 
+    pub fn delete_vertex_array(&self, vao: &WebGLVertexArray) {
+        unsafe {
+            gl::DeleteVertexArrays(1, &vao.0);
+        }
+        check_gl_error("delete_vertex_array");
+    }
+
     pub fn bind_vertex_array(&self, vao: &WebGLVertexArray) {
         unsafe {
             gl::BindVertexArray(vao.0);
@@ -668,9 +702,9 @@ impl GLContext {
         check_gl_error("bind_vertex_array");
     }
 
-    pub fn unbind_vertex_array(&self, vao: &WebGLVertexArray) {
+    pub fn unbind_vertex_array(&self, _vao: &WebGLVertexArray) {
         unsafe {
-            gl::BindVertexArray(vao.0);
+            gl::BindVertexArray(0);
         }
         check_gl_error("unbind_vertex_array");
     }

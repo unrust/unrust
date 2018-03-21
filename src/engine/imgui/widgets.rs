@@ -255,7 +255,7 @@ impl Widget for Label {
                 &self.state.pivot,
                 &ssize,
                 hidpi,
-                mesh.bounds().unwrap(),
+                mesh.bounds().unwrap().local_aabb(),
             ));
             gomut.transform.set_global(gtran);
 
@@ -345,7 +345,7 @@ impl Widget for Image {
                 &self.pivot,
                 &ssize,
                 hidpi,
-                mesh.bounds().unwrap(),
+                mesh.bounds().unwrap().local_aabb(),
             ));
             gomut.transform.set_global(gtrans);
 

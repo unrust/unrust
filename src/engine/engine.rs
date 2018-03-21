@@ -10,11 +10,12 @@ use engine::core::{Component, ComponentBased, GameObject, SceneTree};
 use engine::render::Camera;
 use engine::render::{DepthTest, Directional, Light, Material, MaterialState, Mesh, MeshSurface,
                      ShaderProgram};
-use engine::render::RenderQueue;
+use engine::render::{Frustum, RenderQueue};
 use engine::asset::{AssetError, AssetResult, AssetSystem};
 use engine::context::EngineContext;
 
 use std::default::Default;
+use alga::linear::Transformation;
 
 use super::imgui;
 
@@ -160,6 +161,10 @@ impl Default for ClearOption {
             clear_stencil: false,
         }
     }
+}
+
+fn get_max_scale(s: &Vector3<f32>) -> f32 {
+    s[0].max(s[1]).max(s[2])
 }
 
 impl<A> Engine<A>
@@ -417,6 +422,7 @@ where
         &self,
         object: &GameObject,
         cam_pos: &Vector3<f32>,
+        frustum: &Frustum,
         render_q: &mut RenderQueueList,
     ) {
         if !object.active {
@@ -427,6 +433,26 @@ where
 
         if let Some((mesh, _)) = result {
             for surface in mesh.surfaces.iter() {
+                let m = compute_model_m(&*object);
+
+                match surface.material.render_queue {
+                    RenderQueue::Skybox | RenderQueue::UI => (),
+                    _ => {
+                        let bounds = surface.buffer.bounds();
+                        if bounds.is_none() {
+                            continue;
+                        }
+
+                        let p = m.transform_point(&Point3::new(0.0, 0.0, 0.0));
+                        let scale = get_max_scale(&object.transform.local_scale());
+                        let scaled_r = bounds.unwrap().r * scale;
+
+                        if !frustum.collide_sphere(&p.coords, scaled_r) {
+                            continue;
+                        }
+                    }
+                }
+
                 let q = render_q.get_mut(&surface.material.render_queue).unwrap();
 
                 let cam_dist =
@@ -434,7 +460,7 @@ where
 
                 q.commands.push(RenderCommand {
                     surface: surface.clone(),
-                    model_m: compute_model_m(&*object),
+                    model_m: m,
                     cam_distance: cam_dist,
                 })
             }
@@ -472,11 +498,13 @@ where
 
         let mut render_q = RenderQueueList::new();
 
+        let frustum = camera.calc_frustum(self.screen_size);
+
         // gather commands
         for obj in objects.iter() {
             obj.upgrade().map(|obj| {
                 if let Ok(object) = obj.try_borrow() {
-                    self.gather_render_commands(&object, &camera.eye(), &mut render_q)
+                    self.gather_render_commands(&object, &camera.eye(), &frustum, &mut render_q)
                 }
             });
         }

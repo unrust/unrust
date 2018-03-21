@@ -20,7 +20,7 @@ pub enum RenderQueue {
 
 pub mod mesh_util;
 
-pub use self::camera::Camera;
+pub use self::camera::{Camera, Frustum};
 pub use self::shader::{ShaderFs, ShaderKind, ShaderVs};
 pub use self::shader_program::ShaderProgram;
 pub use self::texture::{Texture, TextureAsset, TextureAttachment, TextureFiltering, TextureImage,

@@ -3,9 +3,11 @@ use std::mem::size_of;
 
 use super::ShaderProgram;
 use engine::asset::{Asset, AssetResult, AssetSystem, FileFuture, LoadableAsset, Resource};
+use engine::render::mesh::MeshBound;
 
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::cell::Cell;
 use std::f32::{MAX, MIN};
 use na::Vector3;
 
@@ -50,7 +52,7 @@ pub struct MeshData {
 pub struct MeshBuffer {
     data: Resource<MeshData>,
     gl_state: RefCell<Option<MeshGLState>>,
-    bounds: RefCell<Option<(Vector3<f32>, Vector3<f32>)>>,
+    bounds: Cell<Option<MeshBound>>,
 }
 
 impl Asset for MeshBuffer {
@@ -114,29 +116,35 @@ impl MeshBuffer {
         Ok(())
     }
 
-    fn compute_bounds(&self) -> Option<(Vector3<f32>, Vector3<f32>)> {
+    fn compute_bounds(&self) -> Option<MeshBound> {
         let mut min = Vector3::new(MAX, MAX, MAX);
         let mut max = Vector3::new(MIN, MIN, MIN);
+        let mut r: f32 = 0.0;
 
         let data = self.data.try_borrow().ok()?;
 
         for (i, v) in data.vertices.iter().enumerate() {
             min[i % 3] = v.min(min[i % 3]);
             max[i % 3] = v.max(max[i % 3]);
+
+            if i % 3 == 0 {
+                let d = Vector3::from_row_slice(&data.vertices[i..i + 3]).norm();
+                r = r.max(d);
+            }
         }
 
-        Some((min, max))
+        Some(MeshBound { min, max, r })
     }
 
     /// bounds return (vmin, vmax)
-    pub fn bounds(&self) -> Option<(Vector3<f32>, Vector3<f32>)> {
-        let mut bounds = self.bounds.borrow_mut();
+    pub fn bounds(&self) -> Option<MeshBound> {
+        let bounds = self.bounds.get();
 
-        match *bounds {
-            Some(ref k) => Some(*k),
+        match bounds {
+            r @ Some(_) => r,
             None => {
-                *bounds = self.compute_bounds();
-                *bounds
+                self.bounds.set(self.compute_bounds());
+                self.bounds.get()
             }
         }
     }

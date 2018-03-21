@@ -181,6 +181,12 @@ impl Transform {
         local.scale = s;
         tree.set_local_transform(self.node_id, local);
     }
+
+    pub fn local_scale(&self) -> Vector3<f32> {
+        let tree = self.tree.upgrade().unwrap();
+        let local = tree.get_local_transform(self.node_id);
+        local.scale
+    }
 }
 
 pub struct GameObject {

@@ -15,6 +15,9 @@ extern crate uni_app;
 extern crate uni_glsl;
 extern crate webgl;
 
+#[macro_use]
+extern crate bitflags;
+
 // reexport
 pub extern crate nalgebra as na;
 pub extern crate ncollide;

@@ -1,15 +1,17 @@
 extern crate unrust;
 
 use unrust::world::{Actor, World, WorldBuilder};
-use unrust::engine::{Camera, Directional, GameObject, Light, Material, Mesh};
+use unrust::engine::{Directional, GameObject, Light, Material, Mesh};
 use unrust::world::events::*;
 use unrust::math::*;
+use unrust::actors::FirstPersonCamera;
 
 // GUI
 use unrust::imgui;
 
 pub struct MainScene {
     eye: Vector3<f32>,
+    target: Vector3<f32>,
     last_event: Option<AppEvent>,
 }
 
@@ -18,7 +20,8 @@ pub struct MainScene {
 impl MainScene {
     fn new() -> Box<Actor> {
         Box::new(MainScene {
-            eye: Vector3::new(-3.0, 3.0, -3.0),
+            eye: Vector3::new(0.0, 0.0, -3.0),
+            target: Vector3::new(0.0, 0.0, 0.0),
             last_event: None,
         })
     }
@@ -26,12 +29,6 @@ impl MainScene {
 
 impl Actor for MainScene {
     fn start(&mut self, _go: &mut GameObject, world: &mut World) {
-        // add main camera to scene
-        {
-            let go = world.new_game_object();
-            go.borrow_mut().add_component(Camera::default());
-        }
-
         // add direction light to scene.
         {
             let go = world.new_game_object();
@@ -44,14 +41,22 @@ impl Actor for MainScene {
             let go = world.new_game_object();
             go.borrow_mut().add_component(Cube::new());
         }
+
+        // Setup camera
+        {
+            let fpc = world.find_component::<FirstPersonCamera>().unwrap();
+            fpc.borrow_mut().eye = Vector3::new(0.0, 0.0, -9.0);
+            fpc.borrow_mut().update_camera();
+        }
     }
 
     fn update(&mut self, _go: &mut GameObject, world: &mut World) {
         // Handle Events
         {
-            let target = Vector3::new(0.0, 0.0, 0.0);
-            let front = (self.eye - target).normalize();
+            let front = (self.eye - self.target).normalize();
             let up = Vector3::y();
+            let right = front.cross(&up).normalize();
+            let speed = 0.2;
 
             let mut reset = false;
 
@@ -60,8 +65,8 @@ impl Actor for MainScene {
                 match evt {
                     &AppEvent::KeyDown(ref key) => {
                         match key.code.as_str() {
-                            "KeyA" => self.eye = Rotation3::new(up * -0.02) * self.eye,
-                            "KeyD" => self.eye = Rotation3::new(up * 0.02) * self.eye,
+                            "KeyA" => self.eye = self.eye + right * speed,
+                            "KeyD" => self.eye = self.eye - right * speed,
                             "KeyW" => self.eye -= front * 2.0,
                             "KeyS" => self.eye += front * 2.0,
                             "Escape" => reset = true,
@@ -72,6 +77,8 @@ impl Actor for MainScene {
                     _ => (),
                 }
             }
+
+            self.target = self.eye + Vector3::new(0.0, 0.0, 3.0);
 
             if reset {
                 world.reset();
@@ -84,23 +91,13 @@ impl Actor for MainScene {
             }
         }
 
-        // Update Camera
-        {
-            let cam = world.current_camera().unwrap();
-            cam.borrow_mut().lookat(
-                &Point3::from_coordinates(self.eye),
-                &Point3::new(0.0, 0.0, 0.0),
-                &Vector3::new(0.0, 1.0, 0.0),
-            );
-        }
-
         // GUI
         use imgui::Metric::*;
 
         imgui::pivot((1.0, 1.0));
         imgui::label(
             Native(1.0, 1.0) - Pixel(8.0, 8.0),
-            "[WASD] : control camera\n[Esc]  : reload all (include assets)",
+            "[WASD ZXEC] : control camera\n[Esc] : reload all (include assets)",
         );
 
         imgui::pivot((1.0, 0.0));
@@ -143,6 +140,7 @@ pub fn main() {
     let mut world = WorldBuilder::new("Basic demo")
         .with_size((640, 480))
         .with_stats(true)
+        .with_processor::<FirstPersonCamera>()  // Use first person camera
         .build();
 
     // Add the main scene as component of scene game object

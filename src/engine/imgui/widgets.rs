@@ -2,6 +2,7 @@ use engine::core::GameObject;
 use engine::render::{Material, Mesh};
 use engine::engine::IEngine;
 use engine::render::Texture;
+use engine::core::Aabb;
 
 use super::{Metric, TextAlign};
 use super::internal::ImguiState;
@@ -15,7 +16,7 @@ use std::cell::RefCell;
 use std::any::Any;
 use std::cmp;
 
-use na::{Translation3, Vector3};
+use na::Translation3;
 
 pub trait Widget: Debug {
     fn id(&self) -> u32;
@@ -175,10 +176,10 @@ fn compute_translate(
     pivot: &Metric,
     ssize: &(u32, u32),
     hidpi: f32,
-    bounds: (Vector3<f32>, Vector3<f32>),
+    bounds: &Aabb,
 ) -> Translation3<f32> {
-    let w = bounds.1.x - bounds.0.x;
-    let h = bounds.1.y - bounds.0.y;
+    let w = bounds.max.x - bounds.min.x;
+    let h = bounds.max.y - bounds.min.y;
 
     let (x, y) = match pos {
         &Metric::Native(px, py) => (px * 2.0, py * 2.0),
@@ -255,7 +256,7 @@ impl Widget for Label {
                 &self.state.pivot,
                 &ssize,
                 hidpi,
-                mesh.bounds().unwrap().local_aabb(),
+                &mesh.bounds().unwrap().local_aabb(),
             ));
             gomut.transform.set_global(gtran);
 
@@ -345,7 +346,7 @@ impl Widget for Image {
                 &self.pivot,
                 &ssize,
                 hidpi,
-                mesh.bounds().unwrap().local_aabb(),
+                &mesh.bounds().unwrap().local_aabb(),
             ));
             gomut.transform.set_global(gtrans);
 

@@ -4,6 +4,7 @@ use std::mem::size_of;
 use super::ShaderProgram;
 use engine::asset::{Asset, AssetResult, AssetSystem, FileFuture, LoadableAsset, Resource};
 use engine::render::mesh::MeshBound;
+use engine::core::Aabb;
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -152,7 +153,10 @@ impl MeshBuffer {
             }
         }
 
-        Some(MeshBound { min, max, r })
+        Some(MeshBound {
+            aabb: Aabb { min, max },
+            r,
+        })
     }
 
     /// bounds return (vmin, vmax)

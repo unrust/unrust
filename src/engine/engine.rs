@@ -2,7 +2,7 @@ use webgl::*;
 use na::*;
 use std::rc::{Rc, Weak};
 use std::cell::RefCell;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::Arc;
 use std::ops::{Deref, DerefMut};
 
@@ -15,7 +15,6 @@ use engine::asset::{AssetError, AssetResult, AssetSystem};
 use engine::context::EngineContext;
 
 use std::default::Default;
-use alga::linear::Transformation;
 
 use super::imgui;
 
@@ -448,36 +447,45 @@ where
         &self,
         object: &GameObject,
         cam_pos: &Vector3<f32>,
-        frustum: &Frustum,
+        frustum: &Option<Frustum>,
         render_q: &mut RenderQueueList,
+        included_render_queues: &Option<BTreeSet<RenderQueue>>,
     ) {
         if !object.active {
             return;
         }
 
         let result = object.find_component::<Mesh>();
-
         if let Some((mesh, _)) = result {
             for surface in mesh.surfaces.iter() {
                 let m = compute_model_m(&*object);
 
+                if let &Some(ref included) = included_render_queues {
+                    if included.get(&surface.material.render_queue).is_none() {
+                        continue;
+                    }
+                }
+
                 // TODO: should use a material flag to skip
-                match surface.material.render_queue {
-                    RenderQueue::Skybox | RenderQueue::UI => (),
-                    _ => {
-                        let bounds = surface.buffer.bounds();
-                        if bounds.is_none() {
-                            continue;
-                        }
+                if let &Some(ref frustum) = frustum {
+                    match surface.material.render_queue {
+                        RenderQueue::Skybox | RenderQueue::UI => (),
+                        _ => {
+                            let bounds = surface.buffer.bounds();
+                            if bounds.is_none() {
+                                continue;
+                            }
 
-                        let p = m.transform_point(&Point3::new(0.0, 0.0, 0.0));
+                            use math;
+                            let p = math::transform_point(&m, &Point3::new(0.0, 0.0, 0.0));
 
-                        // TODO: local scale only ?? should be using global scale??
-                        let scale = get_max_scale(&object.transform.local_scale());
-                        let scaled_r = bounds.unwrap().r * scale;
+                            // TODO: local scale only ?? should be using global scale??
+                            let scale = get_max_scale(&object.transform.local_scale());
+                            let scaled_r = bounds.unwrap().r * scale;
 
-                        if !frustum.collide_sphere(&p.coords, scaled_r) {
-                            continue;
+                            if !frustum.collide_sphere(&p.coords, scaled_r) {
+                                continue;
+                            }
                         }
                     }
                 }
@@ -527,13 +535,23 @@ where
 
         let mut render_q = RenderQueueList::new();
 
-        let frustum = camera.calc_frustum(self.screen_size);
+        let frustum = if camera.enable_frustum_culling {
+            Some(camera.calc_frustum(self.screen_size))
+        } else {
+            None
+        };
 
         // gather commands
         for obj in objects.iter() {
             obj.upgrade().map(|obj| {
                 if let Ok(object) = obj.try_borrow() {
-                    self.gather_render_commands(&object, &camera.eye(), &frustum, &mut render_q)
+                    self.gather_render_commands(
+                        &object,
+                        &camera.eye(),
+                        &frustum,
+                        &mut render_q,
+                        &camera.included_render_queues,
+                    )
                 }
             });
         }

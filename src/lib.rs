@@ -33,6 +33,11 @@ pub mod actors;
 pub mod math {
     pub use na::{Isometry3, Matrix4, Point3, Rotation3, Translation3, UnitQuaternion, Vector2,
                  Vector3};
+    pub use engine::Aabb;
+
+    pub fn transform_point(m: &Matrix4<f32>, p: &Point3<f32>) -> Point3<f32> {
+        Point3::from_homogeneous(m * p.to_homogeneous()).unwrap()
+    }
 }
 
 pub use engine::imgui;

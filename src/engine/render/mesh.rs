@@ -2,40 +2,28 @@ use engine::core::ComponentBased;
 use std::rc::Rc;
 use std::cell::Cell;
 use engine::render::{Material, MeshBuffer};
-
-use na::Vector3;
+use engine::core::Aabb;
 
 #[derive(Copy, Clone)]
 pub struct MeshBound {
-    pub min: Vector3<f32>,
-    pub max: Vector3<f32>,
+    pub aabb: Aabb,
     pub r: f32,
 }
 
 impl MeshBound {
     pub fn empty() -> MeshBound {
-        use std::f32::{MAX, MIN};
-
         MeshBound {
-            min: Vector3::new(MAX, MAX, MAX),
-            max: Vector3::new(MIN, MIN, MIN),
+            aabb: Aabb::empty(),
             r: 0.0,
         }
     }
 
-    pub fn local_aabb(&self) -> (Vector3<f32>, Vector3<f32>) {
-        (self.min, self.max)
+    pub fn local_aabb(&self) -> Aabb {
+        self.aabb
     }
 
     pub fn merge(&mut self, other: &Self) {
-        self.min[0] = self.min[0].min(other.min[0]);
-        self.min[1] = self.min[1].min(other.min[1]);
-        self.min[2] = self.min[2].min(other.min[2]);
-
-        self.max[0] = self.max[0].max(other.max[0]);
-        self.max[1] = self.max[1].max(other.max[1]);
-        self.max[2] = self.max[2].max(other.max[2]);
-
+        self.aabb.merge(&other.aabb);
         self.r = self.r.max(other.r);
     }
 }

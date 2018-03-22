@@ -1,7 +1,8 @@
 use na::{Matrix4, Point3, Vector3};
 use std::rc::Rc;
-use engine::render::RenderTexture;
+use engine::render::{RenderQueue, RenderTexture};
 use engine::core::ComponentBased;
+use std::collections::BTreeSet;
 
 pub struct Plane {
     n: Vector3<f32>,
@@ -38,11 +39,15 @@ impl Frustum {
 pub struct Camera {
     pub v: Matrix4<f32>,
 
+    pub enable_frustum_culling: bool,
+
     /// Optional viewport of this camera,  (pos, size) in pixels
     /// from 0 (left/top) to screen width/height (right/bottom)
     pub rect: Option<((i32, i32), (u32, u32))>,
     pub znear: f32,
     pub zfar: f32,
+
+    pub included_render_queues: Option<BTreeSet<RenderQueue>>,
 
     eye: Point3<f32>,
 
@@ -71,30 +76,34 @@ fn extract_right(m: &Matrix4<f32>) -> Vector3<f32> {
 impl ComponentBased for Camera {}
 
 impl Camera {
+    pub fn forward(&self) -> Vector3<f32> {
+        extract_forward(&self.v)
+    }
+
     pub fn lookat(&mut self, eye: &Point3<f32>, target: &Point3<f32>, up: &Vector3<f32>) {
         self.v = Matrix4::look_at_rh(eye, target, up);
         self.eye = *eye;
 
-        let g_forward = extract_forward(&self.v);
-        let forward = (target - eye).normalize();
-        debug_assert!(
-            (forward.dot(&g_forward) - 1.0).abs() < 0.001,
-            format!("forwards: {:?}, {:?} {:?}", forward, g_forward, self.v)
-        );
+        // let g_forward = extract_forward(&self.v);
+        // let forward = (target - eye).normalize();
+        // debug_assert!(
+        //     (forward.dot(&g_forward) - 1.0).abs() < 0.001,
+        //     format!("forwards: {:?}, {:?} {:?}", forward, g_forward, self.v)
+        // );
 
-        let g_right = extract_right(&self.v);
-        let right = forward.cross(&up).normalize();
-        debug_assert!(
-            (right.dot(&g_right) - 1.0).abs() < 0.001,
-            format!("rights: {:?}, {:?} {:?}", right, g_right, self.v)
-        );
+        // let g_right = extract_right(&self.v);
+        // let right = forward.cross(&up).normalize();
+        // debug_assert!(
+        //     (right.dot(&g_right) - 1.0).abs() < 0.001,
+        //     format!("rights: {:?}, {:?} {:?}", right, g_right, self.v)
+        // );
 
-        let g_up = extract_up(&self.v);
-        let up = right.cross(&forward).normalize();
-        debug_assert!(
-            (up.dot(&g_up) - 1.0).abs() < 0.001,
-            format!("ups: {:?}, {:?} {:?}", up, g_up, self.v)
-        );
+        // let g_up = extract_up(&self.v);
+        // let up = right.cross(&forward).normalize();
+        // debug_assert!(
+        //     (up.dot(&g_up) - 1.0).abs() < 0.001,
+        //     format!("ups: {:?}, {:?} {:?}", up, g_up, self.v)
+        // );
     }
 
     fn calc_aspect(&self, screen_size: (u32, u32)) -> f32 {
@@ -120,6 +129,8 @@ impl Camera {
             rect: None,
             znear: 0.03,
             zfar: 1000.0,
+            enable_frustum_culling: true,
+            included_render_queues: None,
             render_texture: None,
         }
     }

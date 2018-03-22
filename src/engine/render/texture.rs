@@ -289,10 +289,10 @@ fn texture_bind_buffer(
                         TextureCompression::RgbDxt1
                     };
 
-                    for (i, img) in dds.images.iter().enumerate() {
+                    for (lvl, img) in dds.images.iter().enumerate() {
                         gl.compressed_tex_image2d(
                             TextureBindPoint::Texture2d,
-                            i as u8,
+                            lvl as u8,
                             format,
                             img.width as u16,
                             img.height as u16,
@@ -306,10 +306,10 @@ fn texture_bind_buffer(
                 TextureImage::DXT5(dds) => {
                     size = (dds.images[0].width, dds.images[0].height);
 
-                    for (i, img) in dds.images.iter().enumerate() {
+                    for (lvl, img) in dds.images.iter().enumerate() {
                         gl.compressed_tex_image2d(
                             TextureBindPoint::Texture2d,
-                            i as u8,
+                            lvl as u8,
                             TextureCompression::RgbaDxt5,
                             img.width as u16,
                             img.height as u16,
@@ -385,10 +385,10 @@ fn texture_bind_buffer(
                     &TextureImage::DXT1(ref dds) => {
                         size = (dds.images[0].width, dds.images[0].height);
 
-                        for (i, img) in dds.images.iter().enumerate() {
+                        for (lvl, img) in dds.images.iter().enumerate() {
                             gl.compressed_tex_image2d(
                                 bindpoints[i],
-                                i as u8,
+                                lvl as u8,
                                 TextureCompression::RgbaDxt1,
                                 img.width as u16,
                                 img.height as u16,
@@ -402,10 +402,10 @@ fn texture_bind_buffer(
                     &TextureImage::DXT5(ref dds) => {
                         size = (dds.images[0].width, dds.images[0].height);
 
-                        for (i, img) in dds.images.iter().enumerate() {
+                        for (lvl, img) in dds.images.iter().enumerate() {
                             gl.compressed_tex_image2d(
                                 bindpoints[i],
-                                i as u8,
+                                lvl as u8,
                                 TextureCompression::RgbaDxt5,
                                 img.width as u16,
                                 img.height as u16,

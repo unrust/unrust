@@ -458,13 +458,13 @@ where
         let result = object.find_component::<Mesh>();
         if let Some((mesh, _)) = result {
             for surface in mesh.surfaces.iter() {
-                let m = compute_model_m(&*object);
-
                 if let &Some(ref included) = included_render_queues {
                     if included.get(&surface.material.render_queue).is_none() {
                         continue;
                     }
                 }
+
+                let m = compute_model_m(&*object);
 
                 // TODO: should use a material flag to skip
                 if let &Some(ref frustum) = frustum {

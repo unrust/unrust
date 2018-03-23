@@ -6,6 +6,7 @@ use std::rc::Rc;
 use std::collections::HashMap;
 use na::{Matrix4, Vector2, Vector3, Vector4};
 
+#[derive(Debug)]
 pub enum MaterialParam {
     Texture(Rc<Texture>),
     Float(f32),
@@ -34,7 +35,7 @@ impl_from_material_param!(Vector3<f32>, Vec3);
 impl_from_material_param!(Vector4<f32>, Vec4);
 impl_from_material_param!(Matrix4<f32>, Matrix4);
 
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum CullMode {
     Off,
     Back,
@@ -43,7 +44,7 @@ pub enum CullMode {
 }
 
 #[allow(dead_code)]
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum DepthTest {
     Never,
     Less,
@@ -61,7 +62,7 @@ impl Default for DepthTest {
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Default)]
+#[derive(Copy, Clone, Eq, PartialEq, Default, Debug)]
 pub struct MaterialState {
     pub cull: Option<CullMode>,
     pub alpha_blending: Option<bool>,
@@ -69,6 +70,7 @@ pub struct MaterialState {
     pub depth_test: Option<DepthTest>,
 }
 
+#[derive(Debug)]
 pub struct Material {
     pub program: Rc<ShaderProgram>,
     pub render_queue: RenderQueue,

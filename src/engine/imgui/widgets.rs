@@ -279,11 +279,28 @@ impl Widget for Label {
 }
 
 #[derive(Debug)]
-struct ImageTexture(Rc<Texture>);
-
-impl PartialEq for ImageTexture {
-    fn eq(&self, other: &ImageTexture) -> bool {
+pub struct ImageRef<T: Debug>(Rc<T>);
+impl<T: Debug> PartialEq for ImageRef<T> {
+    fn eq(&self, other: &Self) -> bool {
         Rc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum ImageKind {
+    Texture(ImageRef<Texture>),
+    Material(ImageRef<Material>),
+}
+
+impl From<Rc<Material>> for ImageKind {
+    fn from(t: Rc<Material>) -> ImageKind {
+        ImageKind::Material(ImageRef(t))
+    }
+}
+
+impl From<Rc<Texture>> for ImageKind {
+    fn from(t: Rc<Texture>) -> ImageKind {
+        ImageKind::Texture(ImageRef(t))
     }
 }
 
@@ -293,23 +310,33 @@ pub struct Image {
     pos: Metric,
     size: Metric,
     pivot: Metric,
-    texture: ImageTexture,
+    kind: ImageKind,
 }
 
 impl Image {
-    pub fn new(
-        id: u32,
-        pos: Metric,
-        size: Metric,
-        state: ImguiState,
-        texture: Rc<Texture>,
-    ) -> Image {
+    pub fn new<T>(id: u32, pos: Metric, size: Metric, state: ImguiState, t: T) -> Image
+    where
+        T: Into<ImageKind>,
+    {
         Self {
-            id: id,
-            pos: pos,
-            size: size,
+            id,
+            pos,
+            size,
             pivot: state.pivot,
-            texture: ImageTexture(texture),
+            kind: t.into(),
+        }
+    }
+    fn create_material(&self, engine: &mut IEngine) -> Rc<Material> {
+        match self.kind {
+            ImageKind::Material(ref m) => m.0.clone(),
+            ImageKind::Texture(ref t) => {
+                let db = engine.asset_system();
+
+                let mut m = Material::new(db.new_program("default_ui"));
+                m.render_queue = RenderQueue::UI;
+                m.set("uDiffuse", t.0.clone());
+                Rc::new(m)
+            }
         }
     }
 }
@@ -326,7 +353,6 @@ impl Widget for Image {
         engine: &mut IEngine,
     ) -> Rc<RefCell<GameObject>> {
         let go = engine.new_game_object(parent);
-        let db = engine.asset_system();
 
         {
             let hidpi = engine.hidpi_factor();
@@ -334,10 +360,7 @@ impl Widget for Image {
             let meshdata = make_quad_mesh_data(compute_size_to_ndc(&self.size, &ssize, hidpi));
 
             let mut mesh = Mesh::new();
-            let mut material = Material::new(db.new_program("default_ui"));
-            material.set("uDiffuse", self.texture.0.clone());
-            material.render_queue = RenderQueue::UI;
-
+            let material = self.create_material(engine);
             mesh.add_surface(MeshBuffer::new(meshdata), material);
 
             let mut gtrans = gomut.transform.global();

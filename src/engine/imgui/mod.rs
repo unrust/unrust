@@ -23,7 +23,7 @@ use std::cell::RefCell;
 
 use engine::core::{GameObject, SceneTree};
 use engine::IEngine;
-use engine::render::Texture;
+use engine::render::{Material, Texture};
 use std::collections::HashMap;
 use std::ops::{Add, Sub};
 
@@ -177,6 +177,11 @@ pub fn label(pos: Metric, s: &str) {
 /// Image
 pub fn image(pos: Metric, size: Metric, tex: Rc<Texture>) {
     add_widget(|id, state| widgets::Image::new(id, pos, size, state, tex));
+}
+
+/// Image with material
+pub fn image_with_material(pos: Metric, size: Metric, material: Rc<Material>) {
+    add_widget(|id, state| widgets::Image::new(id, pos, size, state, material));
 }
 
 type WidgetGoMap = HashMap<u32, (Arc<widgets::Widget>, Rc<RefCell<GameObject>>)>;

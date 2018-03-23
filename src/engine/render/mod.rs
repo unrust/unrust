@@ -10,7 +10,7 @@ mod frame_buffer;
 mod render_texture;
 mod mesh_buffer;
 
-#[derive(Hash, Eq, Ord, PartialOrd, PartialEq, Copy, Clone)]
+#[derive(Hash, Eq, Ord, PartialOrd, PartialEq, Copy, Clone, Debug)]
 pub enum RenderQueue {
     Opaque = 1000,
     Skybox = 2000,

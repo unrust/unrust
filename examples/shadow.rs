@@ -35,7 +35,10 @@ impl Actor for MainScene {
         // add main camera to scene
         {
             let go = world.new_game_object();
-            go.borrow_mut().add_component(Camera::default());
+            let mut cam = Camera::default();
+            cam.znear = 0.3;
+            cam.zfar = 1000.0;
+            go.borrow_mut().add_component(cam);
         }
 
         // add direction light to scene.

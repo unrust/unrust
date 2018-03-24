@@ -53,10 +53,9 @@ pub trait Watcher {
             starting.append(&mut new_actors.borrow_mut().list);
 
             for &(ref wgo, ref c) in starting.iter() {
-                let com = c.upgrade().unwrap().clone();
-                let go = wgo.upgrade().unwrap();
-
-                self.object_start(&go, &com, world);
+                if let (Some(com), Some(go)) = (c.upgrade(), wgo.upgrade()) {
+                    self.object_start(&go, &com, world);
+                }
             }
 
             actors.borrow_mut().append(&mut starting);
@@ -64,11 +63,9 @@ pub trait Watcher {
 
         let mut actor_components = Vec::new();
         {
-            for &(ref wgo, ref wc) in actors.borrow().iter() {
-                if let Some(go) = wgo.upgrade() {
-                    if let Some(c) = wc.upgrade() {
-                        actor_components.push((go.clone(), c.clone()));
-                    }
+            for &(ref wgo, ref c) in actors.borrow().iter() {
+                if let (Some(com), Some(go)) = (c.upgrade(), wgo.upgrade()) {
+                    actor_components.push((go, com));
                 }
             }
         }

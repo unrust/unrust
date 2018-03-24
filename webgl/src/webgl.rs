@@ -383,6 +383,16 @@ impl GLContext {
         }
     }
 
+    pub fn clear_depth(&self, value: f32) {
+        self.log("clear_depth");
+
+        js! {
+            @(no_return)
+            var ctx = Module.gl.get(@{&self.reference});
+            ctx.clearDepth(@{value});
+        }
+    }
+
     pub fn clear(&self, bit: BufferBit) {
         self.log("clear");
         js! {

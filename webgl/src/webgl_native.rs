@@ -326,6 +326,13 @@ impl GLContext {
         check_gl_error("depth_func");
     }
 
+    pub fn clear_depth(&self, value: f32) {
+        unsafe {
+            gl::ClearDepth(value as _);
+        }
+        check_gl_error("clear_depth");
+    }
+
     pub fn clear(&self, bit: BufferBit) {
         unsafe {
             gl::Clear(bit as _);
@@ -391,6 +398,8 @@ impl GLContext {
                 p as _,
             );
         }
+
+        check_gl_error("tex_image2d");
     }
 
     pub fn tex_sub_image2d(
@@ -521,6 +530,8 @@ impl GLContext {
         unsafe {
             gl::GenTextures(1, &mut handle.0);
         }
+        check_gl_error("create_texture");
+
         handle
     }
 
@@ -528,6 +539,8 @@ impl GLContext {
         unsafe {
             gl::DeleteTextures(1, texture.0 as _);
         }
+
+        check_gl_error("delete_texture");
     }
 
     pub fn generate_mipmap(&self) {
@@ -716,6 +729,7 @@ impl GLContext {
         unsafe {
             gl::GenFramebuffers(1, &mut fb.0);
         }
+        check_gl_error("create_framebuffer");
         fb
     }
 
@@ -723,6 +737,8 @@ impl GLContext {
         unsafe {
             gl::BindFramebuffer(buffer as u32, fb.0);
         }
+
+        check_gl_error("bind_framebuffer");
     }
 
     pub fn framebuffer_texture2d(
@@ -742,11 +758,15 @@ impl GLContext {
                 level,
             );
         }
+
+        check_gl_error("framebuffer_texture2d");
     }
 
     pub fn unbind_framebuffer(&self, buffer: Buffers) {
         unsafe {
             gl::BindFramebuffer(buffer as u32, 0);
         }
+
+        check_gl_error("unbind_framebuffer");
     }
 }

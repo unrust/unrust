@@ -1,9 +1,16 @@
-use math::Vector3;
+use math::Vector3f;
+use std::default::Default;
 
 #[derive(Copy, Clone, Debug)]
 pub struct Aabb {
-    pub min: Vector3<f32>,
-    pub max: Vector3<f32>,
+    pub min: Vector3f,
+    pub max: Vector3f,
+}
+
+impl Default for Aabb {
+    fn default() -> Aabb {
+        Aabb::empty()
+    }
 }
 
 impl Aabb {
@@ -11,8 +18,8 @@ impl Aabb {
         use std::f32::{MAX, MIN};
 
         Self {
-            min: Vector3::new(MAX, MAX, MAX),
-            max: Vector3::new(MIN, MIN, MIN),
+            min: Vector3f::new(MAX, MAX, MAX),
+            max: Vector3f::new(MIN, MIN, MIN),
         }
     }
 
@@ -26,7 +33,7 @@ impl Aabb {
         self.max[2] = self.max[2].max(other.max[2]);
     }
 
-    pub fn merge_point(&mut self, p: &Vector3<f32>) {
+    pub fn merge_point(&mut self, p: &Vector3f) {
         self.min.x = self.min.x.min(p.x);
         self.min.y = self.min.y.min(p.y);
         self.min.z = self.min.z.min(p.z);
@@ -34,5 +41,25 @@ impl Aabb {
         self.max.x = self.max.x.max(p.x);
         self.max.y = self.max.y.max(p.y);
         self.max.z = self.max.z.max(p.z);
+    }
+
+    pub fn merge_sphere(&mut self, p: &Vector3f, r: f32) {
+        self.merge(&Aabb {
+            min: p + Vector3f::new(-r, -r, -r),
+            max: p + Vector3f::new(r, r, r),
+        });
+    }
+
+    pub fn corners(&self) -> [Vector3f; 8] {
+        [
+            Vector3f::new(self.min.x, self.min.y, self.min.z),
+            Vector3f::new(self.max.x, self.min.y, self.min.z),
+            Vector3f::new(self.max.x, self.max.y, self.min.z),
+            Vector3f::new(self.min.x, self.max.y, self.min.z),
+            Vector3f::new(self.min.x, self.min.y, self.max.z),
+            Vector3f::new(self.max.x, self.min.y, self.max.z),
+            Vector3f::new(self.max.x, self.max.y, self.max.z),
+            Vector3f::new(self.min.x, self.max.y, self.max.z),
+        ]
     }
 }

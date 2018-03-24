@@ -4,7 +4,6 @@ use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::Arc;
-use std::ops::{Deref, DerefMut};
 
 use engine::core::{Component, ComponentBased, GameObject, SceneTree};
 use engine::render::Camera;
@@ -13,6 +12,7 @@ use engine::render::{DepthTest, Directional, Light, Material, MaterialState, Mes
 use engine::render::{Frustum, RenderQueue};
 use engine::asset::{AssetError, AssetResult, AssetSystem};
 use engine::context::EngineContext;
+use math::Aabb;
 
 use std::default::Default;
 
@@ -107,7 +107,10 @@ impl RenderQueueState {
 }
 
 #[derive(Default)]
-struct RenderQueueList(BTreeMap<RenderQueue, RenderQueueState>);
+struct RenderQueueList {
+    aabb: Aabb,
+    queues: BTreeMap<RenderQueue, RenderQueueState>,
+}
 
 impl RenderQueueList {
     pub fn new() -> RenderQueueList {
@@ -116,49 +119,35 @@ impl RenderQueueList {
         // Opaque Queue
         let mut state = RenderQueueState::default();
         state.states.alpha_blending = Some(false);
-        qlist.insert(RenderQueue::Opaque, state);
+        qlist.queues.insert(RenderQueue::Opaque, state);
 
         // Skybox Queue
         let mut state = RenderQueueState::default();
         state.states.depth_write = Some(false);
         state.states.alpha_blending = Some(false);
         state.states.depth_test = Some(DepthTest::LessEqual);
-        qlist.insert(RenderQueue::Skybox, state);
+        qlist.queues.insert(RenderQueue::Skybox, state);
 
         // Transparent Queue
         let mut state = RenderQueueState::default();
         state.states.alpha_blending = Some(true);
         state.states.depth_write = Some(false);
-        qlist.insert(RenderQueue::Transparent, state);
+        qlist.queues.insert(RenderQueue::Transparent, state);
 
         // UI Queue
         let mut state = RenderQueueState::default();
         state.states.alpha_blending = Some(true);
-        qlist.insert(RenderQueue::UI, state);
+        qlist.queues.insert(RenderQueue::UI, state);
 
         qlist
     }
 
     fn surface_count(&self) -> usize {
         let mut n = 0;
-        for (_, q) in self.iter() {
+        for (_, q) in self.queues.iter() {
             n += q.commands.len();
         }
         n
-    }
-}
-
-impl Deref for RenderQueueList {
-    type Target = BTreeMap<RenderQueue, RenderQueueState>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for RenderQueueList {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
     }
 }
 
@@ -457,14 +446,18 @@ where
 
         let result = object.find_component::<Mesh>();
         if let Some((mesh, _)) = result {
+            let m = compute_model_m(&*object);
+            use math;
+            let p = math::transform_point(&m, &Point3::new(0.0, 0.0, 0.0));
+            // TODO: local scale only ?? should be using global scale??
+            let scale = get_max_scale(&object.transform.local_scale());
+
             for surface in mesh.surfaces.iter() {
                 if let &Some(ref included) = included_render_queues {
                     if included.get(&surface.material.render_queue).is_none() {
                         continue;
                     }
                 }
-
-                let m = compute_model_m(&*object);
 
                 // TODO: should use a material flag to skip
                 if let &Some(ref frustum) = frustum {
@@ -476,21 +469,21 @@ where
                                 continue;
                             }
 
-                            use math;
-                            let p = math::transform_point(&m, &Point3::new(0.0, 0.0, 0.0));
-
-                            // TODO: local scale only ?? should be using global scale??
-                            let scale = get_max_scale(&object.transform.local_scale());
                             let scaled_r = bounds.unwrap().r * scale;
 
                             if !frustum.collide_sphere(&p.coords, scaled_r) {
                                 continue;
                             }
+
+                            render_q.aabb.merge_sphere(&p.coords, scaled_r);
                         }
                     }
                 }
 
-                let q = render_q.get_mut(&surface.material.render_queue).unwrap();
+                let q = render_q
+                    .queues
+                    .get_mut(&surface.material.render_queue)
+                    .unwrap();
 
                 let cam_dist =
                     (cam_pos - object.transform.global().translation.vector).norm_squared();
@@ -504,6 +497,39 @@ where
         }
     }
 
+    pub fn get_bounds(&self, camera: &Camera) -> Aabb {
+        let render_q = self.gather_all_render_commands(camera);
+
+        return render_q.aabb;
+    }
+
+    fn gather_all_render_commands(&self, camera: &Camera) -> RenderQueueList {
+        let mut render_q = RenderQueueList::new();
+        let objects = &self.objects;
+
+        let frustum = if camera.enable_frustum_culling {
+            Some(camera.calc_frustum(self.screen_size))
+        } else {
+            None
+        };
+
+        for obj in objects.iter() {
+            obj.upgrade().map(|obj| {
+                if let Ok(object) = obj.try_borrow() {
+                    self.gather_render_commands(
+                        &object,
+                        &camera.eye(),
+                        &frustum,
+                        &mut render_q,
+                        &camera.included_render_queues,
+                    )
+                }
+            });
+        }
+
+        render_q
+    }
+
     #[cfg_attr(feature = "flame_it", flame)]
     pub fn render_pass_with_material(
         &mut self,
@@ -511,8 +537,6 @@ where
         material: Option<&Rc<Material>>,
         clear_option: ClearOption,
     ) {
-        let objects = &self.objects;
-
         let mut ctx: EngineContext = EngineContext::new(self.stats);
 
         if let Some(ref rt) = camera.render_texture {
@@ -533,31 +557,12 @@ where
 
         self.prepare_ctx(&mut ctx);
 
-        let mut render_q = RenderQueueList::new();
-
-        let frustum = if camera.enable_frustum_culling {
-            Some(camera.calc_frustum(self.screen_size))
-        } else {
-            None
-        };
-
         // gather commands
-        for obj in objects.iter() {
-            obj.upgrade().map(|obj| {
-                if let Ok(object) = obj.try_borrow() {
-                    self.gather_render_commands(
-                        &object,
-                        &camera.eye(),
-                        &frustum,
-                        &mut render_q,
-                        &camera.included_render_queues,
-                    )
-                }
-            });
-        }
+        let mut render_q = self.gather_all_render_commands(&camera);
 
         // Sort the opaque queue
         render_q
+            .queues
             .get_mut(&RenderQueue::Opaque)
             .unwrap()
             .sort_by_cam_distance_reverse()
@@ -565,19 +570,26 @@ where
 
         // Sort the transparent queue
         render_q
+            .queues
             .get_mut(&RenderQueue::Transparent)
             .unwrap()
             .sort_by_cam_distance();
 
         ctx.stats.surfaces_count = render_q.surface_count() as u32;
         ctx.stats.transparent_count = render_q
+            .queues
             .get(&RenderQueue::Transparent)
             .unwrap()
             .commands
             .len() as u32;
-        ctx.stats.opaque_count = render_q.get(&RenderQueue::Opaque).unwrap().commands.len() as u32;
+        ctx.stats.opaque_count = render_q
+            .queues
+            .get(&RenderQueue::Opaque)
+            .unwrap()
+            .commands
+            .len() as u32;
 
-        for (_, q) in render_q.iter() {
+        for (_, q) in render_q.queues.iter() {
             self.render_commands(&mut ctx, &q, camera, material);
         }
 
@@ -634,6 +646,9 @@ where
         gl.clear(BufferBit::Color);
         gl.clear(BufferBit::Depth);
         gl.blend_func(BlendMode::SrcAlpha, BlendMode::OneMinusSrcAlpha);
+
+        // Explict set the clear depth value
+        gl.clear_depth(1.0);
 
         // Set the view port
         gl.viewport(0, 0, size.0, size.1);

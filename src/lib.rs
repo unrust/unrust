@@ -38,6 +38,9 @@ pub mod math {
     pub fn transform_point(m: &Matrix4<f32>, p: &Point3<f32>) -> Point3<f32> {
         Point3::from_homogeneous(m * p.to_homogeneous()).unwrap()
     }
+
+    pub type Vector3f = Vector3<f32>;
+    pub type Matrix4f = Matrix4<f32>;
 }
 
 pub use engine::imgui;

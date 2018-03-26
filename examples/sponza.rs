@@ -66,8 +66,10 @@ impl Actor for MainScene {
         // add direction light to scene.
         {
             let go = world.new_game_object();
-            go.borrow_mut()
-                .add_component(Light::new(Directional::default()));
+            let mut light = Light::new(Directional::default());
+            light.directional_mut().unwrap().direction = Vector3f::new(-0.8, -1.0, 0.0).normalize();
+            go.borrow_mut().add_component(light);
+
             self.dir_light = go;
         }
 
@@ -92,6 +94,11 @@ impl Actor for MainScene {
         fpc.eye = Vector3::new(0.0, 200.06, -3.36);
         fpc.eye_dir = Vector3::new(-3.0, 0.0, -1.0).normalize();
         fpc.speed = 8.0;
+
+        {
+            let shadow_pass = world.find_component::<ShadowPass>().unwrap();
+            shadow_pass.borrow_mut().disable_cascaded();
+        }
     }
 
     fn update(&mut self, _go: &mut GameObject, world: &mut World) {
@@ -227,7 +234,7 @@ pub fn main() {
         .with_processor::<MaterialFilter>()
         .with_processor::<SkyBox>()
         .with_processor::<FirstPersonCamera>()
-        //.with_processor::<ShadowPass>()
+        .with_processor::<ShadowPass>()
         .build();
 
     // Add the main scene as component of scene game object

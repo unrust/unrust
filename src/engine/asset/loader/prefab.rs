@@ -131,8 +131,8 @@ where
 {
     let mut ambient = Vector3::new(0.2, 0.2, 0.2);
     let mut diffuse = Vector3::new(1.0, 1.0, 1.0);
-    let mut specular = Vector3::new(0.2, 0.2, 0.2);
-    let mut shininess = 0.2;
+    let mut specular = Vector3::new(1.0, 1.0, 1.0);
+    let mut shininess = 1000.2;
     let mut transparent = 1.0;
     let mut diffuse_map = "default_white".to_string();
     let mut ambient_map = "default_white".to_string();

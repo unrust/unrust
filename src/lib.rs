@@ -8,6 +8,7 @@
 
 /* common */
 extern crate alga;
+extern crate fnv;
 extern crate futures;
 extern crate image;
 extern crate obj;
@@ -41,6 +42,7 @@ pub mod math {
 
     pub type Vector3f = Vector3<f32>;
     pub type Matrix4f = Matrix4<f32>;
+    pub type Vector2f = Vector2<f32>;
 }
 
 pub use engine::imgui;

@@ -3,8 +3,8 @@ use std::mem::size_of;
 
 use std::rc::Rc;
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::rc;
+use fnv::FnvHashMap;
 
 use webgl::{WebGLProgram, WebGLRenderingContext, WebGLUniformLocation};
 use engine::render::Texture;
@@ -105,16 +105,18 @@ impl UniformAdapter {
     }
 }
 
-#[derive(Debug)]
-struct UniformAdapterEntry {
-    adapter: UniformAdapter,
-    commited: bool,
-}
+// #[derive(Debug)]
+// struct UniformAdapterEntry {
+//     adapter: UniformAdapter,
+//     commited: bool,
+// }
 
 #[derive(Default, Debug)]
 pub struct UniformCache {
-    uniform_entries: RefCell<HashMap<String, UniformAdapterEntry>>,
-    uniform_map: RefCell<HashMap<String, Option<Rc<WebGLUniformLocation>>>>,
+    uniform_entries: RefCell<FnvHashMap<String, UniformAdapter>>,
+    pending_entries: RefCell<FnvHashMap<String, UniformAdapter>>,
+
+    uniform_map: RefCell<FnvHashMap<String, Option<Rc<WebGLUniformLocation>>>>,
 }
 
 impl UniformCache {
@@ -122,37 +124,38 @@ impl UniformCache {
     where
         T: Into<UniformAdapter>,
     {
+        use std::collections::hash_map::Entry;
+
         let mut entries = self.uniform_entries.borrow_mut();
         let adapter = data.into();
 
-        entries
-            .entry(s.to_owned())
-            .and_modify(|e| {
-                if e.adapter != adapter {
-                    *e = UniformAdapterEntry {
-                        adapter: adapter.clone(),
-                        commited: false,
-                    };
-                }
-            })
-            .or_insert_with(|| UniformAdapterEntry {
-                adapter: adapter,
-                commited: false,
-            });
+        let entry = entries.entry(s.to_owned());
+
+        if let Entry::Occupied(o) = entry {
+            if *o.get() == adapter {
+                return;
+            }
+            let (key, _) = o.remove_entry();
+            self.pending_entries.borrow_mut().insert(key, adapter);
+        } else {
+            self.pending_entries
+                .borrow_mut()
+                .insert(s.to_owned(), adapter);
+        }
     }
 
     pub fn commit(&self, gl: &WebGLRenderingContext, prog: &WebGLProgram) {
         {
-            let mut entries = self.uniform_entries.borrow_mut();
+            let mut pending = self.pending_entries.borrow_mut();
+            let entries = pending.drain();
+            let mut uniforms = self.uniform_entries.borrow_mut();
 
-            for (key, entry) in entries.iter_mut() {
-                if !entry.commited {
-                    if let Some(u) = self.get_uniform(gl, prog, key) {
-                        entry.adapter.set(gl, &u);
-                    }
-
-                    entry.commited = true;
+            for (key, adapter) in entries.into_iter() {
+                if let Some(u) = self.get_uniform(gl, prog, &key) {
+                    adapter.set(gl, &u);
                 }
+
+                uniforms.insert(key, adapter);
             }
         }
     }

@@ -3,7 +3,7 @@ use engine::render::{RenderQueue, ShaderProgram, Texture};
 
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::collections::HashMap;
+use fnv::FnvHashMap;
 use na::{Matrix4, Vector2, Vector3, Vector4};
 
 #[derive(Debug)]
@@ -76,7 +76,7 @@ pub struct Material {
     pub render_queue: RenderQueue,
     pub states: MaterialState,
 
-    params: RefCell<HashMap<String, MaterialParam>>,
+    params: RefCell<FnvHashMap<String, MaterialParam>>,
 }
 
 impl Material {
@@ -84,7 +84,7 @@ impl Material {
         return Material {
             render_queue: RenderQueue::Opaque,
             program: program,
-            params: RefCell::new(HashMap::new()),
+            params: RefCell::new(FnvHashMap::default()),
             states: MaterialState::default(),
         };
     }

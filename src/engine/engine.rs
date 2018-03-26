@@ -108,7 +108,7 @@ impl RenderQueueState {
 
 #[derive(Default)]
 struct RenderQueueList {
-    aabb: Aabb,
+    aabb: Option<Aabb>,
     queues: BTreeMap<RenderQueue, RenderQueueState>,
 }
 
@@ -436,6 +436,7 @@ where
         &self,
         object: &GameObject,
         cam_pos: &Vector3<f32>,
+        update_bounds_only: bool,
         frustum: &Option<Frustum>,
         render_q: &mut RenderQueueList,
         included_render_queues: &Option<BTreeSet<RenderQueue>>,
@@ -475,35 +476,64 @@ where
                                 continue;
                             }
 
-                            render_q.aabb.merge_sphere(&p.coords, scaled_r);
+                            if render_q.aabb.is_none() {
+                                render_q.aabb = Some(Aabb::empty());
+                            }
+
+                            render_q
+                                .aabb
+                                .as_mut()
+                                .unwrap()
+                                .merge_sphere(&p.coords, scaled_r);
                         }
+                    }
+                } else {
+                    let bounds = surface.buffer.bounds();
+                    if let Some(bounds) = bounds {
+                        let scaled_r = bounds.r * scale;
+
+                        if render_q.aabb.is_none() {
+                            render_q.aabb = Some(Aabb::empty());
+                        }
+
+                        render_q
+                            .aabb
+                            .as_mut()
+                            .unwrap()
+                            .merge_sphere(&p.coords, scaled_r);
                     }
                 }
 
-                let q = render_q
-                    .queues
-                    .get_mut(&surface.material.render_queue)
-                    .unwrap();
+                if !update_bounds_only {
+                    let q = render_q
+                        .queues
+                        .get_mut(&surface.material.render_queue)
+                        .unwrap();
 
-                let cam_dist =
-                    (cam_pos - object.transform.global().translation.vector).norm_squared();
+                    let cam_dist =
+                        (cam_pos - object.transform.global().translation.vector).norm_squared();
 
-                q.commands.push(RenderCommand {
-                    surface: surface.clone(),
-                    model_m: m,
-                    cam_distance: cam_dist,
-                })
+                    q.commands.push(RenderCommand {
+                        surface: surface.clone(),
+                        model_m: m,
+                        cam_distance: cam_dist,
+                    })
+                }
             }
         }
     }
 
-    pub fn get_bounds(&self, camera: &Camera) -> Aabb {
-        let render_q = self.gather_all_render_commands(camera);
+    pub fn get_bounds(&self, camera: &Camera) -> Option<Aabb> {
+        let render_q = self.gather_all_render_commands(camera, true);
 
         return render_q.aabb;
     }
 
-    fn gather_all_render_commands(&self, camera: &Camera) -> RenderQueueList {
+    fn gather_all_render_commands(
+        &self,
+        camera: &Camera,
+        update_bounds_only: bool,
+    ) -> RenderQueueList {
         let mut render_q = RenderQueueList::new();
         let objects = &self.objects;
 
@@ -519,6 +549,7 @@ where
                     self.gather_render_commands(
                         &object,
                         &camera.eye(),
+                        update_bounds_only,
                         &frustum,
                         &mut render_q,
                         &camera.included_render_queues,
@@ -558,7 +589,7 @@ where
         self.prepare_ctx(&mut ctx);
 
         // gather commands
-        let mut render_q = self.gather_all_render_commands(&camera);
+        let mut render_q = self.gather_all_render_commands(&camera, false);
 
         // Sort the opaque queue
         render_q

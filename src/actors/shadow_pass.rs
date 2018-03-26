@@ -11,11 +11,14 @@ use std::sync::Arc;
 use math::*;
 
 struct ShadowMap {
+    name: String,
     rt: Rc<RenderTexture>,
     light_matrix: Matrix4f,
     light_space_range: (f32, f32),
     partition_z: f32,
     viewport: ((i32, i32), (u32, u32)),
+
+    binder: Option<ShadowMapBinder>,
 }
 
 pub struct ShadowPass {
@@ -28,6 +31,8 @@ pub struct ShadowPass {
 
     debug_gameobjects: Vec<Handle<GameObject>>,
     debug_mode: bool,
+
+    use_scene_aabb: bool,
 }
 
 #[repr(usize)]
@@ -132,14 +137,18 @@ fn add_debug_frustum(
 struct LightMatrixContext {
     inv_pv: Matrix4f,
     view: Matrix4f,
-    light_space_scene_max_z: f32,
+    light_space_scene_aabb: Aabb,
 
     cam_zfar: f32,
     cam_znear: f32,
 }
 
 impl LightMatrixContext {
-    fn new(light_com: &Arc<Component>, world: &World) -> LightMatrixContext {
+    fn new(
+        light_cam: &Camera,
+        light_com: &Arc<Component>,
+        world: &World,
+    ) -> Option<LightMatrixContext> {
         let cam_borrow = world.current_camera().unwrap();
         let cam = cam_borrow.borrow();
 
@@ -149,13 +158,24 @@ impl LightMatrixContext {
 
         let light = light_com.try_as::<Light>().unwrap().borrow();
         let lightdir = light.directional().unwrap().direction;
+        let mut up = Vector3::y();
+
+        if up.dot(&lightdir.normalize()).abs() > 0.9999 {
+            up = Vector3f::z();
+        }
+
         let light_target = Point3 { coords: lightdir };
-        let view = Matrix4::look_at_rh(&Point3::new(0.0, 0.0, 0.0), &light_target, &Vector3::y());
+
+        let view = Matrix4::look_at_rh(&Point3::new(0.0, 0.0, 0.0), &light_target, &up);
 
         // Compute scene bound light space aabb.
         // Todo: it is very expensive...
-        let scene_bound = world.engine().get_bounds(&cam);
-        let light_space_scene_bounds = scene_bound.corners().iter().fold(
+        let scene_bound = world.engine().get_bounds(&light_cam);
+        if scene_bound.is_none() {
+            return None;
+        }
+
+        let light_space_scene_aabb = scene_bound.unwrap().corners().iter().fold(
             Aabb::empty(),
             |mut acc, p| {
                 acc.merge_point(&transform_point(&view, &Point3 { coords: *p }).coords);
@@ -163,13 +183,13 @@ impl LightMatrixContext {
             },
         );
 
-        LightMatrixContext {
+        Some(LightMatrixContext {
             cam_znear: cam.znear,
             cam_zfar: cam.zfar,
             inv_pv,
             view,
-            light_space_scene_max_z: light_space_scene_bounds.max.z,
-        }
+            light_space_scene_aabb,
+        })
     }
 }
 
@@ -189,6 +209,7 @@ fn compute_light_matrix(
     ctx: &LightMatrixContext,
     world: &mut World,
     z_range: &(f32, f32),
+    use_scene_aabb: bool,
     debug: Option<&mut Vec<Handle<GameObject>>>,
 ) -> (Matrix4<f32>, (f32, f32)) {
     let bound_m = ctx.view * ctx.inv_pv;
@@ -216,46 +237,55 @@ fn compute_light_matrix(
     // z_ndc = 1.0060180 - 0.01203611
     //       = 0.99398189
 
-    let nearz = z_to_ndc(z_range.0, ctx.cam_znear, ctx.cam_zfar);
-    //let farz = 0.99398189;
-    let farz = z_to_ndc(z_range.1, ctx.cam_znear, ctx.cam_zfar);
+    let (aabb, (nearz, farz)) = if use_scene_aabb {
+        (ctx.light_space_scene_aabb, (-1.0, 1.0))
+    } else {
+        let nearz = z_to_ndc(z_range.0, ctx.cam_znear, ctx.cam_zfar);
+        //let farz = 0.99398189;
+        let farz = z_to_ndc(z_range.1, ctx.cam_znear, ctx.cam_zfar);
 
-    let corners = [
-        transform_point(&bound_m, &Point3::new(-1.0, -1.0, nearz)),
-        transform_point(&bound_m, &Point3::new(1.0, -1.0, nearz)),
-        transform_point(&bound_m, &Point3::new(1.0, 1.0, nearz)),
-        transform_point(&bound_m, &Point3::new(-1.0, 1.0, nearz)),
-        transform_point(&bound_m, &Point3::new(-1.0, -1.0, farz)),
-        transform_point(&bound_m, &Point3::new(1.0, -1.0, farz)),
-        transform_point(&bound_m, &Point3::new(1.0, 1.0, farz)),
-        transform_point(&bound_m, &Point3::new(-1.0, 1.0, farz)),
-    ];
+        let corners = [
+            transform_point(&bound_m, &Point3::new(-1.0, -1.0, nearz)),
+            transform_point(&bound_m, &Point3::new(1.0, -1.0, nearz)),
+            transform_point(&bound_m, &Point3::new(1.0, 1.0, nearz)),
+            transform_point(&bound_m, &Point3::new(-1.0, 1.0, nearz)),
+            transform_point(&bound_m, &Point3::new(-1.0, -1.0, farz)),
+            transform_point(&bound_m, &Point3::new(1.0, -1.0, farz)),
+            transform_point(&bound_m, &Point3::new(1.0, 1.0, farz)),
+            transform_point(&bound_m, &Point3::new(-1.0, 1.0, farz)),
+        ];
 
-    // light local space aabb
-    let mut aabb = Aabb::empty();
-    for c in corners.into_iter() {
-        aabb.merge_point(&c.coords)
-    }
+        // light local space aabb
+        //let mut aabb = ctx.light_space_scene_aabb;
 
-    let max_z = aabb.max.z.max(ctx.light_space_scene_max_z);
+        let mut aabb = Aabb::empty();
+        for c in corners.into_iter() {
+            aabb.merge_point(&c.coords)
+        }
 
-    if let Some(debug_gameobjects) = debug {
-        add_debug_frustum(
-            &ctx.view,
-            &[
-                Point3::new(aabb.min.x, aabb.min.y, aabb.min.z),
-                Point3::new(aabb.max.x, aabb.min.y, aabb.min.z),
-                Point3::new(aabb.max.x, aabb.max.y, aabb.min.z),
-                Point3::new(aabb.min.x, aabb.max.y, aabb.min.z),
-                Point3::new(aabb.min.x, aabb.min.y, max_z),
-                Point3::new(aabb.max.x, aabb.min.y, max_z),
-                Point3::new(aabb.max.x, aabb.max.y, max_z),
-                Point3::new(aabb.min.x, aabb.max.y, max_z),
-            ],
-            world,
-            debug_gameobjects,
-        );
-    }
+        let max_z = ctx.light_space_scene_aabb.max.z;
+
+        if let Some(debug_gameobjects) = debug {
+            add_debug_frustum(
+                &ctx.view,
+                &[
+                    Point3::new(aabb.min.x, aabb.min.y, aabb.min.z),
+                    Point3::new(aabb.max.x, aabb.min.y, aabb.min.z),
+                    Point3::new(aabb.max.x, aabb.max.y, aabb.min.z),
+                    Point3::new(aabb.min.x, aabb.max.y, aabb.min.z),
+                    Point3::new(aabb.min.x, aabb.min.y, max_z),
+                    Point3::new(aabb.max.x, aabb.min.y, max_z),
+                    Point3::new(aabb.max.x, aabb.max.y, max_z),
+                    Point3::new(aabb.min.x, aabb.max.y, max_z),
+                ],
+                world,
+                debug_gameobjects,
+            );
+        }
+
+        aabb.max.z = max_z;
+        (aabb, (nearz, farz))
+    };
 
     // build an ortho matrix for directional light
 
@@ -264,14 +294,63 @@ fn compute_light_matrix(
     // the z-coordinates of all points visible by the camera are negative,
     // which is the reason we use -z instead of z.
     let far = -aabb.min.z;
-    let near = -max_z;
+    let near = -aabb.max.z;
 
     let proj = Matrix4::new_orthographic(aabb.min.x, aabb.max.x, aabb.min.y, aabb.max.y, near, far);
 
     return (proj * ctx.view, (nearz, farz));
 }
 
+struct ShadowMapBinder {
+    size: (String, Vector2f),
+    light_matrix: (String, Matrix4f),
+    range: (String, Vector2f),
+    viewport_offset: (String, Vector2f),
+    viewport_scale: (String, Vector2f),
+}
+
 impl ShadowMap {
+    pub fn update_binder(&mut self) {
+        let shadow_map_size = self.rt
+            .as_texture()
+            .size()
+            .map(|(w, h)| Vector2::new(w as f32, h as f32))
+            .unwrap_or(Vector2::new(0.0, 0.0));
+
+        self.binder = Some(ShadowMapBinder {
+            size: (self.name.clone() + ".map_size", shadow_map_size),
+            light_matrix: (self.name.clone() + ".light_matrix", self.light_matrix),
+            range: (
+                self.name.clone() + ".range",
+                Vector2::new(self.light_space_range.0, self.light_space_range.1),
+            ),
+            viewport_offset: (
+                self.name.clone() + ".viewport_offset",
+                Vector2::new(
+                    (self.viewport.0).0 as f32 / shadow_map_size.x,
+                    (self.viewport.0).1 as f32 / shadow_map_size.y,
+                ),
+            ),
+            viewport_scale: (
+                self.name.clone() + ".viewport_scale",
+                Vector2::new(
+                    (self.viewport.1).0 as f32 / shadow_map_size.x,
+                    (self.viewport.1).1 as f32 / shadow_map_size.y,
+                ),
+            ),
+        });
+    }
+
+    pub fn bind(&self, material: &Material) {
+        if let Some(ref binder) = self.binder {
+            material.set(&binder.size.0, binder.size.1);
+            material.set(&binder.light_matrix.0, binder.light_matrix.1);
+            material.set(&binder.range.0, binder.range.1);
+            material.set(&binder.viewport_offset.0, binder.viewport_offset.1);
+            material.set(&binder.viewport_scale.0, binder.viewport_scale.1);
+        }
+    }
+
     pub fn render(
         &mut self,
         world: &mut World,
@@ -280,6 +359,7 @@ impl ShadowMap {
         shadow_material: &Rc<Material>,
         last_partition_z: f32,
         first_render: bool,
+        use_scene_aabb: bool,
         debug: Option<&mut Vec<Handle<GameObject>>>,
     ) {
         light_cam.render_texture = Some(self.rt.clone());
@@ -298,10 +378,16 @@ impl ShadowMap {
                 }
                 debug_gameobjects.clear();
 
-                compute_light_matrix(&ctx, world, &partition, Some(debug_gameobjects))
+                compute_light_matrix(
+                    &ctx,
+                    world,
+                    &partition,
+                    use_scene_aabb,
+                    Some(debug_gameobjects),
+                )
             }
 
-            None => compute_light_matrix(&ctx, world, &partition, None),
+            None => compute_light_matrix(&ctx, world, &partition, use_scene_aabb, None),
         };
 
         self.light_matrix = lm;
@@ -342,6 +428,13 @@ impl ShadowMap {
 impl ComponentBased for ShadowPass {}
 
 impl ShadowPass {
+    pub fn disable_cascaded(&mut self) {
+        self.shadow_maps[0].partition_z = 1000.0;
+        self.shadow_maps[0].viewport = ((0, 0), (2048, 2048));
+
+        self.use_scene_aabb = true;
+    }
+
     pub fn set_partitions(&mut self, partitions: &[f32; 4]) {
         self.shadow_maps[0].partition_z = partitions[0];
         self.shadow_maps[1].partition_z = partitions[1];
@@ -353,37 +446,8 @@ impl ShadowPass {
         material.set("uShadowEnabled", true);
         material.set("uShadowMapTexture", self.rt.as_texture());
 
-        for (i, map) in self.shadow_maps.iter().enumerate() {
-            let name = format!("uShadowMap[{}]", i);
-
-            let shadow_map_size = map.rt
-                .as_texture()
-                .size()
-                .map(|(w, h)| Vector2::new(w as f32, h as f32))
-                .unwrap_or(Vector2::new(0.0, 0.0));
-
-            material.set(&(name.clone() + ".map_size"), shadow_map_size);
-            material.set(&(name.clone() + ".light_matrix"), map.light_matrix);
-            material.set(
-                &(name.clone() + ".range"),
-                Vector2::new(map.light_space_range.0, map.light_space_range.1),
-            );
-
-            material.set(
-                &(name.clone() + ".viewport_offset"),
-                Vector2::new(
-                    (map.viewport.0).0 as f32 / shadow_map_size.x,
-                    (map.viewport.0).1 as f32 / shadow_map_size.y,
-                ),
-            );
-
-            material.set(
-                &(name.clone() + ".viewport_scale"),
-                Vector2::new(
-                    (map.viewport.1).0 as f32 / shadow_map_size.x,
-                    (map.viewport.1).1 as f32 / shadow_map_size.y,
-                ),
-            );
+        for map in self.shadow_maps.iter() {
+            map.bind(material);
         }
     }
 }
@@ -434,25 +498,61 @@ impl Actor for ShadowPass {
             }
         }
 
-        let ctx = LightMatrixContext::new(&self.light_cache.as_ref().unwrap(), world);
-        let mut last_partition_z = self.light_camera.znear;
+        let ctx = LightMatrixContext::new(
+            &self.light_camera,
+            &self.light_cache.as_ref().unwrap(),
+            world,
+        );
 
-        for (i, map) in self.shadow_maps.iter_mut().enumerate() {
-            map.render(
-                world,
-                &mut self.light_camera,
-                &ctx,
-                &self.shadow_material.as_ref().unwrap(),
-                last_partition_z,
-                i == 0,
-                if capture {
-                    Some(&mut self.debug_gameobjects)
-                } else {
-                    None
-                },
-            );
+        if let Some(ctx) = ctx {
+            let mut last_partition_z = self.light_camera.znear;
 
-            last_partition_z = map.partition_z;
+            if self.use_scene_aabb {
+                self.shadow_maps[0].render(
+                    world,
+                    &mut self.light_camera,
+                    &ctx,
+                    &self.shadow_material.as_ref().unwrap(),
+                    last_partition_z,
+                    true,
+                    true,
+                    if capture {
+                        Some(&mut self.debug_gameobjects)
+                    } else {
+                        None
+                    },
+                );
+
+                self.shadow_maps[1].light_space_range = (1.0, 1.0);
+                self.shadow_maps[2].light_space_range = (1.0, 1.0);
+                self.shadow_maps[3].light_space_range = (1.0, 1.0);
+            } else {
+                for (i, map) in self.shadow_maps.iter_mut().enumerate() {
+                    map.render(
+                        world,
+                        &mut self.light_camera,
+                        &ctx,
+                        &self.shadow_material.as_ref().unwrap(),
+                        last_partition_z,
+                        i == 0,
+                        false,
+                        if capture {
+                            Some(&mut self.debug_gameobjects)
+                        } else {
+                            None
+                        },
+                    );
+
+                    last_partition_z = map.partition_z;
+                }
+            }
+        }
+
+        // update binder
+        {
+            for map in self.shadow_maps.iter_mut() {
+                map.update_binder();
+            }
         }
 
         // GUI
@@ -480,8 +580,11 @@ impl Processor for ShadowPass {
 
         ShadowPass {
             rt: rt.clone(),
+            use_scene_aabb: false,
             shadow_maps: [
                 ShadowMap {
+                    binder: None,
+                    name: "uShadowMap[0]".to_owned(),
                     rt: rt.clone(),
                     light_matrix: Matrix4f::identity(),
                     light_space_range: (-1.0, 1.0),
@@ -489,6 +592,8 @@ impl Processor for ShadowPass {
                     viewport: ((0, 0), (texture_size2, texture_size2)),
                 },
                 ShadowMap {
+                    binder: None,
+                    name: "uShadowMap[1]".to_owned(),
                     rt: rt.clone(),
                     light_matrix: Matrix4f::identity(),
                     light_space_range: (-1.0, 1.0),
@@ -496,6 +601,8 @@ impl Processor for ShadowPass {
                     viewport: ((texture_size2 as i32, 0), (texture_size2, texture_size2)),
                 },
                 ShadowMap {
+                    binder: None,
+                    name: "uShadowMap[2]".to_owned(),
                     rt: rt.clone(),
                     light_matrix: Matrix4f::identity(),
                     light_space_range: (-1.0, 1.0),
@@ -503,6 +610,8 @@ impl Processor for ShadowPass {
                     viewport: ((0, texture_size2 as i32), (texture_size2, texture_size2)),
                 },
                 ShadowMap {
+                    binder: None,
+                    name: "uShadowMap[3]".to_owned(),
                     rt: rt.clone(),
                     light_matrix: Matrix4f::identity(),
                     light_space_range: (-1.0, 1.0),

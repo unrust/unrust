@@ -1,7 +1,9 @@
-#ifndef GL_ES
+#define USE_GLSL_300ES
+
+//#ifndef GL_ES
 #define attribute in
 #define varying out
-#endif
+//#endif
 
 attribute vec3 aVertexPosition;
 attribute vec3 aVertexNormal;

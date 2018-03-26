@@ -1,22 +1,24 @@
-#ifndef GL_ES
+#define USE_GLSL_300ES
+
+//#ifndef GL_ES
 #define attribute in
 #define varying out
 #define texture2D texture
-#else 
-highp mat3 transpose(in highp mat3 inMatrix) {
-    highp vec3 i0 = inMatrix[0];
-    highp vec3 i1 = inMatrix[1];
-    highp vec3 i2 = inMatrix[2];
+// #else 
+// highp mat3 transpose(in highp mat3 inMatrix) {
+//     highp vec3 i0 = inMatrix[0];
+//     highp vec3 i1 = inMatrix[1];
+//     highp vec3 i2 = inMatrix[2];
 
-    highp mat3 outMatrix = mat3(
-                 vec3(i0.x, i1.x, i2.x),
-                 vec3(i0.y, i1.y, i2.y),
-                 vec3(i0.z, i1.z, i2.z)
-                 );
+//     highp mat3 outMatrix = mat3(
+//                  vec3(i0.x, i1.x, i2.x),
+//                  vec3(i0.y, i1.y, i2.y),
+//                  vec3(i0.z, i1.z, i2.z)
+//                  );
 
-    return outMatrix;
-}
-#endif
+//     return outMatrix;
+// }
+// #endif
 
 #define UNI_POINT_LIGHTS 4
 

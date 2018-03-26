@@ -1,7 +1,7 @@
 use uni_glsl::preprocessor;
-use uni_glsl::parser;
-use uni_glsl::TypeQualifier;
-use uni_glsl::query::*;
+//use uni_glsl::parser;
+// use uni_glsl::TypeQualifier;
+// use uni_glsl::query::*;
 
 use webgl;
 use std::collections::HashMap;
@@ -39,7 +39,7 @@ impl ShaderKindProvider for ShaderKindFs {
 pub struct Shader<T: ShaderKindProvider> {
     pub code: String,
     pub filename: String,
-    unit: parser::TranslationUnit,
+    //unit: parser::TranslationUnit,
     phantom: PhantomData<*const T>,
 }
 
@@ -63,13 +63,23 @@ where
             ShaderKind::Vertex => if !webgl::IS_GL_ES {
                 "#version 150\n".to_string() + s
             } else {
-                s.to_string()
+                if s.starts_with("#define USE_GLSL_300ES") {
+                    webgl::print("Use 300 es");
+                    "#version 300 es\n".to_owned() + s
+                } else {
+                    s.to_owned()
+                }
             },
 
             ShaderKind::Fragment => if !webgl::IS_GL_ES {
                 "#version 150\n".to_string() + s
             } else {
-                ("precision highp float;\n").to_string() + s
+                if s.starts_with("#define USE_GLSL_300ES") {
+                    webgl::print("Use 300 es");
+                    "#version 300 es\n".to_owned() + "precision highp float;\n" + s
+                } else {
+                    "precision highp float;\n".to_owned() + s
+                }
             },
         };
 
@@ -78,21 +88,21 @@ where
 
         webgl::print(&format!("preprocessing {}...\n", filename));
 
-        let preprocessed = preprocessor::preprocess(&s, &predefs);
-        let unit = parser::parse(&preprocessed.unwrap()).unwrap();
+        preprocessor::preprocess(&s, &predefs).unwrap();
+        //let unit = parser::parse(&preprocessed.unwrap()).unwrap();
 
         Shader {
-            unit: unit,
+            //unit: unit,
             filename: filename.to_string(),
             code: s.to_string(),
             phantom: PhantomData,
         }
     }
 
-    pub fn has_attr(&self, s: &str) -> bool {
-        self.unit
-            .query_decl(s)
-            .is(TypeQualifier::Attribute)
-            .is_some()
-    }
+    // pub fn has_attr(&self, s: &str) -> bool {
+    //     self.unit
+    //         .query_decl(s)
+    //         .is(TypeQualifier::Attribute)
+    //         .is_some()
+    // }
 }

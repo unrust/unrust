@@ -1,7 +1,6 @@
 use world::{Actor, Handle, World};
 use engine::{Asset, Camera, ClearOption, Component, ComponentBased, CullMode, GameObject, Light,
-             Material, Mesh, MeshBuffer, MeshData, RenderQueue, RenderTexture, Texture,
-             TextureAttachment};
+             Material, Mesh, MeshBuffer, MeshData, RenderQueue, RenderTexture, TextureAttachment};
 use engine::mesh_util::*;
 
 use world::Processor;
@@ -11,12 +10,20 @@ use std::sync::Arc;
 
 use math::*;
 
+struct ShadowMap {
+    rt: Rc<RenderTexture>,
+    light_matrix: Matrix4f,
+    light_space_range: (f32, f32),
+    partition_z: f32,
+    viewport: ((i32, i32), (u32, u32)),
+}
+
 pub struct ShadowPass {
     rt: Rc<RenderTexture>,
+    shadow_maps: [ShadowMap; 4],
+
     light_cache: Option<Arc<Component>>,
     shadow_material: Option<Rc<Material>>,
-
-    light_matrix: Matrix4<f32>,
     light_camera: Camera,
 
     debug_gameobjects: Vec<Handle<GameObject>>,
@@ -116,29 +123,75 @@ fn add_debug_frustum(
 }
 
 // References:
+// https://stackoverflow.com/questions/43557116/opengl-restore-z-from-depth
 // https://gamedev.stackexchange.com/questions/73851/how-do-i-fit-the-camera-frustum-inside-directional-light-space
 // https://www.scratchapixel.com/lessons/3d-basic-rendering/perspective-and-orthographic-projection-matrix/orthographic-projection-matrix
 // https://msdn.microsoft.com/en-us/library/windows/desktop/ee416307(v=vs.85).aspx
+// https://developer.nvidia.com/content/depth-precision-visualized
+
+struct LightMatrixContext {
+    inv_pv: Matrix4f,
+    view: Matrix4f,
+    light_space_scene_max_z: f32,
+
+    cam_zfar: f32,
+    cam_znear: f32,
+}
+
+impl LightMatrixContext {
+    fn new(light_com: &Arc<Component>, world: &World) -> LightMatrixContext {
+        let cam_borrow = world.current_camera().unwrap();
+        let cam = cam_borrow.borrow();
+
+        let p = cam.perspective(world.engine().screen_size);
+        let v = cam.v;
+        let inv_pv = (p * v).try_inverse().unwrap();
+
+        let light = light_com.try_as::<Light>().unwrap().borrow();
+        let lightdir = light.directional().unwrap().direction;
+        let light_target = Point3 { coords: lightdir };
+        let view = Matrix4::look_at_rh(&Point3::new(0.0, 0.0, 0.0), &light_target, &Vector3::y());
+
+        // Compute scene bound light space aabb.
+        // Todo: it is very expensive...
+        let scene_bound = world.engine().get_bounds(&cam);
+        let light_space_scene_bounds = scene_bound.corners().iter().fold(
+            Aabb::empty(),
+            |mut acc, p| {
+                acc.merge_point(&transform_point(&view, &Point3 { coords: *p }).coords);
+                acc
+            },
+        );
+
+        LightMatrixContext {
+            cam_znear: cam.znear,
+            cam_zfar: cam.zfar,
+            inv_pv,
+            view,
+            light_space_scene_max_z: light_space_scene_bounds.max.z,
+        }
+    }
+}
+
+fn z_to_ndc(z: f32, n: f32, f: f32) -> f32 {
+    // a = -(f+n)/(f-n)
+    // b = 2fn/(f-n)
+    // z_ndc = -a - b / z
+
+    let r = 1.0 / (f - n);
+    let a = -(f + n) * r;
+    let b = 2.0 * f * n * r;
+
+    return -a - (b / z);
+}
 
 fn compute_light_matrix(
-    com: &Arc<Component>,
+    ctx: &LightMatrixContext,
     world: &mut World,
-    debug: bool,
-    debug_gameobjects: &mut Vec<Handle<GameObject>>,
-) -> Matrix4<f32> {
-    let cam_borrow = world.current_camera().unwrap();
-    let cam = cam_borrow.borrow();
-
-    let p = cam.perspective(world.engine().screen_size);
-    let v = cam.v;
-    let inv_pv = (p * v).try_inverse().unwrap();
-
-    let light = com.try_as::<Light>().unwrap().borrow();
-    let lightdir = light.directional().unwrap().direction;
-    let light_target = Point3 { coords: lightdir };
-    let view = Matrix4::look_at_rh(&Point3::new(0.0, 0.0, 0.0), &light_target, &Vector3::y());
-
-    let bound_m = view * inv_pv;
+    z_range: &(f32, f32),
+    debug: Option<&mut Vec<Handle<GameObject>>>,
+) -> (Matrix4<f32>, (f32, f32)) {
+    let bound_m = ctx.view * ctx.inv_pv;
 
     // Calculate the 8 corners of the view frustum in world space.
 
@@ -152,9 +205,9 @@ fn compute_light_matrix(
     // If the camera is perspective, the depth value will be calculated by
     // following equation:
     //
-    // a = -(n+f)/(n-f)
-    // b = 2fn(n-f)
-    // z_ndc = a - b / z
+    // a = -(f+n)/(f-n)
+    // b = 2fn/(f-n)
+    // z_ndc = -a - b / z
     //
     // For example , n = 0.3, f=100.0,  z = 50.0
     // a = -1.0060180
@@ -163,9 +216,9 @@ fn compute_light_matrix(
     // z_ndc = 1.0060180 - 0.01203611
     //       = 0.99398189
 
-    let nearz = -1.0;
+    let nearz = z_to_ndc(z_range.0, ctx.cam_znear, ctx.cam_zfar);
     //let farz = 0.99398189;
-    let farz = 1.0;
+    let farz = z_to_ndc(z_range.1, ctx.cam_znear, ctx.cam_zfar);
 
     let corners = [
         transform_point(&bound_m, &Point3::new(-1.0, -1.0, nearz)),
@@ -184,29 +237,20 @@ fn compute_light_matrix(
         aabb.merge_point(&c.coords)
     }
 
-    // Compute scene bound light space aabb.
-    // Todo: it is very expensive...
-    let scene_bound = world.engine().get_bounds(&cam);
-    let light_space_scene_bounds = scene_bound.corners().iter().fold(
-        Aabb::empty(),
-        |mut acc, p| {
-            acc.merge_point(&transform_point(&view, &Point3 { coords: *p }).coords);
-            acc
-        },
-    );
+    let max_z = aabb.max.z.max(ctx.light_space_scene_max_z);
 
-    if debug {
+    if let Some(debug_gameobjects) = debug {
         add_debug_frustum(
-            &view,
+            &ctx.view,
             &[
-                Point3::new(aabb.min.x, aabb.min.y, light_space_scene_bounds.min.z),
-                Point3::new(aabb.max.x, aabb.min.y, light_space_scene_bounds.min.z),
-                Point3::new(aabb.max.x, aabb.max.y, light_space_scene_bounds.min.z),
-                Point3::new(aabb.min.x, aabb.max.y, light_space_scene_bounds.min.z),
-                Point3::new(aabb.min.x, aabb.min.y, light_space_scene_bounds.max.z),
-                Point3::new(aabb.max.x, aabb.min.y, light_space_scene_bounds.max.z),
-                Point3::new(aabb.max.x, aabb.max.y, light_space_scene_bounds.max.z),
-                Point3::new(aabb.min.x, aabb.max.y, light_space_scene_bounds.max.z),
+                Point3::new(aabb.min.x, aabb.min.y, aabb.min.z),
+                Point3::new(aabb.max.x, aabb.min.y, aabb.min.z),
+                Point3::new(aabb.max.x, aabb.max.y, aabb.min.z),
+                Point3::new(aabb.min.x, aabb.max.y, aabb.min.z),
+                Point3::new(aabb.min.x, aabb.min.y, max_z),
+                Point3::new(aabb.max.x, aabb.min.y, max_z),
+                Point3::new(aabb.max.x, aabb.max.y, max_z),
+                Point3::new(aabb.min.x, aabb.max.y, max_z),
             ],
             world,
             debug_gameobjects,
@@ -219,40 +263,128 @@ fn compute_light_matrix(
     // Don't forget that because we use a right hand coordinate system,
     // the z-coordinates of all points visible by the camera are negative,
     // which is the reason we use -z instead of z.
+    let far = -aabb.min.z;
+    let near = -max_z;
 
-    let proj = Matrix4::new_orthographic(
-        aabb.min.x,
-        aabb.max.x,
-        aabb.min.y,
-        aabb.max.y,
-        -light_space_scene_bounds.max.z,
-        -light_space_scene_bounds.min.z,
-    );
+    let proj = Matrix4::new_orthographic(aabb.min.x, aabb.max.x, aabb.min.y, aabb.max.y, near, far);
 
-    return proj * view;
+    return (proj * ctx.view, (nearz, farz));
+}
+
+impl ShadowMap {
+    pub fn render(
+        &mut self,
+        world: &mut World,
+        light_cam: &mut Camera,
+        ctx: &LightMatrixContext,
+        shadow_material: &Rc<Material>,
+        last_partition_z: f32,
+        first_render: bool,
+        debug: Option<&mut Vec<Handle<GameObject>>>,
+    ) {
+        light_cam.render_texture = Some(self.rt.clone());
+        light_cam.rect = Some(self.viewport);
+
+        if world.current_camera().is_none() {
+            return;
+        }
+
+        let partition = (last_partition_z, self.partition_z);
+
+        let (lm, r) = match debug {
+            Some(debug_gameobjects) => {
+                for go in debug_gameobjects.iter() {
+                    world.remove_game_object(go);
+                }
+                debug_gameobjects.clear();
+
+                compute_light_matrix(&ctx, world, &partition, Some(debug_gameobjects))
+            }
+
+            None => compute_light_matrix(&ctx, world, &partition, None),
+        };
+
+        self.light_matrix = lm;
+        self.light_space_range = r;
+
+        // if self.debug_mode {
+        //     for go in self.debug_gameobjects.iter() {
+        //         go.borrow_mut().active = true;
+        //     }
+
+        // //world.current_camera().unwrap().borrow_mut().zfar = 1000.0;
+        // } else {
+        //     for go in self.debug_gameobjects.iter() {
+        //         go.borrow_mut().active = false;
+        //     }
+        //     //world.current_camera().unwrap().borrow_mut().zfar = 100.0;
+        // }
+
+        {
+            shadow_material.set("uShadowMatrix", self.light_matrix);
+        }
+
+        // Render current scene by camera using given frame buffer
+        let mut clear_option = ClearOption::default();
+        if !first_render {
+            clear_option.clear_depth = false;
+            clear_option.clear_color = false;
+        }
+
+        world.engine_mut().render_pass_with_material(
+            light_cam,
+            Some(shadow_material),
+            clear_option,
+        );
+    }
 }
 
 impl ComponentBased for ShadowPass {}
 
 impl ShadowPass {
-    pub fn texture(&self) -> Rc<Texture> {
-        self.rt.as_texture()
+    pub fn set_partitions(&mut self, partitions: &[f32; 4]) {
+        self.shadow_maps[0].partition_z = partitions[0];
+        self.shadow_maps[1].partition_z = partitions[1];
+        self.shadow_maps[2].partition_z = partitions[2];
+        self.shadow_maps[3].partition_z = partitions[3];
     }
 
-    fn light(&self) -> Option<&Arc<Component>> {
-        self.light_cache.as_ref()
-    }
+    fn apply(&self, material: &Material) {
+        material.set("uShadowEnabled", true);
+        material.set("uShadowMapTexture", self.rt.as_texture());
 
-    pub fn apply(&self, material: &Material) {
-        let lm = self.light_matrix;
-        let shadow_map_size = self.texture()
-            .size()
-            .map(|(w, h)| Vector2::new(w as f32, h as f32))
-            .unwrap_or(Vector2::new(0.0, 0.0));
+        for (i, map) in self.shadow_maps.iter().enumerate() {
+            let name = format!("uShadowMap[{}]", i);
 
-        material.set("uShadowMatrix", lm);
-        material.set("uShadowMapSize", shadow_map_size);
-        material.set("uShadowMap", self.texture());
+            let shadow_map_size = map.rt
+                .as_texture()
+                .size()
+                .map(|(w, h)| Vector2::new(w as f32, h as f32))
+                .unwrap_or(Vector2::new(0.0, 0.0));
+
+            material.set(&(name.clone() + ".map_size"), shadow_map_size);
+            material.set(&(name.clone() + ".light_matrix"), map.light_matrix);
+            material.set(
+                &(name.clone() + ".range"),
+                Vector2::new(map.light_space_range.0, map.light_space_range.1),
+            );
+
+            material.set(
+                &(name.clone() + ".viewport_offset"),
+                Vector2::new(
+                    (map.viewport.0).0 as f32 / shadow_map_size.x,
+                    (map.viewport.0).1 as f32 / shadow_map_size.y,
+                ),
+            );
+
+            material.set(
+                &(name.clone() + ".viewport_scale"),
+                Vector2::new(
+                    (map.viewport.1).0 as f32 / shadow_map_size.x,
+                    (map.viewport.1).1 as f32 / shadow_map_size.y,
+                ),
+            );
+        }
     }
 }
 
@@ -263,10 +395,7 @@ impl Actor for ShadowPass {
         let shadow_mat = Material::new(db.new_program("unrust/shadow"));
         self.shadow_material = Some(Rc::new(shadow_mat));
 
-        self.light_camera.render_texture = Some(self.rt.clone());
-
         // Setup proper viewport to render to the whole texture
-        self.light_camera.rect = Some(((0, 0), (1024, 1024)));
         self.light_camera.enable_frustum_culling = false;
         self.light_camera.included_render_queues = Some(Default::default());
         self.light_camera
@@ -298,64 +427,38 @@ impl Actor for ShadowPass {
         // update light
         if self.light_cache.is_none() {
             self.light_cache = world.engine().find_main_light();
-        }
 
-        if world.current_camera().is_none() {
-            return;
-        }
-
-        // Update light matrix
-        let light = self.light().cloned();
-
-        if let Some(c) = light {
-            if capture {
-                for go in self.debug_gameobjects.iter() {
-                    world.remove_game_object(go);
-                }
-                self.debug_gameobjects.clear();
-
-                // Change camera zfar more to know where is the end of frustum
-                //world.current_camera().unwrap().borrow_mut().zfar = 100.0;
-
-                self.light_matrix =
-                    compute_light_matrix(&c, world, true, &mut self.debug_gameobjects);
-                self.debug_mode = true;
-            } else {
-                self.light_matrix =
-                    compute_light_matrix(&c, world, false, &mut self.debug_gameobjects);
+            // if still is none, do nothing
+            if self.light_cache.is_none() {
+                return;
             }
         }
 
-        if self.debug_mode {
-            for go in self.debug_gameobjects.iter() {
-                go.borrow_mut().active = true;
-            }
+        let ctx = LightMatrixContext::new(&self.light_cache.as_ref().unwrap(), world);
+        let mut last_partition_z = self.light_camera.znear;
 
-        //world.current_camera().unwrap().borrow_mut().zfar = 1000.0;
-        } else {
-            for go in self.debug_gameobjects.iter() {
-                go.borrow_mut().active = false;
-            }
-            //world.current_camera().unwrap().borrow_mut().zfar = 100.0;
+        for (i, map) in self.shadow_maps.iter_mut().enumerate() {
+            map.render(
+                world,
+                &mut self.light_camera,
+                &ctx,
+                &self.shadow_material.as_ref().unwrap(),
+                last_partition_z,
+                i == 0,
+                if capture {
+                    Some(&mut self.debug_gameobjects)
+                } else {
+                    None
+                },
+            );
+
+            last_partition_z = map.partition_z;
         }
-
-        {
-            self.shadow_material
-                .as_ref()
-                .unwrap()
-                .set("uShadowMatrix", self.light_matrix);
-        }
-
-        // Render current scene by camera using given frame buffer
-        world.engine_mut().render_pass_with_material(
-            &self.light_camera,
-            self.shadow_material.as_ref(),
-            ClearOption::default(),
-        );
 
         // GUI
         use imgui;
         use imgui::Metric::*;
+
         imgui::pivot((0.0, 1.0));
         let mut mat = Material::new(world.asset_system().new_program("unrust/shadow_display"));
         mat.set("uDepthMap", self.rt.as_texture());
@@ -367,11 +470,48 @@ impl Actor for ShadowPass {
 
 impl Processor for ShadowPass {
     fn new() -> ShadowPass {
+        let texture_size = 2048;
+        let texture_size2 = texture_size / 2;
+        let rt = Rc::new(RenderTexture::new(
+            texture_size,
+            texture_size,
+            TextureAttachment::Depth,
+        ));
+
         ShadowPass {
-            rt: Rc::new(RenderTexture::new(1024, 1024, TextureAttachment::Depth)),
+            rt: rt.clone(),
+            shadow_maps: [
+                ShadowMap {
+                    rt: rt.clone(),
+                    light_matrix: Matrix4f::identity(),
+                    light_space_range: (-1.0, 1.0),
+                    partition_z: 50.0,
+                    viewport: ((0, 0), (texture_size2, texture_size2)),
+                },
+                ShadowMap {
+                    rt: rt.clone(),
+                    light_matrix: Matrix4f::identity(),
+                    light_space_range: (-1.0, 1.0),
+                    partition_z: 100.0,
+                    viewport: ((texture_size2 as i32, 0), (texture_size2, texture_size2)),
+                },
+                ShadowMap {
+                    rt: rt.clone(),
+                    light_matrix: Matrix4f::identity(),
+                    light_space_range: (-1.0, 1.0),
+                    partition_z: 200.0,
+                    viewport: ((0, texture_size2 as i32), (texture_size2, texture_size2)),
+                },
+                ShadowMap {
+                    rt: rt.clone(),
+                    light_matrix: Matrix4f::identity(),
+                    light_space_range: (-1.0, 1.0),
+                    partition_z: 1000.0,
+                    viewport: ((0, texture_size2 as i32), (texture_size2, texture_size2)),
+                },
+            ],
             shadow_material: None,
             light_cache: None,
-            light_matrix: Matrix4::identity(),
             light_camera: Camera::new(),
             debug_gameobjects: Vec::new(),
             debug_mode: false,

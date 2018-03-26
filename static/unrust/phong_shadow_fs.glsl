@@ -40,10 +40,17 @@ uniform Material uMaterial;
 varying vec3 vFragPos;
 varying vec2 vTexCoords;       
 varying vec3 vNormal;       
-varying vec4 vPosLightSpace;
 
-uniform sampler2D uShadowMap;
-uniform vec2 uShadowMapSize;
+struct ShadowMap {
+    mat4 light_matrix;
+    vec2 map_size;
+    vec2 range;
+    vec2 viewport_offset;
+    vec2 viewport_scale;
+};
+
+uniform ShadowMap uShadowMap[4];
+uniform sampler2D uShadowMapTexture;
 
 // Lights
 uniform DirectionalLight uDirectionalLight;
@@ -66,19 +73,31 @@ void main(void) {
     gl_FragColor = vec4(result, 1.0);           
 }
 
-float ShadowCalculation(vec4 posLightSpace, vec3 normal, vec3 lightDir)
+float ndc_z() {
+    return ((2.0 * gl_FragCoord.z - gl_DepthRange.near - gl_DepthRange.far) /
+    (gl_DepthRange.far - gl_DepthRange.near));
+}
+
+float ShadowCalculation(vec3 worldPos, vec3 normal, vec3 lightDir)
 {
+    float nz = ndc_z();
+
+    int i3 = 3 * int(nz > uShadowMap[3].range.x);
+    int i2 = max(i3, 2 * int(nz > uShadowMap[2].range.x));
+    int index = max(i2, 1 * int(nz > uShadowMap[1].range.x));
+    
+    vec4 posLightSpace = uShadowMap[index].light_matrix * vec4(worldPos, 1.0);
     vec3 projCoords = posLightSpace.xyz / posLightSpace.w;
 
     // transform ndc to range [0,1]
     projCoords = projCoords * 0.5 + 0.5;
     if (projCoords.z > 1.0)
-        return 0.0;
+        return 1.0;
     
     float currentDepth = projCoords.z;
 
     float bias = max(0.005 * (1.0 - dot(normal, lightDir)), 0.001);
-    vec2 texelSize =  1.0 / uShadowMapSize;
+    vec2 texelSize =  1.0 / uShadowMap[index].map_size;
 
     float shadow = 0.0;
     for(int x = -1; x <= 1; ++x)
@@ -86,7 +105,9 @@ float ShadowCalculation(vec4 posLightSpace, vec3 normal, vec3 lightDir)
         for(int y = -1; y <= 1; ++y)
         {
             vec2 boundProj = projCoords.xy + vec2(x, y)* texelSize;
-            float pcfDepth = texture2D(uShadowMap, boundProj).r;
+            vec2 adjBoundProj = uShadowMap[index].viewport_offset + boundProj * uShadowMap[index].viewport_scale;
+
+            float pcfDepth = texture2D(uShadowMapTexture, adjBoundProj).r;
             float partShadow = currentDepth - bias > pcfDepth ? 1.0 : 0.0;
             
             if (boundProj.x < 0.0 || boundProj.x > 1.0 ||
@@ -99,7 +120,7 @@ float ShadowCalculation(vec4 posLightSpace, vec3 normal, vec3 lightDir)
     }
     
     shadow /= 9.0;
-    return shadow;
+    return (1.0 - shadow);
 }
 
 vec3 CalcDirectionalLight(DirectionalLight light, vec3 normal, vec3 viewDir)
@@ -116,9 +137,9 @@ vec3 CalcDirectionalLight(DirectionalLight light, vec3 normal, vec3 viewDir)
     float spec = pow(max(dot(viewDir, reflectDir), 0.0), uMaterial.shininess);
     vec3 specular = light.specular * spec; 
 
-    float shadow = ShadowCalculation(vPosLightSpace, normal, lightDir);
+    float shadow = ShadowCalculation(vFragPos, normal, lightDir);
 
-    return ambient + (diffuse + specular) * (1.0 - shadow);
+    return ambient + (diffuse + specular) * shadow;
 }
 
 vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir)

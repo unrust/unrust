@@ -5,7 +5,7 @@ use unrust::engine::{AssetError, ComponentBased, Directional, GameObject, Light,
                      Prefab};
 use unrust::world::events::*;
 use unrust::math::*;
-use unrust::actors::{FirstPersonCamera, SkyBox};
+use unrust::actors::{FirstPersonCamera, ShadowPass, SkyBox};
 
 // GUI
 use unrust::imgui;
@@ -227,6 +227,7 @@ pub fn main() {
         .with_processor::<MaterialFilter>()
         .with_processor::<SkyBox>()
         .with_processor::<FirstPersonCamera>()
+        //.with_processor::<ShadowPass>()
         .build();
 
     // Add the main scene as component of scene game object

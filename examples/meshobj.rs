@@ -1,8 +1,9 @@
 extern crate unrust;
 
 use unrust::world::{Actor, Handle, World, WorldBuilder};
-use unrust::engine::{AssetError, Camera, Directional, GameObject, Light, Prefab};
+use unrust::engine::{AssetError, Camera, Directional, GameObject, Light, Material, Mesh, Prefab};
 use unrust::world::events::*;
+use unrust::actors::ShadowPass;
 use unrust::math::*;
 
 // GUI
@@ -18,7 +19,8 @@ pub struct MainScene {
 impl MainScene {
     fn new() -> Box<Actor> {
         Box::new(MainScene {
-            eye: Vector3::new(0.0, -0.06, -3.36),
+            eye: Vector3::new(0.0, 0.36, -3.36),
+            //eye: Vector3::new(12.0, 12.0, -12.0),
             last_event: None,
         })
     }
@@ -43,6 +45,20 @@ impl Actor for MainScene {
         {
             let go = world.new_game_object();
             go.borrow_mut().add_component(WaveObjActor::new());
+        }
+
+        // Added a simple plane
+        {
+            let plane = world.new_game_object();
+            plane.borrow_mut().add_component(Plane::new_actor(Plane {}));
+        }
+
+        // Set the shadow map partitions
+        {
+            let shadow_pass = world.find_component::<ShadowPass>().unwrap();
+            shadow_pass
+                .borrow_mut()
+                .set_partitions(&[10.0, 20.0, 40.0, 1000.0]);
         }
     }
 
@@ -143,10 +159,31 @@ impl Actor for WaveObjActor {
     }
 }
 
+pub struct Plane;
+
+impl Actor for Plane {
+    fn start(&mut self, go: &mut GameObject, world: &mut World) {
+        let db = &mut world.asset_system();
+
+        let material = Material::new(db.new_program("unrust/phong_shadow"));
+        material.set("uMaterial.diffuse", db.new_texture("default_white"));
+        material.set("uMaterial.shininess", 32.0);
+
+        let mut mesh = Mesh::new();
+        mesh.add_surface(db.new_mesh_buffer("plane"), material);
+        go.add_component(mesh);
+
+        let mut ltran = go.transform.local();
+        ltran.translation = Translation3::new(0.0, -1.45, 0.0);
+        go.transform.set_local(ltran);
+    }
+}
+
 pub fn main() {
     let mut world = WorldBuilder::new("obj prefab demo")
         .with_size((800, 600))
         .with_stats(true)
+        .with_processor::<ShadowPass>()
         .build();
 
     // Add the main scene as component of scene game object

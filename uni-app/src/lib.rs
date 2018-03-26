@@ -59,6 +59,7 @@ pub mod events {
     #[derive(Clone)]
     pub struct KeyDownEvent {
         pub code: String,
+        pub key: String,
         pub shift: bool,
         pub alt: bool,
         pub ctrl: bool,
@@ -66,12 +67,16 @@ pub mod events {
 
     #[derive(Debug, Clone)]
     pub struct KeyPressEvent {
+        // scan code : top left letter is KeyQ even on an azerty keyboard
         pub code: String,
+        // virtual key : top left letter is KeyQ on qwerty, KeyA on azerty
+        pub key: String,
     }
 
     #[derive(Clone)]
     pub struct KeyUpEvent {
         pub code: String,
+        pub key: String,
         pub shift: bool,
         pub alt: bool,
         pub ctrl: bool,
@@ -81,11 +86,12 @@ pub mod events {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
             write!(
                 f,
-                "{} {} {} {}",
+                "{} {} {} {} {}",
                 if self.shift { "shift" } else { "" },
                 if self.alt { "alt" } else { "" },
                 if self.ctrl { "ctrl" } else { "" },
                 self.code,
+                self.key,
             )
         }
     }
@@ -94,11 +100,12 @@ pub mod events {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
             write!(
                 f,
-                "{} {} {} {}",
+                "{} {} {} {} {}",
                 if self.shift { "shift" } else { "" },
                 if self.alt { "alt" } else { "" },
                 if self.ctrl { "ctrl" } else { "" },
                 self.code,
+                self.key,
             )
         }
     }

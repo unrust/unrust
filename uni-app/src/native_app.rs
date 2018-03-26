@@ -12,7 +12,7 @@ use AppConfig;
 use AppEvent;
 
 use super::events;
-use self::native_keycode::translate_keycode;
+use self::native_keycode::{translate_scan_code, translate_virtual_key};
 
 pub struct App {
     window: glutin::GlWindow,
@@ -21,10 +21,10 @@ pub struct App {
     pub events: Rc<RefCell<Vec<AppEvent>>>,
 }
 
-fn translate_keyevent(input: glutin::KeyboardInput) -> String {
+fn get_virtual_key(input: glutin::KeyboardInput) -> String {
     match input.virtual_keycode {
         Some(k) => {
-            let mut s = translate_keycode(k).into();
+            let mut s = translate_virtual_key(k).into();
             if s == "" {
                 s = format!("{:?}", k);
             }
@@ -32,6 +32,10 @@ fn translate_keyevent(input: glutin::KeyboardInput) -> String {
         }
         None => "".into(),
     }
+}
+
+fn get_scan_code(input: glutin::KeyboardInput) -> String {
+    translate_scan_code(input.scancode).into()
 }
 
 fn translate_event(e: glutin::Event) -> Option<AppEvent> {
@@ -46,13 +50,15 @@ fn translate_event(e: glutin::Event) -> Option<AppEvent> {
             WindowEvent::CursorMoved { position, .. } => Some(AppEvent::MousePos(position)),
             WindowEvent::KeyboardInput { input, .. } => match input.state {
                 ElementState::Pressed => Some(AppEvent::KeyDown(events::KeyDownEvent {
-                    code: translate_keyevent(input),
+                    key: get_virtual_key(input),
+                    code: get_scan_code(input),
                     shift: input.modifiers.shift,
                     alt: input.modifiers.alt,
                     ctrl: input.modifiers.ctrl,
                 })),
                 ElementState::Released => Some(AppEvent::KeyUp(events::KeyUpEvent {
-                    code: translate_keyevent(input),
+                    key: get_virtual_key(input),
+                    code: get_scan_code(input),
                     shift: input.modifiers.shift,
                     alt: input.modifiers.alt,
                     ctrl: input.modifiers.ctrl,

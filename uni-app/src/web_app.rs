@@ -160,6 +160,7 @@ impl App {
             e,
             events::KeyDownEvent {
                 code: e.code(),
+                key: e.key(),
                 shift: e.shift_key(),
                 alt: e.alt_key(),
                 ctrl: e.ctrl_key(),
@@ -183,6 +184,7 @@ impl App {
             e,
             events::KeyUpEvent {
                 code: e.code(),
+                key: e.key(),
                 shift: e.shift_key(),
                 alt: e.alt_key(),
                 ctrl: e.ctrl_key(),

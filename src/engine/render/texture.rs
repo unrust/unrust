@@ -186,6 +186,32 @@ impl Texture {
         Ok(())
     }
 
+    pub fn bind_with_frame_buffer(&self, gl: &WebGLRenderingContext, unit: u32) -> AssetResult<()> {
+        self.prepare(gl)?;
+
+        let state_option = self.gl_state.borrow();
+        let state = state_option.as_ref().unwrap();
+
+        gl.active_texture(unit);
+        match self.kind {
+            TextureKind::CubeMap(_) => gl.bind_texture_cube(&state.tex),
+            _ => gl.bind_texture(&state.tex),
+        }
+
+        if let TextureKind::RenderTexture { ref attach, .. } = self.kind {
+            match attach {
+                &TextureAttachment::Color0 => {
+                    bind_to_framebuffer(gl, &state.tex, Buffers::ColorAttachment0)
+                }
+                &TextureAttachment::Depth => {
+                    bind_to_framebuffer(gl, &state.tex, Buffers::DepthAttachment)
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn prepare(&self, gl: &WebGLRenderingContext) -> AssetResult<()> {
         if self.gl_state.borrow().is_some() {
             return Ok(());
@@ -508,13 +534,6 @@ fn texture_bind_buffer(
                 TextureParameter::TextureWrapR,
                 to_gl_wrap(wrap_w),
             );
-        }
-    }
-
-    if let &TextureKind::RenderTexture { ref attach, .. } = kind {
-        match attach {
-            &TextureAttachment::Color0 => bind_to_framebuffer(gl, &tex, Buffers::ColorAttachment0),
-            &TextureAttachment::Depth => bind_to_framebuffer(gl, &tex, Buffers::DepthAttachment),
         }
     }
 

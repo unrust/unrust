@@ -27,7 +27,6 @@ impl FrameBuffer {
 
         self.create_fb(gl);
         self.bind(gl);
-        self.texture.bind(gl, 0).unwrap();
         self.unbind(gl);
     }
 
@@ -36,6 +35,7 @@ impl FrameBuffer {
         let h = ho.as_ref().unwrap();
 
         gl.bind_framebuffer(Buffers::Framebuffer, &h);
+        self.texture.bind_with_frame_buffer(gl, 0).unwrap();
     }
 
     pub fn unbind(&self, gl: &WebGLRenderingContext) {

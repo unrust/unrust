@@ -209,7 +209,7 @@ impl Actor for MainScene {
             for evt in world.events().iter() {
                 self.last_event = Some(evt.clone());
                 match evt {
-                    &AppEvent::Click(_) => addbox = true,
+                    &AppEvent::MouseUp(_) => addbox = true,
                     &AppEvent::KeyDown(ref key) => {
                         match key.code.as_str() {
                             "KeyA" => self.eye = Rotation3::new(up * -0.02) * self.eye,

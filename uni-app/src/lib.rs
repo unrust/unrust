@@ -54,7 +54,9 @@ pub mod events {
     use std::fmt;
 
     #[derive(Debug, Clone)]
-    pub struct ClickEvent;
+    pub struct MouseButtonEvent {
+        pub button: usize,
+    }
 
     #[derive(Clone)]
     pub struct KeyDownEvent {
@@ -116,7 +118,8 @@ pub use events::*;
 
 #[derive(Debug, Clone)]
 pub enum AppEvent {
-    Click(ClickEvent),
+    MouseDown(MouseButtonEvent),
+    MouseUp(MouseButtonEvent),
     KeyDown(KeyDownEvent),
     KeyUp(KeyUpEvent),
     Resized((u32, u32)),

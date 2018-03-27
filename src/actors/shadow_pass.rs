@@ -475,7 +475,7 @@ impl Actor for ShadowPass {
 
         for evt in world.events().iter() {
             match evt {
-                &AppEvent::KeyUp(ref key) => match key.key.as_str() {
+                &AppEvent::KeyUp(ref key) => match key.code.as_str() {
                     "Space" => {
                         capture = true;
                     }

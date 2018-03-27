@@ -58,7 +58,7 @@ impl Actor for MainScene {
                 self.last_event = Some(evt.clone());
                 match evt {
                     &AppEvent::KeyDown(ref key) => {
-                        match key.key.as_str() {
+                        match key.code.as_str() {
                             "KeyA" => self.eye = Rotation3::new(up * -0.02) * self.eye,
                             "KeyD" => self.eye = Rotation3::new(up * 0.02) * self.eye,
                             "KeyW" => self.eye -= front * 2.0,

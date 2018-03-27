@@ -158,11 +158,11 @@ impl FirstPersonCamera {
     fn handle_event(&mut self, evt: &AppEvent) {
         match evt {
             &AppEvent::KeyUp(ref key) => {
-                self.key_up(key.key.as_str());
+                self.key_up(key.code.as_str());
             }
 
             &AppEvent::KeyDown(ref key) => {
-                self.key_down(key.key.as_str());
+                self.key_down(key.code.as_str());
             }
 
             _ => {}

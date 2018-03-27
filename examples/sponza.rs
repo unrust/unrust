@@ -113,7 +113,7 @@ impl Actor for MainScene {
                 self.last_event = Some(evt.clone());
 
                 match evt {
-                    &AppEvent::KeyUp(ref key) => match key.key.as_str() {
+                    &AppEvent::KeyUp(ref key) => match key.code.as_str() {
                         "KeyU" => toggle_normal_map = true,
                         "Space" => self.animate_light = !self.animate_light,
                         "Escape" => reset = true,

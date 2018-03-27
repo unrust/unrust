@@ -79,7 +79,7 @@ impl Actor for SoundEngine {
         self.driver.frame();
         for evt in world.events().iter() {
             match evt {
-                &AppEvent::Click(_) => {
+                &AppEvent::MouseUp(_) => {
                     self.frequency = 600.0 - self.frequency;
                     App::print(format!("sending new frequency event: {}\n", self.frequency));
                     self.driver.send_event(self.frequency);

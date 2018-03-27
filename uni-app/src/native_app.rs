@@ -2,7 +2,7 @@ mod native_keycode;
 
 use glutin;
 use std::os::raw::c_void;
-use glutin::{ElementState, Event, WindowEvent};
+use glutin::{ElementState, Event, MouseButton, WindowEvent};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::env;
@@ -44,8 +44,18 @@ fn translate_event(e: glutin::Event) -> Option<AppEvent> {
     } = e
     {
         match winevent {
-            WindowEvent::MouseInput { state, .. } if state == ElementState::Released => {
-                Some(AppEvent::Click(events::ClickEvent {}))
+            WindowEvent::MouseInput { state, button, .. } => {
+                let button_num = match button {
+                    MouseButton::Left => 0,
+                    MouseButton::Middle => 1,
+                    MouseButton::Right => 2,
+                    MouseButton::Other(val) => val as usize,
+                };
+                let event = events::MouseButtonEvent { button: button_num };
+                match state {
+                    ElementState::Pressed => Some(AppEvent::MouseDown(event)),
+                    ElementState::Released => Some(AppEvent::MouseUp(event)),
+                }
             }
             WindowEvent::CursorMoved { position, .. } => Some(AppEvent::MousePos(position)),
             WindowEvent::KeyboardInput { input, .. } => match input.state {

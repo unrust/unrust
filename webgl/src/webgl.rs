@@ -725,15 +725,6 @@ impl GLContext {
         }
     }
 
-    pub fn uniform_1fv(&self, location: &WebGLUniformLocation, _count: usize, value: &[f32]) {
-        js!{
-            @(no_return)
-            var ctx = Module.gl.get(@{self.reference});
-            var loc = Module.gl.get(@{location.reference});
-            ctx.uniformMatrix1fv(loc,false,@{value})
-        }
-    }
-
     pub fn uniform_1i(&self, location: &WebGLUniformLocation, value: i32) {
         js!{
             @(no_return)

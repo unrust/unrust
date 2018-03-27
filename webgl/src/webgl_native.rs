@@ -638,13 +638,6 @@ impl GLContext {
         check_gl_error("uniform_matrix_2fv");
     }
 
-    pub fn uniform_1fv(&self, location: &WebGLUniformLocation, count: usize, value: &[f32]) {
-        unsafe {
-            gl::Uniform1fv(*location.deref() as i32, count as i32, &value[0] as _);
-        }
-        check_gl_error("uniform_1fv");
-    }
-
     pub fn uniform_1i(&self, location: &WebGLUniformLocation, value: i32) {
         unsafe {
             gl::Uniform1i(*location.deref() as i32, value as _);

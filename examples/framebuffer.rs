@@ -62,7 +62,7 @@ impl Actor for MainScene {
                 self.last_event = Some(evt.clone());
                 match evt {
                     &AppEvent::KeyDown(ref key) => {
-                        match key.code.as_str() {
+                        match key.key.as_str() {
                             "KeyA" => self.eye = Rotation3::new(up * -0.02) * self.eye,
                             "KeyD" => self.eye = Rotation3::new(up * 0.02) * self.eye,
                             "KeyW" => self.eye -= front * 2.0,
@@ -133,7 +133,7 @@ impl Actor for MiniScreen {
     fn update(&mut self, _go: &mut GameObject, world: &mut World) {
         for evt in world.events().iter() {
             if let &AppEvent::KeyUp(ref key) = evt {
-                match key.code.as_str() {
+                match key.key.as_str() {
                     "F1" => self.crt = !self.crt,
                     _ => (),
                 };

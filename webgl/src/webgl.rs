@@ -903,6 +903,14 @@ impl GLContext {
         WebGLFrameBuffer(val.try_into().unwrap())
     }
 
+    pub fn delete_framebuffer(&self, fb: &WebGLFrameBuffer) {
+        js! {
+            var ctx = Module.gl.get(@{self.reference});
+            var fb = Module.gl.get(@{fb.deref()});
+            ctx.deleteFramebuffer(fb);
+        }
+    }
+
     pub fn bind_framebuffer(&self, buffer: Buffers, fb: &WebGLFrameBuffer) {
         js! {
             var ctx = Module.gl.get(@{self.reference});

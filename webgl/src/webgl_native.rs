@@ -726,6 +726,13 @@ impl GLContext {
         fb
     }
 
+    pub fn delete_framebuffer(&self, fb: &WebGLFrameBuffer) {
+        unsafe {
+            gl::DeleteFramebuffers(1, &fb.0);
+        }
+        check_gl_error("delete_framebuffer");
+    }
+
     pub fn bind_framebuffer(&self, buffer: Buffers, fb: &WebGLFrameBuffer) {
         unsafe {
             gl::BindFramebuffer(buffer as u32, fb.0);

@@ -3,7 +3,8 @@ use std::rc;
 use std::cell::{Ref, RefCell, RefMut};
 use std::sync::Arc;
 use std::any::{Any, TypeId};
-use na::{Isometry3, Matrix4, Vector3};
+use math::*;
+
 use super::scene_tree::{ComponentEvent, NodeTransform, SceneTree};
 
 use std::sync::atomic::AtomicU32;
@@ -159,7 +160,15 @@ impl Transform {
     }
 
     pub fn set_global(&mut self, trans: Isometry3<f32>) {
-        self.set_local(self.parent_global().transform.inverse() * trans);
+        use math::*;
+
+        self.set_local(
+            self.parent_global()
+                .transform
+                .inverse_transform()
+                .unwrap()
+                .concat(&trans),
+        );
     }
 
     pub fn local(&self) -> Isometry3<f32> {

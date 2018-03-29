@@ -4,7 +4,7 @@ use std::cell::{Cell, Ref, RefCell, RefMut};
 use super::internal::GameObjectUtil;
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use na::{Isometry3, Matrix4, Vector3};
+use math::*;
 
 #[derive(Copy, Clone)]
 pub struct NodeTransform {
@@ -15,7 +15,7 @@ pub struct NodeTransform {
 impl NodeTransform {
     fn new() -> NodeTransform {
         NodeTransform {
-            transform: Isometry3::identity(),
+            transform: Isometry3::one(),
             scale: Vector3::new(1.0, 1.0, 1.0),
         }
     }
@@ -172,8 +172,9 @@ impl SceneTree {
 
     pub fn get_local_matrix(&self, node_id: u64) -> Matrix4<f32> {
         let local = self.get_local_transform(node_id);
-        let modelm = local.transform.to_homogeneous();
-        modelm * Matrix4::new_nonuniform_scaling(&local.scale)
+        let modelm: Matrix4f = local.transform.into();
+
+        modelm * Matrix4::from_nonuniform_scale(local.scale.x, local.scale.y, local.scale.z)
     }
 
     pub fn get_global_matrix(&self, node_id: u64) -> Matrix4<f32> {
@@ -196,7 +197,7 @@ impl SceneTree {
         let parent = self.get_global_transform(parent_id);
 
         NodeTransform {
-            transform: parent.transform * local.transform,
+            transform: parent.transform.concat(&local.transform),
             scale: Vector3::new(
                 parent.scale.x * local.scale.x,
                 parent.scale.y * local.scale.y,

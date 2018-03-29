@@ -1,9 +1,8 @@
-#ifndef GL_ES
-#define varying in
+#define USE_GLSL_300ES
+
 #define gl_FragColor FragColor
 #define texture2D texture
 out vec4 FragColor;
-#endif
 
 #define UNI_POINT_LIGHTS 4
 
@@ -37,9 +36,9 @@ struct Material {
 uniform vec3 uViewPos;
 uniform Material uMaterial;
 
-varying vec3 vFragPos;
-varying vec2 vTexCoords;       
-varying vec3 vNormal;       
+in vec3 vFragPos;
+in vec2 vTexCoords;       
+in vec3 vNormal;       
 
 struct ShadowMap {
     mat4 light_matrix;
@@ -82,9 +81,17 @@ float ShadowCalculation(vec3 worldPos, vec3 normal, vec3 lightDir)
 {
     float nz = ndc_z();
 
-    int i3 = 3 * int(nz > uShadowMap[3].range.x);
-    int i2 = max(i3, 2 * int(nz > uShadowMap[2].range.x));
-    int index = max(i2, 1 * int(nz > uShadowMap[1].range.x));
+    int index = 0;
+
+    if (nz > uShadowMap[3].range.x) {
+        index = 3;
+    }
+    if (nz > uShadowMap[2].range.x) {
+        index = 2;
+    }
+    if (nz > uShadowMap[1].range.x) {
+        index = 1;
+    }
     
     vec4 posLightSpace = uShadowMap[index].light_matrix * vec4(worldPos, 1.0);
     vec3 projCoords = posLightSpace.xyz / posLightSpace.w;

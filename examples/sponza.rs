@@ -105,7 +105,7 @@ impl Actor for MainScene {
             go.borrow_mut().add_component(Cube::new());
 
             let mut gtran = go.borrow_mut().transform.global();
-            gtran.translation = Translation3 { vector: *pos };
+            gtran.disp = *pos;
 
             go.borrow_mut().transform.set_global(gtran);
             go.borrow_mut()
@@ -188,8 +188,7 @@ impl Actor for MainScene {
             let (mut light, _) = dir_light_bor.find_component_mut::<Light>().unwrap();
 
             let dir = light.directional().unwrap().direction;
-            let mut t = Isometry3::identity();
-            t.append_rotation_mut(&UnitQuaternion::new(Vector3::new(0.0, 0.01, 0.0)));
+            let t = Quaternion::from_angle_y(Rad(0.01));
             let transformed = t * dir;
 
             light.directional_mut().unwrap().direction = transformed;
@@ -286,7 +285,8 @@ impl Actor for Cube {
 
     fn update(&mut self, go: &mut GameObject, _world: &mut World) {
         let mut ltran = go.transform.local();
-        ltran.append_rotation_wrt_center_mut(&UnitQuaternion::new(Vector3::new(0.01, 0.01, 0.01)));
+        let q = Quaternion::from(Euler::new(Rad(0.01), Rad(0.01), Rad(0.01)));
+        ltran.rot = ltran.rot * q;
         go.transform.set_local(ltran);
     }
 }

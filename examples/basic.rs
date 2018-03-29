@@ -54,8 +54,8 @@ impl Actor for MainScene {
         // Handle Events
         {
             let front = (self.eye - self.target).normalize();
-            let up = Vector3::y();
-            let right = front.cross(&up).normalize();
+            let up = Vector3::unit_y();
+            let right = front.cross(up).normalize();
             let speed = 0.2;
 
             let mut reset = false;
@@ -131,7 +131,10 @@ impl Actor for Cube {
 
     fn update(&mut self, go: &mut GameObject, _world: &mut World) {
         let mut gtran = go.transform.global();
-        gtran.append_rotation_mut(&UnitQuaternion::new(Vector3::new(0.01, 0.02, 0.005)));
+        let axis = Vector3::new(0.01, 0.02, 0.005);
+        let len = axis.magnitude();
+
+        gtran.rot = gtran.rot * Quaternion::from_axis_angle(axis.normalize(), Rad(len));
         go.transform.set_global(gtran);
     }
 }

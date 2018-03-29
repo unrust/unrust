@@ -1,19 +1,23 @@
+extern crate nalgebra as na;
+extern crate ncollide;
+extern crate nphysics3d;
 extern crate unrust;
 
 use unrust::world::{Actor, Handle, World, WorldBuilder};
 use unrust::engine::{Camera, Directional, GameObject, Light, Material, Mesh, Point};
 use unrust::world::events::*;
-use unrust::math::*;
+use unrust::math;
 
-use unrust::ncollide::shape::{Cuboid, Cuboid3, Plane, Plane3};
-use unrust::nphysics3d::world::World as PhyWorld;
-use unrust::nphysics3d::object::{RigidBody, RigidBodyHandle};
+use ncollide::shape::{Cuboid, Cuboid3, Plane, Plane3};
+use nphysics3d::world::World as PhyWorld;
+use nphysics3d::object::{RigidBody, RigidBodyHandle};
 
 use unrust::engine::ComponentBased;
 use unrust::actors::{ShadowPass, SkyBox};
 
 // GUI
 use unrust::imgui;
+use na::*;
 
 pub struct Scene {
     pub world: PhyWorld<f32>,
@@ -81,14 +85,31 @@ impl Scene {
 // Physic Object Component
 struct PhysicObject(Handle<RigidBody<f32>>);
 impl PhysicObject {
-    fn phy_transform(&self) -> Isometry3<f32> {
-        *self.0.borrow().position()
+    fn phy_transform(&self) -> math::Isometry3<f32> {
+        let na_pos = *self.0.borrow().position();
+
+        use unrust::math::InnerSpace;
+
+        math::Isometry3 {
+            scale: 1.0,
+            rot: math::Quaternion::new(
+                na_pos.rotation.coords.w,
+                na_pos.rotation.coords.x,
+                na_pos.rotation.coords.y,
+                na_pos.rotation.coords.z,
+            ).normalize(),
+            disp: math::Vector3::new(
+                na_pos.translation.vector.x,
+                na_pos.translation.vector.y,
+                na_pos.translation.vector.z,
+            ),
+        }
     }
 }
 impl ComponentBased for PhysicObject {}
 
 pub struct MainScene {
-    eye: Vector3<f32>,
+    eye: math::Vector3<f32>,
     last_event: Option<AppEvent>,
     phy_scene: Scene,
     counter: u32,
@@ -129,7 +150,7 @@ impl MainScene {
 
     fn new() -> Box<Actor> {
         Box::new(MainScene {
-            eye: Vector3::new(26.0, 38.0, -43.0),
+            eye: math::Vector3::new(26.0, 38.0, -43.0),
             last_event: None,
             phy_scene: Scene::new(),
             point_lights: Vec::new(),
@@ -159,10 +180,10 @@ impl Actor for MainScene {
 
         // Add 4 points light to scene
         let point_light_positions = vec![
-            Vector3::new(-30.0, 30.0, -30.0),
-            Vector3::new(-15.0, 300.0, -10.0),
-            Vector3::new(30.0, 50.0, 30.0),
-            Vector3::new(30.0, 100.0, -20.0),
+            math::Vector3::new(-30.0, 30.0, -30.0),
+            math::Vector3::new(-15.0, 300.0, -10.0),
+            math::Vector3::new(30.0, 50.0, 30.0),
+            math::Vector3::new(30.0, 100.0, -20.0),
         ];
 
         for p in point_light_positions.into_iter() {
@@ -185,6 +206,8 @@ impl Actor for MainScene {
     }
 
     fn update(&mut self, _go: &mut GameObject, world: &mut World) {
+        use unrust::math::{EuclideanSpace, InnerSpace, Rotation3};
+
         self.phy_scene.step();
 
         // Update point lights
@@ -192,16 +215,17 @@ impl Actor for MainScene {
             lgo.try_borrow().ok().map(|light_go| {
                 if let Some((ref mut light, _)) = light_go.find_component_mut::<Light>() {
                     let mut pos = light.point().unwrap().position;
-                    light.point_mut().unwrap().position = Rotation3::new(Vector3::y() * 0.02) * pos;
+
+                    light.point_mut().unwrap().position =
+                        math::Quaternion::from_angle_y(math::Rad(0.02)) * pos;
                 }
             });
         }
 
         // Handle Events
         {
-            let target = Vector3::new(0.0, 0.0, 0.0);
+            let target = math::Vector3::new(0.0, 0.0, 0.0);
             let front = (self.eye - target).normalize();
-            let up = Vector3::y();
 
             let mut reset = false;
             let mut addbox = false;
@@ -212,8 +236,14 @@ impl Actor for MainScene {
                     &AppEvent::MouseUp(_) => addbox = true,
                     &AppEvent::KeyDown(ref key) => {
                         match key.code.as_str() {
-                            "KeyA" => self.eye = Rotation3::new(up * -0.02) * self.eye,
-                            "KeyD" => self.eye = Rotation3::new(up * 0.02) * self.eye,
+                            "KeyA" => {
+                                self.eye =
+                                    math::Quaternion::from_angle_y(math::Rad(-0.02)) * self.eye
+                            }
+                            "KeyD" => {
+                                self.eye =
+                                    math::Quaternion::from_angle_y(math::Rad(0.02)) * self.eye
+                            }
                             "KeyW" => self.eye -= front * 2.0,
                             "KeyS" => self.eye += front * 2.0,
                             "Escape" => reset = true,
@@ -245,9 +275,9 @@ impl Actor for MainScene {
             let cam = world.current_camera().unwrap();
 
             cam.borrow_mut().lookat(
-                &Point3::from_coordinates(self.eye),
-                &Point3::new(0.0, 0.0, 0.0),
-                &Vector3::new(0.0, 1.0, 0.0),
+                &math::Point3::from_vec(self.eye),
+                &math::Point3::new(0.0, 0.0, 0.0),
+                &math::Vector3::new(0.0, 1.0, 0.0),
             );
         }
 
@@ -335,7 +365,8 @@ impl Actor for PlaneActor {
         };
 
         go.transform.set_global(new_trans);
-        go.transform.set_local_scale(Vector3::new(3.0, 1.0, 3.0));
+        go.transform
+            .set_local_scale(math::Vector3::new(3.0, 1.0, 3.0));
     }
 }
 

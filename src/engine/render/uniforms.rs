@@ -1,4 +1,4 @@
-use na::{Matrix4, Vector2, Vector3, Vector4};
+use math::{Matrix4, Vector2, Vector3, Vector4};
 use std::mem::size_of;
 
 use std::rc::Rc;

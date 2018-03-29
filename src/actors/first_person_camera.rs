@@ -1,7 +1,8 @@
-use math::{Point3, Rotation3, Vector3};
 use engine::{Camera, Component, ComponentBased, GameObject};
 use world::{Actor, Processor, World};
 use uni_app::AppEvent;
+
+use math::*;
 
 use std::cell::RefCell;
 use std::sync::Arc;
@@ -34,6 +35,8 @@ impl ComponentBased for FirstPersonCamera {}
 
 impl Processor for FirstPersonCamera {
     fn new() -> FirstPersonCamera {
+        use math::*;
+
         let mut m = FirstPersonCamera {
             speed: 0.1,
             state: Movement::empty(),
@@ -43,13 +46,13 @@ impl Processor for FirstPersonCamera {
             eye_dir: Vector3::new(0.0, 0.0, 1.0).normalize(),
         };
 
-        let up = Vector3::y();
+        let up = Vector3::unit_y();
 
         m.add(Movement::TURN_LEFT, "KeyA", move |s| {
-            s.eye_dir = Rotation3::new(up * 0.01) * s.eye_dir;
+            s.eye_dir = Quaternion::from_angle_y(Rad(0.01)) * s.eye_dir;
         });
         m.add(Movement::TURN_RIGHT, "KeyD", move |s| {
-            s.eye_dir = Rotation3::new(up * -0.01) * s.eye_dir
+            s.eye_dir = Quaternion::from_angle_y(Rad(-0.01)) * s.eye_dir
         });
         m.add(Movement::UP, "KeyE", move |s| {
             s.eye = s.eye + up * s.speed;
@@ -64,11 +67,11 @@ impl Processor for FirstPersonCamera {
             s.eye = s.eye + s.eye_dir * -s.speed;
         });
         m.add(Movement::LEFT, "KeyZ", move |s| {
-            let right = s.eye_dir.cross(&up).normalize();
+            let right = s.eye_dir.cross(up).normalize();
             s.eye = s.eye - right * s.speed;
         });
         m.add(Movement::RIGHT, "KeyX", move |s| {
-            let right = s.eye_dir.cross(&up).normalize();
+            let right = s.eye_dir.cross(up).normalize();
             s.eye = s.eye + right * s.speed;
         });
         m
@@ -110,8 +113,8 @@ impl Actor for FirstPersonCamera {
         // Update Camera
         {
             cam.borrow_mut().lookat(
-                &Point3::from_coordinates(self.eye),
-                &Point3::from_coordinates(self.eye + self.eye_dir * 10.0),
+                &Point3::from_homogeneous(self.eye.extend(1.0)),
+                &Point3::from_homogeneous((self.eye + self.eye_dir * 10.0).extend(1.0)),
                 &Vector3::new(0.0, 1.0, 0.0),
             );
         }
@@ -125,8 +128,8 @@ impl FirstPersonCamera {
         // Update Camera
         {
             cam.borrow_mut().lookat(
-                &Point3::from_coordinates(self.eye),
-                &Point3::from_coordinates(self.eye + self.eye_dir * 10.0),
+                &Point3::from_homogeneous(self.eye.extend(1.0)),
+                &Point3::from_homogeneous((self.eye + self.eye_dir * 10.0).extend(1.0)),
                 &Vector3::new(0.0, 1.0, 0.0),
             );
         }

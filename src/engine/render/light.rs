@@ -1,8 +1,6 @@
-use na::Vector3;
 use engine::core::ComponentBased;
 use super::ShaderProgram;
-use na::Matrix4;
-use alga::linear::Transformation;
+use math::*;
 
 pub enum Light {
     Directional(Directional),
@@ -59,9 +57,12 @@ pub struct Directional {
 
 impl Default for Directional {
     fn default() -> Directional {
-        let m = Matrix4::from_euler_angles(30.0_f32.to_radians(), 50.0_f32.to_radians(), 0.0);
+        use math::Deg;
+
+        let m = Matrix4::from_angle_x(Deg(30.0)) * Matrix4::from_angle_y(Deg(50.0));
+
         let light_dir = Vector3::new(0.0, 0.0, 1.0);
-        let light_dir = m.transform_vector(&light_dir);
+        let light_dir = m.transform_vector(light_dir);
 
         Directional {
             direction: light_dir.normalize(),

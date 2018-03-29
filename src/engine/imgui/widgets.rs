@@ -3,6 +3,7 @@ use engine::render::{Material, Mesh};
 use engine::engine::IEngine;
 use engine::render::Texture;
 use engine::core::Aabb;
+use math::*;
 
 use super::{Metric, TextAlign};
 use super::internal::ImguiState;
@@ -15,8 +16,6 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::any::Any;
 use std::cmp;
-
-use na::Translation3;
 
 pub trait Widget: Debug {
     fn id(&self) -> u32;
@@ -177,7 +176,7 @@ fn compute_translate(
     ssize: &(u32, u32),
     hidpi: f32,
     bounds: &Aabb,
-) -> Translation3<f32> {
+) -> Vector3<f32> {
     let w = bounds.max.x - bounds.min.x;
     let h = bounds.max.y - bounds.min.y;
 
@@ -195,7 +194,7 @@ fn compute_translate(
         _ => unreachable!(),
     };
 
-    Translation3::new(x - 1.0 - offsetx, y * -1.0 + 1.0 + offsety, 0.0)
+    Vector3::new(x - 1.0 - offsetx, y * -1.0 + 1.0 + offsety, 0.0)
 }
 
 fn to_pixel_pos(px: f32, py: f32, ssize: &(u32, u32), hidpi: f32) -> (f32, f32) {
@@ -251,13 +250,13 @@ impl Widget for Label {
             mesh.add_surface(MeshBuffer::new(meshdata), material);
 
             let mut gtran = gomut.transform.global();
-            gtran.append_translation_mut(&compute_translate(
+            gtran.disp += compute_translate(
                 &self.pos,
                 &self.state.pivot,
                 &ssize,
                 hidpi,
                 &mesh.bounds().unwrap().local_aabb(),
-            ));
+            );
             gomut.transform.set_global(gtran);
 
             gomut.add_component(mesh);
@@ -364,13 +363,13 @@ impl Widget for Image {
             mesh.add_surface(MeshBuffer::new(meshdata), material);
 
             let mut gtrans = gomut.transform.global();
-            gtrans.append_translation_mut(&compute_translate(
+            gtrans.disp += compute_translate(
                 &self.pos,
                 &self.pivot,
                 &ssize,
                 hidpi,
                 &mesh.bounds().unwrap().local_aabb(),
-            ));
+            );
             gomut.transform.set_global(gtrans);
 
             gomut.add_component(mesh);

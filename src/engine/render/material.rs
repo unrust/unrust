@@ -4,7 +4,7 @@ use engine::render::{RenderQueue, ShaderProgram, Texture};
 use std::cell::RefCell;
 use std::rc::Rc;
 use fnv::FnvHashMap;
-use na::{Matrix4, Vector2, Vector3, Vector4};
+use math::*;
 
 #[derive(Debug)]
 pub enum MaterialParam {

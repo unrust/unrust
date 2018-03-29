@@ -1,5 +1,6 @@
 use webgl::*;
-use na::*;
+use math::*;
+
 use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
@@ -250,14 +251,16 @@ where
         prog.set("uMVMatrix", camera.v * modelm);
         prog.set("uPMatrix", perspective);
 
-        let skybox_v = camera.v.fixed_slice::<U3, U3>(0, 0);
-        let mut skybox_v = skybox_v.fixed_resize::<U4, U4>(0.0);
-        skybox_v.data[15] = 1.0;
+        let skybox_v: Matrix3<_> = Matrix3::from_cols(
+            camera.v.x.truncate(),
+            camera.v.y.truncate(),
+            camera.v.z.truncate(),
+        );
 
         prog.set("uPVMatrix", perspective * camera.v);
-        prog.set("uPVSkyboxMatrix", perspective * skybox_v);
+        prog.set("uPVSkyboxMatrix", perspective * Matrix4::from(skybox_v));
 
-        prog.set("uNMatrix", modelm.try_inverse().unwrap().transpose());
+        prog.set("uNMatrix", modelm.inverse_transform().unwrap().transpose());
         prog.set("uMMatrix", modelm);
         prog.set("uViewPos", camera.eye());
     }
@@ -437,7 +440,7 @@ where
         object: &GameObject,
         cam_pos: &Vector3<f32>,
         update_bounds_only: bool,
-        frustum: &Option<Frustum>,
+        frustum_opt: &Option<Frustum>,
         render_q: &mut RenderQueueList,
         included_render_queues: &Option<BTreeSet<RenderQueue>>,
     ) {
@@ -448,8 +451,9 @@ where
         let result = object.find_component::<Mesh>();
         if let Some((mesh, _)) = result {
             let m = compute_model_m(&*object);
-            use math;
-            let p = math::transform_point(&m, &Point3::new(0.0, 0.0, 0.0));
+            use math::*;
+
+            let p = m.transform_point(Point3::new(0.0, 0.0, 0.0));
             // TODO: local scale only ?? should be using global scale??
             let scale = get_max_scale(&object.transform.local_scale());
 
@@ -461,7 +465,7 @@ where
                 }
 
                 // TODO: should use a material flag to skip
-                if let &Some(ref frustum) = frustum {
+                if let &Some(ref frustum) = frustum_opt {
                     match surface.material.render_queue {
                         RenderQueue::Skybox | RenderQueue::UI => (),
                         _ => {
@@ -472,7 +476,7 @@ where
 
                             let scaled_r = bounds.unwrap().r * scale;
 
-                            if !frustum.collide_sphere(&p.coords, scaled_r) {
+                            if !frustum.collide_sphere(&p.to_vec(), scaled_r) {
                                 continue;
                             }
 
@@ -484,7 +488,7 @@ where
                                 .aabb
                                 .as_mut()
                                 .unwrap()
-                                .merge_sphere(&p.coords, scaled_r);
+                                .merge_sphere(&p.to_vec(), scaled_r);
                         }
                     }
                 } else {
@@ -500,7 +504,7 @@ where
                             .aabb
                             .as_mut()
                             .unwrap()
-                            .merge_sphere(&p.coords, scaled_r);
+                            .merge_sphere(&p.to_vec(), scaled_r);
                     }
                 }
 
@@ -510,8 +514,7 @@ where
                         .get_mut(&surface.material.render_queue)
                         .unwrap();
 
-                    let cam_dist =
-                        (cam_pos - object.transform.global().translation.vector).norm_squared();
+                    let cam_dist = (cam_pos - object.transform.global().disp).magnitude();
 
                     q.commands.push(RenderCommand {
                         surface: surface.clone(),

@@ -54,8 +54,6 @@ impl Actor for MainScene {
         {
             let target = Vector3::new(0.0, 0.0, 0.0);
             let front = (self.eye - target).normalize();
-            let up = Vector3::y();
-
             let mut reset = false;
 
             for evt in world.events().iter() {
@@ -63,8 +61,8 @@ impl Actor for MainScene {
                 match evt {
                     &AppEvent::KeyDown(ref key) => {
                         match key.code.as_str() {
-                            "KeyA" => self.eye = Rotation3::new(up * -0.02) * self.eye,
-                            "KeyD" => self.eye = Rotation3::new(up * 0.02) * self.eye,
+                            "KeyA" => self.eye = Quaternion::from_angle_y(Rad(-0.2)) * self.eye,
+                            "KeyD" => self.eye = Quaternion::from_angle_y(Rad(0.2)) * self.eye,
                             "KeyW" => self.eye -= front * 2.0,
                             "KeyS" => self.eye += front * 2.0,
                             "Escape" => reset = true,
@@ -92,7 +90,7 @@ impl Actor for MainScene {
             let cam = world.current_camera().unwrap();
 
             cam.borrow_mut().lookat(
-                &Point3::from_coordinates(self.eye),
+                &Point3::from_vec(self.eye),
                 &Point3::new(0.0, 0.0, 0.0),
                 &Vector3::new(0.0, 1.0, 0.0),
             );
@@ -189,7 +187,11 @@ impl Actor for Cube {
 
     fn update(&mut self, go: &mut GameObject, _world: &mut World) {
         let mut gtran = go.transform.global();
-        gtran.append_rotation_mut(&UnitQuaternion::new(Vector3::new(0.01, 0.02, 0.005)));
+
+        let axis = Vector3::new(0.01, 0.02, 0.005);
+        let len = axis.magnitude();
+        gtran.rot = gtran.rot * Quaternion::from_axis_angle(axis.normalize(), Rad(len));
+
         go.transform.set_global(gtran);
     }
 }

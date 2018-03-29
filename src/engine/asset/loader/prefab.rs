@@ -4,7 +4,6 @@ use engine::render::{Material, Mesh, MeshBuffer, MeshData, RenderQueue, TextureW
 use engine::core::Component;
 use std::sync::Arc;
 use std::borrow::Cow;
-use na;
 use std::path::Path;
 
 use obj;
@@ -12,9 +11,7 @@ use obj::SimplePolygon;
 use std::io::BufReader;
 use std::collections::HashMap;
 use std::rc::Rc;
-
-type Vector3 = na::Vector3<f32>;
-type Vector2 = na::Vector2<f32>;
+use math::*;
 
 use futures::prelude::*;
 use futures::future::*;
@@ -37,6 +34,14 @@ pub struct PrefabLoader {}
 struct TangentSpace {
     tangents: Option<Vec<f32>>,
     bitangents: Option<Vec<f32>>,
+}
+
+fn from_slice_v3(s: &[f32]) -> Vector3f {
+    return Vector3::new(s[0], s[1], s[1]);
+}
+
+fn from_slice_v2(s: &[f32]) -> Vector2f {
+    return Vector2::new(s[0], s[1]);
 }
 
 fn compute_tangents(
@@ -69,13 +74,13 @@ fn compute_tangents(
 
     let mut i = 0;
     while i < indices.len() {
-        let pos1 = Vector3::from_row_slice(&v_array[v_index(i + 0)..v_index(i + 1)]);
-        let pos2 = Vector3::from_row_slice(&v_array[v_index(i + 1)..v_index(i + 2)]);
-        let pos3 = Vector3::from_row_slice(&v_array[v_index(i + 2)..v_index(i + 3)]);
+        let pos1 = from_slice_v3(&v_array[v_index(i + 0)..v_index(i + 1)]);
+        let pos2 = from_slice_v3(&v_array[v_index(i + 1)..v_index(i + 2)]);
+        let pos3 = from_slice_v3(&v_array[v_index(i + 2)..v_index(i + 3)]);
 
-        let uv1 = Vector2::from_row_slice(&uv_array[uv_index(i + 0)..uv_index(i + 1)]);
-        let uv2 = Vector2::from_row_slice(&uv_array[uv_index(i + 1)..uv_index(i + 2)]);
-        let uv3 = Vector2::from_row_slice(&uv_array[uv_index(i + 2)..uv_index(i + 3)]);
+        let uv1 = from_slice_v2(&uv_array[uv_index(i + 0)..uv_index(i + 1)]);
+        let uv2 = from_slice_v2(&uv_array[uv_index(i + 1)..uv_index(i + 2)]);
+        let uv3 = from_slice_v2(&uv_array[uv_index(i + 2)..uv_index(i + 3)]);
 
         let edge1 = pos2 - pos1;
         let edge2 = pos3 - pos1;
@@ -88,26 +93,26 @@ fn compute_tangents(
         let bitangent = (edge2 * delta_uv1.x - edge1 * delta_uv2.x) * r;
 
         // Triangle share same tangent space
-        tangents.extend_from_slice(tangent.as_slice());
-        tangents.extend_from_slice(tangent.as_slice());
-        tangents.extend_from_slice(tangent.as_slice());
+        tangents.extend_from_slice(&tangent[..]);
+        tangents.extend_from_slice(&tangent[..]);
+        tangents.extend_from_slice(&tangent[..]);
 
-        bittangents.extend_from_slice(bitangent.as_slice());
-        bittangents.extend_from_slice(bitangent.as_slice());
-        bittangents.extend_from_slice(bitangent.as_slice());
+        bittangents.extend_from_slice(&bitangent[..]);
+        bittangents.extend_from_slice(&bitangent[..]);
+        bittangents.extend_from_slice(&bitangent[..]);
 
         i += 3;
     }
 
     for i in 0..indices.len() {
-        let n = Vector3::from_row_slice(&n_array[n_index(i)..n_index(i + 1)]);
-        let mut t = Vector3::from_row_slice(&tangents[n_index(i)..n_index(i + 1)]);
-        let b = Vector3::from_row_slice(&bittangents[n_index(i)..n_index(i + 1)]);
+        let n = from_slice_v3(&n_array[n_index(i)..n_index(i + 1)]);
+        let mut t = from_slice_v3(&tangents[n_index(i)..n_index(i + 1)]);
+        let b = from_slice_v3(&bittangents[n_index(i)..n_index(i + 1)]);
 
         // Gram-Schmidt orthogonalize
-        t = t - n * n.dot(&t);
+        t = t - n * n.dot(t);
 
-        if n.cross(&t).dot(&b) < 0.0 {
+        if n.cross(t).dot(b) < 0.0 {
             t = -t;
         }
 

@@ -57,8 +57,8 @@ fn add_debug_frustum(
     let mut wpoints = Vec::new();
 
     for p in points.iter() {
-        let world_p = transform_point(&view.try_inverse().unwrap(), p);
-        wpoints.push(world_p.coords);
+        let world_p = view.inverse_transform().unwrap().transform_point(*p);
+        wpoints.push(world_p.to_vec());
     }
 
     let go = world.new_game_object();
@@ -154,19 +154,19 @@ impl LightMatrixContext {
 
         let p = cam.perspective(world.engine().screen_size);
         let v = cam.v;
-        let inv_pv = (p * v).try_inverse().unwrap();
+        let inv_pv = (p * v).inverse_transform().unwrap();
 
         let light = light_com.try_as::<Light>().unwrap().borrow();
         let lightdir = light.directional().unwrap().direction;
-        let mut up = Vector3::y();
+        let mut up = Vector3::unit_y();
 
-        if up.dot(&lightdir.normalize()).abs() > 0.9999 {
-            up = Vector3f::z();
+        if up.dot(lightdir.normalize()).abs() > 0.9999 {
+            up = Vector3f::unit_z();
         }
 
-        let light_target = Point3 { coords: lightdir };
+        let light_target = Point3::from_vec(lightdir);
 
-        let view = Matrix4::look_at_rh(&Point3::new(0.0, 0.0, 0.0), &light_target, &up);
+        let view = Matrix4::look_at(Point3::new(0.0, 0.0, 0.0), light_target, up);
 
         // Compute scene bound light space aabb.
         // Todo: it is very expensive...
@@ -178,7 +178,7 @@ impl LightMatrixContext {
         let light_space_scene_aabb = scene_bound.unwrap().corners().iter().fold(
             Aabb::empty(),
             |mut acc, p| {
-                acc.merge_point(&transform_point(&view, &Point3 { coords: *p }).coords);
+                acc.merge_point(&view.transform_point(Point3::from_vec(*p)).to_vec());
                 acc
             },
         );
@@ -245,14 +245,14 @@ fn compute_light_matrix(
         let farz = z_to_ndc(z_range.1, ctx.cam_znear, ctx.cam_zfar);
 
         let corners = [
-            transform_point(&bound_m, &Point3::new(-1.0, -1.0, nearz)),
-            transform_point(&bound_m, &Point3::new(1.0, -1.0, nearz)),
-            transform_point(&bound_m, &Point3::new(1.0, 1.0, nearz)),
-            transform_point(&bound_m, &Point3::new(-1.0, 1.0, nearz)),
-            transform_point(&bound_m, &Point3::new(-1.0, -1.0, farz)),
-            transform_point(&bound_m, &Point3::new(1.0, -1.0, farz)),
-            transform_point(&bound_m, &Point3::new(1.0, 1.0, farz)),
-            transform_point(&bound_m, &Point3::new(-1.0, 1.0, farz)),
+            bound_m.transform_point(Point3::new(-1.0, -1.0, nearz)),
+            bound_m.transform_point(Point3::new(1.0, -1.0, nearz)),
+            bound_m.transform_point(Point3::new(1.0, 1.0, nearz)),
+            bound_m.transform_point(Point3::new(-1.0, 1.0, nearz)),
+            bound_m.transform_point(Point3::new(-1.0, -1.0, farz)),
+            bound_m.transform_point(Point3::new(1.0, -1.0, farz)),
+            bound_m.transform_point(Point3::new(1.0, 1.0, farz)),
+            bound_m.transform_point(Point3::new(-1.0, 1.0, farz)),
         ];
 
         // light local space aabb
@@ -260,7 +260,7 @@ fn compute_light_matrix(
 
         let mut aabb = Aabb::empty();
         for c in corners.into_iter() {
-            aabb.merge_point(&c.coords)
+            aabb.merge_point(&c.to_vec())
         }
 
         let max_z = ctx.light_space_scene_aabb.max.z;
@@ -296,7 +296,7 @@ fn compute_light_matrix(
     let far = -aabb.min.z;
     let near = -aabb.max.z;
 
-    let proj = Matrix4::new_orthographic(aabb.min.x, aabb.max.x, aabb.min.y, aabb.max.y, near, far);
+    let proj = ortho(aabb.min.x, aabb.max.x, aabb.min.y, aabb.max.y, near, far);
 
     return (proj * ctx.view, (nearz, farz));
 }

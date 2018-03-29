@@ -10,8 +10,8 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::cell::Cell;
 use std::f32::{MAX, MIN};
-use na::Vector3;
 use std::rc::Weak;
+use math::*;
 
 trait IntoBytes {
     fn into_bytes(self) -> Vec<u8>;
@@ -148,7 +148,8 @@ impl MeshBuffer {
             max[i % 3] = v.max(max[i % 3]);
 
             if i % 3 == 0 {
-                let d = Vector3::from_row_slice(&data.vertices[i..i + 3]).norm();
+                let vs = &data.vertices[i..i + 3];
+                let d = vec3(vs[0], vs[1], vs[2]).magnitude();
                 r = r.max(d);
             }
         }

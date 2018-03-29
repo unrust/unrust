@@ -1,8 +1,8 @@
-use na::{Matrix4, Point3, Vector3};
 use std::rc::Rc;
 use engine::render::{RenderQueue, RenderTexture};
 use engine::core::ComponentBased;
 use std::collections::BTreeSet;
+use math::*;
 
 pub struct Plane {
     n: Vector3<f32>,
@@ -12,8 +12,8 @@ pub struct Plane {
 impl Plane {
     /// Make a plane from 3 points (anti-clockwise)
     pub fn from_3_points(p0: &Vector3<f32>, p1: &Vector3<f32>, p2: &Vector3<f32>) -> Plane {
-        let n = (p1 - p0).cross(&(p2 - p1)).normalize();
-        let offset = n.dot(&p0);
+        let n = (p1 - p0).cross(p2 - p1).normalize();
+        let offset = n.dot(*p0);
 
         Plane { n, offset }
     }
@@ -27,7 +27,7 @@ impl Frustum {
     pub fn collide_sphere(&self, p: &Vector3<f32>, r: f32) -> bool {
         for plane in self.planes.iter() {
             // Distance = (A*x0+B*y0+C*z0+D)/Sqrt(A*A+B*B+C*C)
-            if plane.n.dot(&p) - plane.offset < -r {
+            if plane.n.dot(*p) - plane.offset < -r {
                 return false;
             }
         }
@@ -62,15 +62,18 @@ impl Default for Camera {
 }
 
 fn extract_forward(m: &Matrix4<f32>) -> Vector3<f32> {
-    -Vector3::new(m.data[2], m.data[2 + 1 * 4], m.data[2 + 2 * 4])
+    //-Vector3::new(m.data[2], m.data[2 + 1 * 4], m.data[2 + 2 * 4])
+    -m.row(2).truncate()
 }
 
 fn extract_up(m: &Matrix4<f32>) -> Vector3<f32> {
-    Vector3::new(m.data[1], m.data[1 + 1 * 4], m.data[1 + 2 * 4])
+    //Vector3::new(m.data[1], m.data[1 + 1 * 4], m.data[1 + 2 * 4])
+    m.row(1).truncate()
 }
 
 fn extract_right(m: &Matrix4<f32>) -> Vector3<f32> {
-    Vector3::new(m.data[0], m.data[0 + 1 * 4], m.data[0 + 2 * 4])
+    //Vector3::new(m.data[0], m.data[0 + 1 * 4], m.data[0 + 2 * 4])
+    m.row(0).truncate()
 }
 
 impl ComponentBased for Camera {}
@@ -81,7 +84,7 @@ impl Camera {
     }
 
     pub fn lookat(&mut self, eye: &Point3<f32>, target: &Point3<f32>, up: &Vector3<f32>) {
-        self.v = Matrix4::look_at_rh(eye, target, up);
+        self.v = Matrix4::look_at(*eye, *target, *up);
         self.eye = *eye;
 
         // let g_forward = extract_forward(&self.v);
@@ -117,9 +120,16 @@ impl Camera {
     }
 
     pub fn perspective(&self, screen_size: (u32, u32)) -> Matrix4<f32> {
+        use math::*;
+
         let aspect = self.calc_aspect(screen_size);
 
-        Matrix4::new_perspective(aspect, 3.1415 / 4.0, self.znear, self.zfar)
+        PerspectiveFov {
+            fovy: Rad(3.1415 / 4.0),
+            aspect,
+            near: self.znear,
+            far: self.zfar,
+        }.into()
     }
 
     pub fn new() -> Camera {
@@ -145,8 +155,8 @@ impl Camera {
         let right = extract_right(&self.v);
         let aspect = self.calc_aspect(screen_size);
 
-        let near_center = self.eye.coords + forward * self.znear;
-        let far_center = self.eye.coords + forward * self.zfar;
+        let near_center = self.eye.to_vec() + forward * self.znear;
+        let far_center = self.eye.to_vec() + forward * self.zfar;
 
         let fovy: f32 = 3.1415 / 4.0;
 

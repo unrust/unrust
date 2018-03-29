@@ -73,6 +73,7 @@ impl Actor for MainScene {
             self.dir_light = go;
         }
 
+        // add point light
         {
             let go = world.new_game_object();
             go.borrow_mut().add_component(Light::new(Point::default()));
@@ -167,8 +168,15 @@ impl Actor for MainScene {
 
             let point_light_bor = self.point_light.borrow_mut();
             let (mut light, _) = point_light_bor.find_component_mut::<Light>().unwrap();
-            light.point_mut().unwrap().linear = 0.0007;
-            light.point_mut().unwrap().quadratic = 0.00002;
+
+            light.point_mut().unwrap().constant = 1.0;
+            light.point_mut().unwrap().linear = 0.00007;
+            light.point_mut().unwrap().quadratic = 0.000002;
+
+            // light.point_mut().unwrap().constant = 1.0;
+            // light.point_mut().unwrap().linear = 0.0;
+            // light.point_mut().unwrap().quadratic = 0.0;
+
             light.point_mut().unwrap().position = cam.borrow().eye();
         }
 

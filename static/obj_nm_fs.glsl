@@ -59,9 +59,10 @@ varying vec2 vTexCoords;
 varying mat3 vTBN;
 varying vec3 vNormal;
 varying vec3 vViewDirTgt;
+varying vec3 vFragPosTgt;
 
 varying vec3 vDirectionalLightDirTgt;
-varying vec3 vPointLightDirsTgt[UNI_POINT_LIGHTS];
+varying vec3 vPointLightPointsTgt[UNI_POINT_LIGHTS];
 
 // Lights
 uniform DirectionalLight uDirectionalLight;
@@ -88,7 +89,7 @@ void main(void) {
     if(!uNoNormalMap) 
     {
         norm = texture2D(uMaterial.normal_map, vTexCoords ).rgb;
-        norm = decode_normalmap(norm);        
+        norm = normalize(decode_normalmap(norm));        
     }
 
     // Presample the color
@@ -102,7 +103,7 @@ void main(void) {
     
     // Point Lights
     for(int i = 0; i < UNI_POINT_LIGHTS; i++)
-        result += CalcPointLight(uPointLights[i], vPointLightDirsTgt[i], norm, vFragPos, vViewDirTgt, color);
+        result += CalcPointLight(uPointLights[i], vPointLightPointsTgt[i] - vFragPosTgt, norm, vFragPos, vViewDirTgt, color);
 
     //float gamma = 2.2;    
     //gl_FragColor = vec4(pow(result, vec3(1.0/gamma)), uMaterial.transparent);           
@@ -210,7 +211,7 @@ vec3 CalcDirectionalLight(DirectionalLight light, vec3 lightDirTgt, vec3 normal,
 
 vec3 CalcPointLight(PointLight light, vec3 lightDirTgt, vec3 normal, vec3 fragPos, vec3 viewDir, MaterialColor color)
 {
-    vec3 lightDir = lightDirTgt;
+    vec3 lightDir = normalize(lightDirTgt);
     
     // diffuse shading
     float diff = max(dot(normal, lightDir), 0.0);
@@ -235,4 +236,5 @@ vec3 CalcPointLight(PointLight light, vec3 lightDirTgt, vec3 normal, vec3 fragPo
     specular *= attenuation;
     
     return (ambient + diffuse + specular) * light.rate;        
+    //return ambient * light.rate;
 }

@@ -53,8 +53,9 @@ uniform DirectionalLightVS uDirectionalLightVS;
 uniform PointLightVS uPointLightsVS[UNI_POINT_LIGHTS];
 
 varying vec3 vDirectionalLightDirTgt;
-varying vec3 vPointLightDirsTgt[UNI_POINT_LIGHTS];
+varying vec3 vPointLightPointsTgt[UNI_POINT_LIGHTS];
 varying vec3 vViewDirTgt;
+varying vec3 vFragPosTgt;
 
 void main(void) {
     vec3 vWorldPos = vec3(uMMatrix * vec4(aVertexPosition, 1.0));            
@@ -71,8 +72,9 @@ void main(void) {
     vDirectionalLightDirTgt = TBN * uDirectionalLightVS.direction;
 
     for(int i = 0; i < UNI_POINT_LIGHTS; i++){
-        vPointLightDirsTgt[i] = TBN * uPointLightsVS[i].direction;
+        vPointLightPointsTgt[i] = TBN * uPointLightsVS[i].position;
     }
+    vFragPosTgt = TBN * vWorldPos;
 
     vFragPos = vWorldPos;    
     gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);

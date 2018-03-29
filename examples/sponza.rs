@@ -1,8 +1,8 @@
 extern crate unrust;
 
 use unrust::world::{Actor, Handle, Processor, World, WorldBuilder};
-use unrust::engine::{AssetError, ComponentBased, Directional, GameObject, Light, Material, Point,
-                     Prefab};
+use unrust::engine::{AssetError, ComponentBased, Directional, GameObject, Light, Material, Mesh,
+                     Point, Prefab};
 use unrust::world::events::*;
 use unrust::math::*;
 use unrust::actors::{FirstPersonCamera, ShadowPass, SkyBox};
@@ -73,11 +73,44 @@ impl Actor for MainScene {
             self.dir_light = go;
         }
 
-        // add point light
+        // add point light which on player'eye
         {
             let go = world.new_game_object();
-            go.borrow_mut().add_component(Light::new(Point::default()));
+            let mut point = Point::default();
+
+            point.constant = 0.9;
+            point.linear = 0.00000;
+            point.quadratic = 0.000002;
+
+            go.borrow_mut().add_component(Light::new(point));
             self.point_light = go;
+        }
+
+        // Add 2 points light on the scene
+        let points = [
+            Vector3f::new(-1202.0, 161.0, 400.0),
+            Vector3f::new(1122.0, 161.0, -450.0),
+        ];
+
+        for pos in points.iter() {
+            let go = world.new_game_object();
+            let mut point = Point::default();
+
+            point.position = *pos;
+            point.constant = 0.8;
+            point.quadratic = 0.00001;
+            point.linear = 0.0;
+
+            go.borrow_mut().add_component(Light::new(point));
+            go.borrow_mut().add_component(Cube::new());
+
+            let mut gtran = go.borrow_mut().transform.global();
+            gtran.translation = Translation3 { vector: *pos };
+
+            go.borrow_mut().transform.set_global(gtran);
+            go.borrow_mut()
+                .transform
+                .set_local_scale(Vector3f::new(10.0, 10.0, 10.0));
         }
 
         // Added the obj display
@@ -167,17 +200,11 @@ impl Actor for MainScene {
             let cam = world.current_camera().unwrap();
 
             let point_light_bor = self.point_light.borrow_mut();
-            let (mut light, _) = point_light_bor.find_component_mut::<Light>().unwrap();
+            let light_opt = point_light_bor.find_component_mut::<Light>();
 
-            light.point_mut().unwrap().constant = 1.0;
-            light.point_mut().unwrap().linear = 0.00007;
-            light.point_mut().unwrap().quadratic = 0.000002;
-
-            // light.point_mut().unwrap().constant = 1.0;
-            // light.point_mut().unwrap().linear = 0.0;
-            // light.point_mut().unwrap().quadratic = 0.0;
-
-            light.point_mut().unwrap().position = cam.borrow().eye();
+            if let Some((mut light, _)) = light_opt {
+                light.point_mut().unwrap().position = cam.borrow().eye();
+            }
         }
 
         // GUI
@@ -191,19 +218,22 @@ impl Actor for MainScene {
             "[WASD ZXEC] : control camera\n[Space] : Toggle light animation\n[U] : Toggle normal map\n[Esc] : reload all (include assets)",
         );
 
+        let fpc_ref = world.find_component::<FirstPersonCamera>().unwrap();
+        let fpc = fpc_ref.borrow_mut();
+
         imgui::pivot((1.0, 0.0));
         imgui::text_align(Right);
         imgui::label(
             Native(1.0, 0.0) + Pixel(-8.0, 8.0),
             &format!(
-                "last event: {:?}\nnormal_map = {:?}\nlight animation={:?}",
-                self.last_event, normap_map_enabled, self.animate_light
+                "last event: {:?}\nnormal_map = {:?}\nlight animation={:?}\neye={:?}",
+                self.last_event, normap_map_enabled, self.animate_light, fpc.eye
             ),
         );
 
-        imgui::pivot((0.0, 1.0));
-        imgui::text_align(Left);
-        imgui::label(Native(0.0, 1.0) + Pixel(8.0, -8.0), "Sponza Demo");
+        imgui::pivot((0.5, 1.0));
+        imgui::text_align(Center);
+        imgui::label(Native(0.5, 1.0) + Pixel(0.0, -8.0), "Sponza Demo");
     }
 }
 
@@ -232,6 +262,34 @@ impl Actor for WaveObjActor {
         };
 
         db.new_prefab("sponza/sponza.obj", Box::new(prefab_handler));
+    }
+}
+
+pub struct Cube {}
+
+impl Cube {
+    fn new() -> Box<Actor> {
+        Box::new(Cube {})
+    }
+}
+
+impl Actor for Cube {
+    fn start(&mut self, go: &mut GameObject, world: &mut World) {
+        let db = &mut world.asset_system();
+
+        let material = Material::new(db.new_program("phong"));
+        material.set("uMaterial.diffuse", db.new_texture("tex_r.dds"));
+        material.set("uMaterial.shininess", 32.0);
+
+        let mut mesh = Mesh::new();
+        mesh.add_surface(db.new_mesh_buffer("cube"), material);
+        go.add_component(mesh);
+    }
+
+    fn update(&mut self, go: &mut GameObject, _world: &mut World) {
+        let mut ltran = go.transform.local();
+        ltran.append_rotation_wrt_center_mut(&UnitQuaternion::new(Vector3::new(0.01, 0.01, 0.01)));
+        go.transform.set_local(ltran);
     }
 }
 

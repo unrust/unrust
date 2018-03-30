@@ -217,9 +217,5 @@ vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir, M
     vec3 diffuse = light.diffuse * diff * color.diffuse;
     vec3 specular = light.specular * spec * color.specular;
     
-    ambient *= attenuation;
-    diffuse *= attenuation;
-    specular *= attenuation;
-    
-    return (ambient + diffuse + specular) * light.rate;        
+    return (ambient + diffuse + specular) * attenuation * light.rate;        
 }

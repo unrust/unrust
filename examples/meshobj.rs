@@ -141,7 +141,7 @@ impl WaveObjActor {
     }
 }
 
-fn build_material(asys: &AssetSystem, obj_mat: &ObjMaterial) -> Rc<Material> {
+fn build_material(asys: &AssetSystem, obj_mat: ObjMaterial) -> Rc<Material> {
     let shader_program = match obj_mat.normal_map {
         Some(_) => asys.new_program("obj_nm"),
         None => asys.new_program("obj"),
@@ -149,26 +149,36 @@ fn build_material(asys: &AssetSystem, obj_mat: &ObjMaterial) -> Rc<Material> {
 
     let mut material = Material::new(shader_program);
 
-    let ambient_tex = asys.new_texture(&obj_mat.ambient_map);
+    let ambient_tex = asys.new_texture(&obj_mat.ambient_map.unwrap_or("default_white".to_owned()));
     ambient_tex.wrap_u.set(TextureWrap::Repeat);
     ambient_tex.wrap_v.set(TextureWrap::Repeat);
-    material.set("uMaterial.ambient", obj_mat.ambient);
+    material.set(
+        "uMaterial.ambient",
+        obj_mat.ambient.unwrap_or(Vector3::new(0.2, 0.2, 0.2)),
+    );
     material.set("uMaterial.ambient_tex", ambient_tex);
 
-    let diffuse_tex = asys.new_texture(&obj_mat.diffuse_map);
+    let diffuse_tex = asys.new_texture(&obj_mat.diffuse_map.unwrap_or("default_white".to_owned()));
     diffuse_tex.wrap_u.set(TextureWrap::Repeat);
     diffuse_tex.wrap_v.set(TextureWrap::Repeat);
-    material.set("uMaterial.diffuse", obj_mat.diffuse);
+    material.set(
+        "uMaterial.diffuse",
+        obj_mat.diffuse.unwrap_or(Vector3::new(1.0, 1.0, 1.0)),
+    );
     material.set("uMaterial.diffuse_tex", diffuse_tex);
 
-    let specular_tex = asys.new_texture(&obj_mat.specular_map);
+    let specular_tex =
+        asys.new_texture(&obj_mat.specular_map.unwrap_or("default_black".to_owned()));
     specular_tex.wrap_u.set(TextureWrap::Repeat);
     specular_tex.wrap_v.set(TextureWrap::Repeat);
-    material.set("uMaterial.specular", obj_mat.specular);
+    material.set(
+        "uMaterial.specular",
+        obj_mat.specular.unwrap_or(Vector3::new(1.0, 1.0, 1.0)),
+    );
     material.set("uMaterial.specular_tex", specular_tex);
 
-    material.set("uMaterial.shininess", obj_mat.shininess);
-    material.set("uMaterial.transparent", obj_mat.transparent);
+    material.set("uMaterial.shininess", obj_mat.shininess.unwrap_or(32.0));
+    material.set("uMaterial.transparent", obj_mat.alpha.unwrap_or(1.0));
 
     obj_mat.normal_map.as_ref().map(|nm| {
         let n_tex = asys.new_texture(nm);
@@ -183,7 +193,7 @@ fn build_material(asys: &AssetSystem, obj_mat: &ObjMaterial) -> Rc<Material> {
         None => material.set("uMaterial.mask_tex", asys.new_texture("default_white")),
     }
 
-    if obj_mat.transparent < 0.9999 || obj_mat.alpha_mask.is_some() {
+    if obj_mat.alpha.unwrap_or(1.0) < 0.9999 || obj_mat.alpha_mask.is_some() {
         material.render_queue = RenderQueue::Transparent;
     }
 

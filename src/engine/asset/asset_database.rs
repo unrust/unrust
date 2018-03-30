@@ -33,7 +33,7 @@ pub enum AssetError {
 pub type AssetResult<T> = Result<T, AssetError>;
 
 type PrefabHandler = Box<FnBox(AssetResult<loader::Prefab>)>;
-type MaterialHandler = Box<Fn(&AssetSystem, &loader::ObjMaterial) -> Rc<Material>>;
+type MaterialHandler = Box<Fn(&AssetSystem, loader::ObjMaterial) -> Rc<Material>>;
 
 pub trait AssetSystem {
     fn new() -> Self

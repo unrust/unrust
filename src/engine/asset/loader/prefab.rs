@@ -163,15 +163,15 @@ fn compute_tangents(
 struct WithNormalMap(bool);
 
 pub struct ObjMaterial {
-    pub ambient: Vector3f,
-    pub diffuse: Vector3f,
-    pub specular: Vector3f,
-    pub shininess: f32,
-    pub transparent: f32,
+    pub ambient: Option<Vector3f>,
+    pub diffuse: Option<Vector3f>,
+    pub specular: Option<Vector3f>,
+    pub shininess: Option<f32>,
+    pub alpha: Option<f32>,
 
-    pub diffuse_map: String,
-    pub ambient_map: String,
-    pub specular_map: String,
+    pub diffuse_map: Option<String>,
+    pub ambient_map: Option<String>,
+    pub specular_map: Option<String>,
 
     pub alpha_mask: Option<String>,
     pub normal_map: Option<String>,
@@ -180,14 +180,14 @@ pub struct ObjMaterial {
 impl Default for ObjMaterial {
     fn default() -> ObjMaterial {
         ObjMaterial {
-            ambient: Vector3::new(0.2, 0.2, 0.2),
-            diffuse: Vector3::new(1.0, 1.0, 1.0),
-            specular: Vector3::new(1.0, 1.0, 1.0),
-            shininess: 1000.2,
-            transparent: 1.0,
-            diffuse_map: "default_white".to_owned(),
-            ambient_map: "default_white".to_owned(),
-            specular_map: "default_black".to_owned(),
+            ambient: None,
+            diffuse: None,
+            specular: None,
+            shininess: None,
+            alpha: None,
+            diffuse_map: None,
+            ambient_map: None,
+            specular_map: None,
             alpha_mask: None,
             normal_map: None,
         }
@@ -198,38 +198,37 @@ impl ObjMaterial {
     pub fn from(material: &obj::Material, parent_path: &String) -> ObjMaterial {
         let mut obj_mat = ObjMaterial::default();
 
-        material.ka.map(|ka| obj_mat.ambient = ka.into());
-        material.kd.map(|kd| obj_mat.diffuse = kd.into());
-        material.ks.map(|ks| obj_mat.specular = ks.into());
-        material.ns.map(|ns| obj_mat.shininess = ns);
-        material.d.map(|d| obj_mat.transparent = d);
-        material
+        obj_mat.ambient = material.ka.map(|ka| ka.into());
+        obj_mat.diffuse = material.kd.map(|kd| kd.into());
+        obj_mat.specular = material.ks.map(|ks| ks.into());
+        obj_mat.shininess = material.ns;
+        obj_mat.alpha = material.d;
+        obj_mat.diffuse_map = material
             .map_kd
             .as_ref()
-            .map(|map_kd| obj_mat.diffuse_map = parent_path.clone() + &map_kd);
-        material
+            .map(|map_kd| parent_path.clone() + &map_kd);
+        obj_mat.ambient_map = material
             .map_ka
             .as_ref()
-            .map(|map_ka| obj_mat.ambient_map = parent_path.clone() + &map_ka);
-        material
+            .map(|map_ka| parent_path.clone() + &map_ka);
+        obj_mat.specular_map = material
             .map_ks
             .as_ref()
-            .map(|map_ks| obj_mat.specular_map = parent_path.clone() + &map_ks);
-        material
+            .map(|map_ks| parent_path.clone() + &map_ks);
+        obj_mat.alpha_mask = material
             .map_d
             .as_ref()
-            .map(|map_d| obj_mat.alpha_mask = Some(parent_path.clone() + &map_d));
-
-        material
+            .map(|map_d| parent_path.clone() + &map_d);
+        obj_mat.normal_map = material
             .map_bump
             .as_ref()
-            .map(|map_bump| obj_mat.normal_map = Some(parent_path.clone() + &map_bump));
+            .map(|map_bump| parent_path.clone() + &map_bump);
 
         obj_mat
     }
 }
 
-type MaterialBuilder = Box<Fn(&AssetSystem, &ObjMaterial) -> Rc<Material>>;
+type MaterialBuilder = Box<Fn(&AssetSystem, ObjMaterial) -> Rc<Material>>;
 
 struct MaterialCache<A>
 where
@@ -269,10 +268,11 @@ where
 
     fn obj_mtl(&self, gm: &obj::Material) -> (WithNormalMap, Rc<Material>) {
         let obj_mat = ObjMaterial::from(gm, &self.parent_path);
+        let has_normal_map = obj_mat.normal_map.is_some();
 
-        let material = (*self.builder)(&self.asys, &obj_mat);
+        let material = (*self.builder)(&self.asys, obj_mat);
 
-        (WithNormalMap(obj_mat.normal_map.is_some()), material)
+        (WithNormalMap(has_normal_map), material)
     }
 }
 

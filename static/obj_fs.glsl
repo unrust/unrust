@@ -178,18 +178,18 @@ float ShadowCalculation(vec3 worldPos, vec3 normal, vec3 lightDir)
 vec3 CalcDirectionalLight(DirectionalLight light, vec3 normal, vec3 viewDir, MaterialColor color)
 {
     // Ambient
-    vec3 ambient = light.ambient * uMaterial.ambient * color.ambient;
+    vec3 ambient = light.ambient * color.ambient;
 
     vec3 lightDir = normalize(-light.direction);  
     float diff = max(dot(normal, lightDir), 0.0);
-    vec3 diffuse = light.diffuse * diff * uMaterial.diffuse * color.diffuse;
+    vec3 diffuse = light.diffuse * diff * color.diffuse;
 
     // specular    
     // Use blinn here
     vec3 halfwayDir = normalize(lightDir + viewDir);  
     float spec = pow(max(dot(normal, halfwayDir), 0.0), uMaterial.shininess);
     
-    vec3 specular = light.specular * spec * uMaterial.specular *  color.specular;
+    vec3 specular = light.specular * spec *  color.specular;
     float shadow = ShadowCalculation(vFragPos, normal, lightDir);
 
     return ambient + (diffuse + specular) * shadow;
@@ -213,9 +213,9 @@ vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir, M
     float attenuation = 1.0 / max(d, 0.001);
     
     // combine results
-    vec3 ambient = light.ambient * uMaterial.ambient * color.ambient;
-    vec3 diffuse = light.diffuse * diff * uMaterial.diffuse * color.diffuse;
-    vec3 specular = light.specular * spec * uMaterial.specular * color.specular;
+    vec3 ambient = light.ambient * color.ambient;
+    vec3 diffuse = light.diffuse * diff * color.diffuse;
+    vec3 specular = light.specular * spec * color.specular;
     
     ambient *= attenuation;
     diffuse *= attenuation;

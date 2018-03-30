@@ -37,7 +37,7 @@ struct TangentSpace {
 }
 
 fn from_slice_v3(s: &[f32]) -> Vector3f {
-    return Vector3::new(s[0], s[1], s[1]);
+    return Vector3::new(s[0], s[1], s[2]);
 }
 
 fn from_slice_v2(s: &[f32]) -> Vector2f {

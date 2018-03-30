@@ -12,8 +12,10 @@ extern crate futures;
 extern crate image;
 extern crate obj;
 extern crate uni_app;
+extern crate uni_snd;
 extern crate uni_glsl;
 extern crate webgl;
+extern crate wavefile;
 
 #[macro_use]
 extern crate bitflags;

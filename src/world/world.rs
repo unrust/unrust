@@ -8,6 +8,7 @@ use engine::{AssetSystem, Camera, ClearOption, Component, ComponentBased, Engine
              IEngine, SceneTree};
 
 use engine::imgui;
+use engine::SoundSystem;
 use world::fps::FPS;
 use world::type_watcher::{ActorWatcher, TypeWatcher, TypeWatcherBuilder};
 use world::Actor;
@@ -34,6 +35,8 @@ pub struct World {
     golist: Vec<Handle<GameObject>>,
 
     processor_builders: Vec<Rc<Box<IProcessorBuilder>>>,
+
+    pub sound: SoundSystem,
 }
 
 pub struct WorldBuilder<'a> {
@@ -109,6 +112,7 @@ impl<'a> WorldBuilder<'a> {
             events: events,
             golist: Vec::new(),
             processor_builders: self.processor_builders.clone(),
+            sound: SoundSystem::new(),
         };
 
         // add all processor into the scenes

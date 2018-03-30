@@ -252,14 +252,10 @@ fn build_material(asys: &AssetSystem, obj_mat: ObjMaterial) -> Rc<Material> {
 
     let mut material = Material::new(shader_program);
 
-    let ambient_tex = asys.new_texture(&obj_mat.ambient_map.unwrap_or("default_white".to_owned()));
-    ambient_tex.wrap_u.set(TextureWrap::Repeat);
-    ambient_tex.wrap_v.set(TextureWrap::Repeat);
     material.set(
         "uMaterial.ambient",
         obj_mat.ambient.unwrap_or(Vector3::new(0.2, 0.2, 0.2)),
     );
-    material.set("uMaterial.ambient_tex", ambient_tex);
 
     let diffuse_tex = asys.new_texture(&obj_mat.diffuse_map.unwrap_or("default_white".to_owned()));
     diffuse_tex.wrap_u.set(TextureWrap::Repeat);

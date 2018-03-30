@@ -30,9 +30,7 @@ struct PointLight {
 };
 
 struct Material {
-    vec3 ambient;
-    sampler2D ambient_tex;
-    
+    vec3 ambient;    
     vec3 diffuse;
     sampler2D diffuse_tex;
 
@@ -73,8 +71,10 @@ void main(void) {
 
     // Presample the color
     MaterialColor color;
-    color.ambient = uMaterial.ambient * vec3(texture2D(uMaterial.ambient_tex, vTexCoords));
-    color.diffuse = uMaterial.diffuse * vec3(texture2D(uMaterial.diffuse_tex, vTexCoords));
+    vec3 diffuse = vec3(texture2D(uMaterial.diffuse_tex, vTexCoords));
+
+    color.ambient = uMaterial.ambient * diffuse;
+    color.diffuse = uMaterial.diffuse * diffuse;
     color.specular = uMaterial.specular * vec3(texture2D(uMaterial.specular_tex, vTexCoords));
 
     // Directional Light

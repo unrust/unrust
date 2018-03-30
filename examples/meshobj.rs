@@ -34,7 +34,9 @@ impl Actor for MainScene {
         // add main camera to scene
         {
             let go = world.new_game_object();
-            go.borrow_mut().add_component(Camera::default());
+            let mut cam = Camera::default();
+            cam.zfar = 300.0;
+            go.borrow_mut().add_component(cam);
         }
 
         // add direction light to scene.
@@ -61,7 +63,7 @@ impl Actor for MainScene {
             let shadow_pass = world.find_component::<ShadowPass>().unwrap();
             shadow_pass
                 .borrow_mut()
-                .set_partitions(&[10.0, 20.0, 40.0, 1000.0]);
+                .set_partitions(&[5.0, 20.0, 50.0, 100.0]);
         }
     }
 
@@ -112,10 +114,12 @@ impl Actor for MainScene {
 
         // GUI
         use imgui::Metric::*;
+        use imgui::TextAlign;
 
         imgui::pivot((1.0, 1.0));
+        imgui::text_align(TextAlign::Right);
         imgui::label(
-            Native(1.0, 1.0) - Pixel(8.0, 8.0),
+            Native(1.0, 1.0) - Pixel(8.0, 8.0 * 7.0),
             "[WASD] : control camera\n[Esc]  : reload all (include assets)",
         );
 
@@ -125,9 +129,10 @@ impl Actor for MainScene {
             &format!("last event: {:?}", self.last_event),
         );
 
-        imgui::pivot((0.0, 1.0));
+        imgui::pivot((1.0, 1.0));
+        imgui::text_align(TextAlign::Right);
         imgui::label(
-            Native(0.0, 1.0) + Pixel(8.0, -8.0),
+            Native(1.0, 1.0) - Pixel(8.0, 8.0),
             "Vending Machine by Don Carson\nhttps://poly.google.com/view/0CX6wj64Swu",
         );
     }

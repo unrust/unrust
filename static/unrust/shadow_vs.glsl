@@ -4,12 +4,11 @@
 #endif
 
 attribute vec3 aVertexPosition;
-attribute vec2 aTextureCoord;
-varying vec2 vTexCoords;
 uniform mat4 uMMatrix;
 uniform mat4 uShadowMatrix;            
 
 void main(void) {
-    gl_Position = uShadowMatrix * uMMatrix * vec4(aVertexPosition, 1.0);
-    vTexCoords = aTextureCoord;
+    vec4 pos = uShadowMatrix * uMMatrix * vec4(aVertexPosition, 1.0);    
+    pos.z *= pos.w;
+    gl_Position = pos;
 }

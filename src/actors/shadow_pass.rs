@@ -505,15 +505,15 @@ impl Actor for ShadowPass {
         );
 
         if let Some(ctx) = ctx {
-            let mut last_partition_z = self.light_camera.znear;
-
             if self.use_scene_aabb {
+                let near = self.light_camera.znear;
+
                 self.shadow_maps[0].render(
                     world,
                     &mut self.light_camera,
                     &ctx,
                     &self.shadow_material.as_ref().unwrap(),
-                    last_partition_z,
+                    near,
                     true,
                     true,
                     if capture {
@@ -527,6 +527,8 @@ impl Actor for ShadowPass {
                 self.shadow_maps[2].light_space_range = (1.0, 1.0);
                 self.shadow_maps[3].light_space_range = (1.0, 1.0);
             } else {
+                let mut last_partition_z = self.light_camera.znear;
+
                 for (i, map) in self.shadow_maps.iter_mut().enumerate() {
                     map.render(
                         world,
@@ -616,7 +618,10 @@ impl Processor for ShadowPass {
                     light_matrix: Matrix4f::identity(),
                     light_space_range: (-1.0, 1.0),
                     partition_z: 1000.0,
-                    viewport: ((0, texture_size2 as i32), (texture_size2, texture_size2)),
+                    viewport: (
+                        (texture_size2 as i32, texture_size2 as i32),
+                        (texture_size2, texture_size2),
+                    ),
                 },
             ],
             shadow_material: None,

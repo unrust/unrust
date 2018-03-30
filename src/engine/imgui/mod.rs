@@ -172,6 +172,9 @@ pub fn text_align(align: TextAlign) {
 /// Label
 pub fn label(pos: Metric, s: &str) {
     add_widget(|id, state| widgets::Label::new(id, pos, state, s.into()));
+
+    // reset text settings
+    text_align(TextAlign::default());
 }
 
 /// Image

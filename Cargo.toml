@@ -39,11 +39,6 @@ features = ["png_codec", "tga"]
 [replace]
 "rustc-serialize:0.3.24" = { path = "wasm-rustc-serialize" }
 
-# wasm compilation isn't currently compatible with incremental compilation
-# see https://github.com/rust-lang/rust/issues/47643
-# [profile.dev]
-# incremental = false
-
 [features]
 default = []
 flame_it = ["flame", "flamer"]

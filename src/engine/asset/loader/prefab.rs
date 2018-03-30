@@ -1,6 +1,5 @@
-use engine::asset::loader::{Loadable, Loader};
-use engine::asset::{Asset, AssetError, AssetResult, AssetSystem, File, FileFuture, Resource};
-use engine::render::{Material, Mesh, MeshBuffer, MeshData, RenderQueue, TextureWrap};
+use engine::asset::{Asset, AssetError, AssetSystem, FileFuture, Resource};
+use engine::render::{Material, Mesh, MeshBuffer, MeshData};
 use engine::core::Component;
 use std::sync::Arc;
 use std::borrow::Cow;
@@ -36,12 +35,14 @@ struct TangentSpace {
     bitangents: Option<Vec<f32>>,
 }
 
-fn from_slice_v3(s: &[f32]) -> Vector3f {
-    return Vector3::new(s[0], s[1], s[2]);
+#[inline]
+fn from_slice_v3(i: usize, s: &[f32]) -> Vector3f {
+    return Vector3::new(s[i * 3 + 0], s[i * 3 + 1], s[i * 3 + 2]);
 }
 
-fn from_slice_v2(s: &[f32]) -> Vector2f {
-    return Vector2::new(s[0], s[1]);
+#[inline]
+fn from_slice_v2(i: usize, s: &[f32]) -> Vector2f {
+    return Vector2::new(s[i * 2 + 0], s[i * 2 + 1]);
 }
 
 trait CloseToZero {
@@ -78,19 +79,15 @@ fn compute_tangents(
     let mut tangents = Vec::with_capacity(v_array.len());
     let mut bittangents = Vec::with_capacity(v_array.len());
 
-    let v_index = |i| i * 3;
-    let uv_index = |i| i * 2;
-    let n_index = |i| i * 3;
-
     let mut i = 0;
     while i < indices.len() {
-        let pos1 = from_slice_v3(&v_array[v_index(i + 0)..v_index(i + 1)]);
-        let pos2 = from_slice_v3(&v_array[v_index(i + 1)..v_index(i + 2)]);
-        let pos3 = from_slice_v3(&v_array[v_index(i + 2)..v_index(i + 3)]);
+        let pos1 = from_slice_v3(i, &v_array);
+        let pos2 = from_slice_v3(i + 1, &v_array);
+        let pos3 = from_slice_v3(i + 2, &v_array);
 
-        let uv1 = from_slice_v2(&uv_array[uv_index(i + 0)..uv_index(i + 1)]);
-        let uv2 = from_slice_v2(&uv_array[uv_index(i + 1)..uv_index(i + 2)]);
-        let uv3 = from_slice_v2(&uv_array[uv_index(i + 2)..uv_index(i + 3)]);
+        let uv1 = from_slice_v2(i, &uv_array);
+        let uv2 = from_slice_v2(i + 1, &uv_array);
+        let uv3 = from_slice_v2(i + 2, &uv_array);
 
         let edge1 = pos2 - pos1;
         let edge2 = pos3 - pos1;
@@ -137,9 +134,9 @@ fn compute_tangents(
     }
 
     for i in 0..indices.len() {
-        let n = from_slice_v3(&n_array[n_index(i)..n_index(i + 1)]);
-        let mut t = from_slice_v3(&tangents[n_index(i)..n_index(i + 1)]);
-        let b = from_slice_v3(&bittangents[n_index(i)..n_index(i + 1)]);
+        let n = from_slice_v3(i, &n_array);
+        let mut t = from_slice_v3(i, &tangents);
+        let b = from_slice_v3(i, &bittangents);
 
         // Gram-Schmidt orthogonalize
         t = t - n * n.dot(t);
@@ -148,9 +145,9 @@ fn compute_tangents(
             t = -t;
         }
 
-        tangents[n_index(i) + 0] = t.x;
-        tangents[n_index(i) + 1] = t.y;
-        tangents[n_index(i) + 2] = t.z;
+        tangents[i * 3 + 0] = t.x;
+        tangents[i * 3 + 1] = t.y;
+        tangents[i * 3 + 2] = t.z;
     }
 
     assert!(tangents.len() == v_array.len());
@@ -162,99 +159,130 @@ fn compute_tangents(
     };
 }
 
-fn obj_mtl<A>(asys: &A, parent: &String, gm: &obj::Material) -> (bool, Rc<Material>)
+#[derive(Clone, Copy, Debug)]
+struct WithNormalMap(bool);
+
+pub struct ObjMaterial {
+    pub ambient: Vector3f,
+    pub diffuse: Vector3f,
+    pub specular: Vector3f,
+    pub shininess: f32,
+    pub transparent: f32,
+
+    pub diffuse_map: String,
+    pub ambient_map: String,
+    pub specular_map: String,
+
+    pub alpha_mask: Option<String>,
+    pub normal_map: Option<String>,
+}
+
+impl Default for ObjMaterial {
+    fn default() -> ObjMaterial {
+        ObjMaterial {
+            ambient: Vector3::new(0.2, 0.2, 0.2),
+            diffuse: Vector3::new(1.0, 1.0, 1.0),
+            specular: Vector3::new(1.0, 1.0, 1.0),
+            shininess: 1000.2,
+            transparent: 1.0,
+            diffuse_map: "default_white".to_owned(),
+            ambient_map: "default_white".to_owned(),
+            specular_map: "default_black".to_owned(),
+            alpha_mask: None,
+            normal_map: None,
+        }
+    }
+}
+
+impl ObjMaterial {
+    pub fn from(material: &obj::Material, parent_path: &String) -> ObjMaterial {
+        let mut obj_mat = ObjMaterial::default();
+
+        material.ka.map(|ka| obj_mat.ambient = ka.into());
+        material.kd.map(|kd| obj_mat.diffuse = kd.into());
+        material.ks.map(|ks| obj_mat.specular = ks.into());
+        material.ns.map(|ns| obj_mat.shininess = ns);
+        material.d.map(|d| obj_mat.transparent = d);
+        material
+            .map_kd
+            .as_ref()
+            .map(|map_kd| obj_mat.diffuse_map = parent_path.clone() + &map_kd);
+        material
+            .map_ka
+            .as_ref()
+            .map(|map_ka| obj_mat.ambient_map = parent_path.clone() + &map_ka);
+        material
+            .map_ks
+            .as_ref()
+            .map(|map_ks| obj_mat.specular_map = parent_path.clone() + &map_ks);
+        material
+            .map_d
+            .as_ref()
+            .map(|map_d| obj_mat.alpha_mask = Some(parent_path.clone() + &map_d));
+
+        material
+            .map_bump
+            .as_ref()
+            .map(|map_bump| obj_mat.normal_map = Some(parent_path.clone() + &map_bump));
+
+        obj_mat
+    }
+}
+
+type MaterialBuilder = Box<Fn(&AssetSystem, &ObjMaterial) -> Rc<Material>>;
+
+struct MaterialCache<A>
 where
     A: AssetSystem + Clone + 'static,
 {
-    let mut ambient = Vector3::new(0.2, 0.2, 0.2);
-    let mut diffuse = Vector3::new(1.0, 1.0, 1.0);
-    let mut specular = Vector3::new(1.0, 1.0, 1.0);
-    let mut shininess = 1000.2;
-    let mut transparent = 1.0;
-    let mut diffuse_map = "default_white".to_string();
-    let mut ambient_map = "default_white".to_string();
-    let mut specular_map = "default_black".to_string();
-    let mut alpha_mask = None;
-    let mut normal_map: Option<String> = None;
+    map: HashMap<String, (WithNormalMap, Rc<Material>)>,
+    parent_path: String,
+    asys: A,
+    builder: MaterialBuilder,
+}
 
-    let material = gm;
-    material.ka.map(|ka| ambient = ka.into());
-    material.kd.map(|kd| diffuse = kd.into());
-    material.ks.map(|ks| specular = ks.into());
-    material.ns.map(|ns| shininess = ns);
-    material.d.map(|d| transparent = d);
-    material
-        .map_kd
-        .as_ref()
-        .map(|map_kd| diffuse_map = parent.clone() + &map_kd);
-    material
-        .map_ka
-        .as_ref()
-        .map(|map_ka| ambient_map = parent.clone() + &map_ka);
-    material
-        .map_ks
-        .as_ref()
-        .map(|map_ks| specular_map = parent.clone() + &map_ks);
-    material
-        .map_d
-        .as_ref()
-        .map(|map_d| alpha_mask = Some(parent.clone() + &map_d));
-
-    material
-        .map_bump
-        .as_ref()
-        .map(|map_bump| normal_map = Some(parent.clone() + &map_bump));
-
-    let shader_program = match normal_map {
-        Some(_) => asys.new_program("obj_nm"),
-        None => asys.new_program("obj"),
-    };
-
-    let mut material = Material::new(shader_program);
-
-    let ambient_tex = asys.new_texture(&ambient_map);
-    ambient_tex.wrap_u.set(TextureWrap::Repeat);
-    ambient_tex.wrap_v.set(TextureWrap::Repeat);
-    material.set("uMaterial.ambient", ambient);
-    material.set("uMaterial.ambient_tex", ambient_tex);
-
-    let diffuse_tex = asys.new_texture(&diffuse_map);
-    diffuse_tex.wrap_u.set(TextureWrap::Repeat);
-    diffuse_tex.wrap_v.set(TextureWrap::Repeat);
-    material.set("uMaterial.diffuse", diffuse);
-    material.set("uMaterial.diffuse_tex", diffuse_tex);
-
-    let specular_tex = asys.new_texture(&specular_map);
-    specular_tex.wrap_u.set(TextureWrap::Repeat);
-    specular_tex.wrap_v.set(TextureWrap::Repeat);
-    material.set("uMaterial.specular", specular);
-    material.set("uMaterial.specular_tex", specular_tex);
-
-    material.set("uMaterial.shininess", shininess);
-    material.set("uMaterial.transparent", transparent);
-
-    normal_map.as_ref().map(|nm| {
-        let n_tex = asys.new_texture(nm);
-        n_tex.wrap_u.set(TextureWrap::Repeat);
-        n_tex.wrap_v.set(TextureWrap::Repeat);
-
-        material.set("uMaterial.normal_map", n_tex);
-    });
-
-    match alpha_mask {
-        Some(ref f) => material.set("uMaterial.mask_tex", asys.new_texture(&f)),
-        None => material.set("uMaterial.mask_tex", asys.new_texture("default_white")),
+impl<A> MaterialCache<A>
+where
+    A: AssetSystem + Clone + 'static,
+{
+    fn new(asys: A, parent_path: String, builder: MaterialBuilder) -> MaterialCache<A> {
+        MaterialCache {
+            map: HashMap::new(),
+            parent_path,
+            asys,
+            builder,
+        }
     }
 
-    if transparent < 0.9999 || alpha_mask.is_some() {
-        material.render_queue = RenderQueue::Transparent;
+    fn get_or_insert(&mut self, gm: &obj::Material) -> (WithNormalMap, Rc<Material>) {
+        let entry = self.map.get(&gm.name);
+
+        match entry {
+            Some(&(b, ref mat)) => (b, mat.clone()),
+            None => {
+                let r = self.obj_mtl(&gm);
+                self.map.insert(gm.name.clone(), (r.0, r.1.clone()));
+                r
+            }
+        }
     }
 
-    (normal_map.is_some(), Rc::new(material))
+    fn obj_mtl(&self, gm: &obj::Material) -> (WithNormalMap, Rc<Material>) {
+        let obj_mat = ObjMaterial::from(gm, &self.parent_path);
+
+        let material = (*self.builder)(&self.asys, &obj_mat);
+
+        (WithNormalMap(obj_mat.normal_map.is_some()), material)
+    }
 }
 
 impl PrefabLoader {
-    fn load_model<A>(asys: A, parent: String, model: obj::Obj<SimplePolygon>) -> Prefab
+    fn load_model<A>(
+        asys: A,
+        parent: String,
+        model: obj::Obj<SimplePolygon>,
+        builder: MaterialBuilder,
+    ) -> Prefab
     where
         A: AssetSystem + Clone + 'static,
     {
@@ -265,7 +293,7 @@ impl PrefabLoader {
         // create the mesh componet
         let mut mesh = Mesh::new();
 
-        let mut material_map: HashMap<String, (bool, Rc<Material>)> = HashMap::new();
+        let mut material_cache = MaterialCache::new(asys.clone(), parent.clone(), builder);
 
         for o in model.objects {
             for g in o.groups {
@@ -273,16 +301,7 @@ impl PrefabLoader {
                     continue;
                 }
                 let material = g.material.as_ref().unwrap();
-                let entry = material_map.get(&material.name);
-
-                let (has_normal_map, material) = match entry {
-                    Some(&(b, ref mat)) => (b, mat.clone()),
-                    None => {
-                        let r = obj_mtl(&asys, &parent, &material);
-                        material_map.insert(material.name.clone(), (r.0, r.1.clone()));
-                        r
-                    }
-                };
+                let (has_normal_map, material) = material_cache.get_or_insert(&material);
 
                 let mut indices = Vec::new();
                 let mut v_array = Vec::new();
@@ -334,7 +353,7 @@ impl PrefabLoader {
                     None
                 };
 
-                let tangent_space = if has_normal_map {
+                let tangent_space = if has_normal_map.0 {
                     compute_tangents(&v_array, &uv_array, &n_array, &indices)
                 } else {
                     TangentSpace {
@@ -377,10 +396,12 @@ where
     files
 }
 
-impl Loadable for Prefab {
-    type Loader = PrefabLoader;
-
-    fn load_future<A>(asys: A, objfile: FileFuture) -> Box<Future<Item = Self, Error = AssetError>>
+impl Prefab {
+    pub fn load_future<A>(
+        asys: A,
+        objfile: FileFuture,
+        builder: MaterialBuilder,
+    ) -> Box<Future<Item = Self, Error = AssetError>>
     where
         Self: 'static,
         A: AssetSystem + Clone + 'static,
@@ -423,16 +444,10 @@ impl Loadable for Prefab {
                 }
             }
 
-            Ok(PrefabLoader::load_model(asys, parent, model))
+            Ok(PrefabLoader::load_model(asys, parent, model, builder))
         });
 
         // futurize
         Box::new(final_future.map_err(|e| AssetError::FileIoError(e)))
-    }
-}
-
-impl Loader<Prefab> for PrefabLoader {
-    fn load<A: AssetSystem>(_asys: A, mut _file: Box<File>) -> AssetResult<Prefab> {
-        unimplemented!()
     }
 }

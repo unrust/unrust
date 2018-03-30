@@ -1,10 +1,13 @@
 extern crate unrust;
 
 use unrust::world::{Actor, Handle, World, WorldBuilder};
-use unrust::engine::{AssetError, Camera, Directional, GameObject, Light, Material, Mesh, Prefab};
+use unrust::engine::{AssetError, AssetSystem, Camera, Directional, GameObject, Light, Material,
+                     Mesh, ObjMaterial, Prefab, RenderQueue, TextureWrap};
 use unrust::world::events::*;
 use unrust::actors::ShadowPass;
 use unrust::math::*;
+
+use std::rc::Rc;
 
 // GUI
 use unrust::imgui;
@@ -138,6 +141,55 @@ impl WaveObjActor {
     }
 }
 
+fn build_material(asys: &AssetSystem, obj_mat: &ObjMaterial) -> Rc<Material> {
+    let shader_program = match obj_mat.normal_map {
+        Some(_) => asys.new_program("obj_nm"),
+        None => asys.new_program("obj"),
+    };
+
+    let mut material = Material::new(shader_program);
+
+    let ambient_tex = asys.new_texture(&obj_mat.ambient_map);
+    ambient_tex.wrap_u.set(TextureWrap::Repeat);
+    ambient_tex.wrap_v.set(TextureWrap::Repeat);
+    material.set("uMaterial.ambient", obj_mat.ambient);
+    material.set("uMaterial.ambient_tex", ambient_tex);
+
+    let diffuse_tex = asys.new_texture(&obj_mat.diffuse_map);
+    diffuse_tex.wrap_u.set(TextureWrap::Repeat);
+    diffuse_tex.wrap_v.set(TextureWrap::Repeat);
+    material.set("uMaterial.diffuse", obj_mat.diffuse);
+    material.set("uMaterial.diffuse_tex", diffuse_tex);
+
+    let specular_tex = asys.new_texture(&obj_mat.specular_map);
+    specular_tex.wrap_u.set(TextureWrap::Repeat);
+    specular_tex.wrap_v.set(TextureWrap::Repeat);
+    material.set("uMaterial.specular", obj_mat.specular);
+    material.set("uMaterial.specular_tex", specular_tex);
+
+    material.set("uMaterial.shininess", obj_mat.shininess);
+    material.set("uMaterial.transparent", obj_mat.transparent);
+
+    obj_mat.normal_map.as_ref().map(|nm| {
+        let n_tex = asys.new_texture(nm);
+        n_tex.wrap_u.set(TextureWrap::Repeat);
+        n_tex.wrap_v.set(TextureWrap::Repeat);
+
+        material.set("uMaterial.normal_map", n_tex);
+    });
+
+    match obj_mat.alpha_mask {
+        Some(ref f) => material.set("uMaterial.mask_tex", asys.new_texture(&f)),
+        None => material.set("uMaterial.mask_tex", asys.new_texture("default_white")),
+    }
+
+    if obj_mat.transparent < 0.9999 || obj_mat.alpha_mask.is_some() {
+        material.render_queue = RenderQueue::Transparent;
+    }
+
+    Rc::new(material)
+}
+
 impl Actor for WaveObjActor {
     fn start_rc(&mut self, go: Handle<GameObject>, world: &mut World) {
         let db = &mut world.asset_system();
@@ -153,7 +205,11 @@ impl Actor for WaveObjActor {
             }
         };
 
-        db.new_prefab("meshobj_test_model.obj", Box::new(prefab_handler));
+        db.new_prefab(
+            "meshobj_test_model.obj",
+            Box::new(build_material),
+            Box::new(prefab_handler),
+        );
     }
 }
 

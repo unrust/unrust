@@ -6,10 +6,9 @@ use engine::asset::{CubeMesh, PlaneMesh, QuadMesh, SkyboxMesh};
 use engine::asset::default_font_bitmap::DEFAULT_FONT_DATA;
 use engine::asset::fs;
 use engine::asset::loader;
-use engine::asset::loader::Loadable;
 use engine::asset::Resource;
 
-use engine::{MeshBuffer, ShaderFs, ShaderProgram, ShaderVs, Texture, TextureFiltering,
+use engine::{Material, MeshBuffer, ShaderFs, ShaderProgram, ShaderVs, Texture, TextureFiltering,
              TextureImage};
 use std::fmt::Debug;
 use std::ops::Deref;
@@ -34,6 +33,7 @@ pub enum AssetError {
 pub type AssetResult<T> = Result<T, AssetError>;
 
 type PrefabHandler = Box<FnBox(AssetResult<loader::Prefab>)>;
+type MaterialHandler = Box<Fn(&AssetSystem, &loader::ObjMaterial) -> Rc<Material>>;
 
 pub trait AssetSystem {
     fn new() -> Self
@@ -48,7 +48,7 @@ pub trait AssetSystem {
 
     fn new_mesh_buffer(&self, name: &str) -> Rc<MeshBuffer>;
 
-    fn new_prefab(&self, name: &str, f: PrefabHandler);
+    fn new_prefab(&self, name: &str, mh: MaterialHandler, f: PrefabHandler);
 
     fn reset(&mut self);
 
@@ -163,8 +163,8 @@ where
         self.setup();
     }
 
-    fn new_prefab(&self, name: &str, f: PrefabHandler) {
-        let prefab = loader::Prefab::load_future(self.clone(), self.new_file(name));
+    fn new_prefab(&self, name: &str, mh: MaterialHandler, f: PrefabHandler) {
+        let prefab = loader::Prefab::load_future(self.clone(), self.new_file(name), mh);
         self.pending_prefabs.borrow_mut().push((f, prefab));
     }
 

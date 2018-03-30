@@ -12,7 +12,7 @@ pub use self::quad::QuadMesh;
 pub use self::skybox::SkyboxMesh;
 pub use self::asset_database::{Asset, AssetDatabase, AssetError, AssetResult, AssetSystem,
                                LoadableAsset};
-pub use self::loader::{Prefab, DDS};
+pub use self::loader::{ObjMaterial, Prefab, DDS};
 
 pub use self::resource::Resource;
 pub use self::fs::*;

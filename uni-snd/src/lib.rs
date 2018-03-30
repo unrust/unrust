@@ -21,7 +21,7 @@ pub mod snd;
 
 pub use self::snd::*;
 
-#[derive(Debug,Clone,Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum SoundError {
     NoError,
     NoDevice,

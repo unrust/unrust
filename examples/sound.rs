@@ -3,95 +3,74 @@ extern crate uni_snd;
 extern crate unrust;
 
 use uni_app::App;
-use uni_snd::{SoundDriver, SoundGenerator};
 
 use unrust::world::{Actor, Camera, World, WorldBuilder};
-use unrust::engine::GameObject;
+use unrust::engine::{GameObject, SoundHandle};
 use unrust::world::events::AppEvent;
 
 // GUI
 use unrust::imgui;
 
-struct SinGenerator {
-    sample_rate: f32,
-    frequency: f32,
-    i: usize,
-    channel: usize,
-    volume: f32,
+struct SoundEmitter {
+    flute_id: SoundHandle,
+    sword_id: SoundHandle,
+    mouse_pos: f64,
 }
 
-impl SinGenerator {
-    pub fn new(volume: f32) -> Self {
-        Self {
-            sample_rate: 44000.0,
-            frequency: 440.0,
-            i: 0,
-            channel: 0,
-            volume,
-        }
-    }
-}
-
-impl SoundGenerator<f32> for SinGenerator {
-    fn init(&mut self, sample_rate: f32) {
-        self.sample_rate = sample_rate;
-    }
-    fn handle_event(&mut self, event: f32) {
-        self.frequency = event;
-        App::print(format!("new frequency: {}\n", event));
-    }
-    fn next_value(&mut self) -> f32 {
-        if self.channel == 1 {
-            self.i += 1;
-            self.channel = 0;
-        } else {
-            self.channel = 1;
-        }
-        ((self.i as f32 % self.sample_rate) * self.frequency * 2.0 * 3.14159 / self.sample_rate)
-            .sin() * self.volume
-    }
-}
-
-struct SoundEngine {
-    driver: SoundDriver<f32>,
-    frequency: f32,
-}
-
-impl SoundEngine {
-    pub fn new() -> Box<Actor> {
+impl SoundEmitter {
+    pub fn new(world: &mut World) -> Box<Actor> {
+        let flute_id = world
+            .sound
+            .load_sound("static/sponza/sounds/flute_48000.wav");
+        let sword_id = world.sound.load_sound("static/sponza/sounds/sword.wav");
         Box::new(Self {
-            driver: SoundDriver::new(Box::new(SinGenerator::new(0.2))),
-            frequency: 440.0,
+            flute_id,
+            sword_id,
+            mouse_pos: 0.0,
         })
     }
 }
 
-impl Actor for SoundEngine {
+impl Actor for SoundEmitter {
     fn start(&mut self, _go: &mut GameObject, world: &mut World) {
-        self.driver.start();
         // add main camera to scene
-        {
-            let go = world.new_game_object();
-            go.borrow_mut().add_component(Camera::default());
-        }
+        let go = world.new_game_object();
+        go.borrow_mut().add_component(Camera::default());
+        // flute is priority 1 so that it doesn't get replaced by a sword if all channels are used
+        world
+            .sound
+            .play_sound(self.flute_id, None, true, 1, 0.5, 0.5);
     }
     fn update(&mut self, _go: &mut GameObject, world: &mut World) {
-        self.driver.frame();
+        let mut sword = false;
         for evt in world.events().iter() {
             match evt {
                 &AppEvent::MouseUp(_) => {
-                    self.frequency = 600.0 - self.frequency;
-                    App::print(format!("sending new frequency event: {}\n", self.frequency));
-                    self.driver.send_event(self.frequency);
+                    sword = true;
+                }
+                &AppEvent::MousePos((x, _)) => {
+                    self.mouse_pos = x;
                 }
                 _ => (),
             }
         }
-        // GUI
+        if sword {
+            // play sword sound on click, using mouse position to balance
+            world.sound.play_sound(
+                self.sword_id,
+                None,
+                false,
+                0,
+                1.0,
+                self.mouse_pos as f32 / 640.0,
+            );
+        }
         use imgui::Metric::*;
+
+        imgui::pivot((1.0, 1.0));
         imgui::label(
-            Native(0.5, 0.5),
-            "Click of the canvas\nto change the sound frequency",
+            Native(1.0, 1.0) - Pixel(8.0, 8.0),
+            "left click to hit with your sword!",
         );
     }
 }
@@ -104,7 +83,9 @@ pub fn main() {
 
     // Add the main scene as component of scene game object
     let scene = world.new_game_object();
-    scene.borrow_mut().add_component(SoundEngine::new());
+    scene
+        .borrow_mut()
+        .add_component(SoundEmitter::new(&mut world));
     drop(scene);
 
     world.event_loop();

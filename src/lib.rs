@@ -7,7 +7,6 @@
 #![cfg_attr(feature = "flame_it", plugin(flamer))]
 
 /* common */
-extern crate cgmath;
 extern crate fnv;
 extern crate futures;
 extern crate image;
@@ -27,13 +26,12 @@ pub mod world;
 pub mod actors;
 
 pub mod math {
-    pub use cgmath::prelude::*;
-    pub use cgmath::*;
-    pub use engine::Aabb;
+    pub extern crate cgmath;
 
-    // pub fn transform_point(m: &Matrix4<f32>, p: &Point3<f32>) -> Point3<f32> {
-    //     Point3::from_homogeneous(m * p.to_homogeneous())
-    // }
+    pub use self::cgmath::prelude::*;
+    pub use engine::Aabb;
+    pub use self::cgmath::{ortho, Decomposed, Deg, Euler, Matrix3, Matrix4, PerspectiveFov,
+                           Point3, Quaternion, Rad, Vector2, Vector3, Vector4, vec3};
 
     pub type Vector3f = Vector3<f32>;
     pub type Matrix4f = Matrix4<f32>;

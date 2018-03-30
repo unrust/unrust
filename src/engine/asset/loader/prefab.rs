@@ -44,6 +44,16 @@ fn from_slice_v2(s: &[f32]) -> Vector2f {
     return Vector2::new(s[0], s[1]);
 }
 
+trait CloseToZero {
+    fn close_to_zero(&self) -> bool;
+}
+
+impl CloseToZero for f32 {
+    fn close_to_zero(&self) -> bool {
+        self.abs() < 0.0001
+    }
+}
+
 fn compute_tangents(
     v_array: &Vec<f32>,
     uv_array: &Option<Vec<f32>>,
@@ -87,10 +97,32 @@ fn compute_tangents(
         let delta_uv1 = uv2 - uv1;
         let delta_uv2 = uv3 - uv1;
 
-        let r = 1.0 / (delta_uv1.x * delta_uv2.y - delta_uv2.x * delta_uv1.y);
+        let d = delta_uv1.x * delta_uv2.y - delta_uv2.x * delta_uv1.y;
+        let tangent: Vector3f;
+        let bitangent: Vector3f;
 
-        let tangent = (edge1 * delta_uv2.y - edge2 * delta_uv1.y) * r;
-        let bitangent = (edge2 * delta_uv1.x - edge1 * delta_uv2.x) * r;
+        if !d.close_to_zero() {
+            let r = 1.0 / d;
+            tangent = (edge1 * delta_uv2.y - edge2 * delta_uv1.y) * r;
+            bitangent = (edge2 * delta_uv1.x - edge1 * delta_uv2.x) * r;
+        } else {
+            // For some ill condition mesh, d would be zero, just fix it
+            if !delta_uv1.x.close_to_zero() {
+                tangent = edge1 / delta_uv1.x;
+            } else if !delta_uv2.x.close_to_zero() {
+                tangent = edge2 / delta_uv2.x;
+            } else {
+                tangent = Vector3::zero();
+            }
+
+            if !delta_uv1.y.close_to_zero() {
+                bitangent = edge1 / delta_uv1.y;
+            } else if !delta_uv2.y.close_to_zero() {
+                bitangent = edge2 / delta_uv2.y;
+            } else {
+                bitangent = Vector3::zero();
+            }
+        }
 
         // Triangle share same tangent space
         tangents.extend_from_slice(&tangent[..]);

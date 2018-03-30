@@ -24,11 +24,13 @@ pub struct App {
 use super::events;
 
 macro_rules! map_event {
-    ($events:expr, $x:ident,$y:ident, $ee:ident, $e:expr ) => {
+    ($events:expr, $x:ident,$y:ident, $ee:ident, $e:expr, $prevent: expr ) => {
         {
             let events = $events.clone();
             move |$ee: $x| {
-                $ee.prevent_default();
+                if $prevent {
+                    $ee.prevent_default();
+                }
                 events.borrow_mut().push(AppEvent::$y($e));
             }
         }
@@ -138,7 +140,8 @@ impl App {
                 MouseButton::Right => 2,
                 MouseButton::Button4 => 3,
                 MouseButton::Button5 => 4,
-            }}
+            }},
+            false
         });
         canvas.add_event_listener(map_event!{
             self.events,
@@ -151,7 +154,8 @@ impl App {
                 MouseButton::Right => 2,
                 MouseButton::Button4 => 3,
                 MouseButton::Button5 => 4,
-            }}
+            }},
+            true
         });
 
         canvas.add_event_listener({
@@ -169,7 +173,8 @@ impl App {
                 MouseMoveEvent,
                 MousePos,
                 e,
-                (e.client_x() as f64 - canvas_x,e.client_y() as f64 - canvas_y)
+                (e.client_x() as f64 - canvas_x,e.client_y() as f64 - canvas_y),
+                true
             }
         });
 
@@ -184,7 +189,8 @@ impl App {
                 shift: e.shift_key(),
                 alt: e.alt_key(),
                 ctrl: e.ctrl_key(),
-            }
+            },
+            true
         });
 
         // canvas.add_event_listener(map_event!{
@@ -208,7 +214,8 @@ impl App {
                 shift: e.shift_key(),
                 alt: e.alt_key(),
                 ctrl: e.ctrl_key(),
-            }
+            },
+            true
         });
 
         canvas.add_event_listener({

@@ -130,7 +130,7 @@ impl ShaderProgramGLState {
         let vert_shader = gl.create_shader(WebGLShaderKind::Vertex);
 
         // Attach vertex shader source code
-        gl.shader_source(&vert_shader, &vs_unit.code);
+        gl.shader_source(&vert_shader, &vs_unit.code.as_string());
 
         // Compile the vertex shader
         uni_app::App::print(format!("Compiling shader file : {}\n", vs_unit.filename));
@@ -140,7 +140,7 @@ impl ShaderProgramGLState {
         let frag_shader = gl.create_shader(WebGLShaderKind::Fragment);
 
         // Attach fragment shader source code
-        gl.shader_source(&frag_shader, &fs_unit.code);
+        gl.shader_source(&frag_shader, &fs_unit.code.as_string());
 
         // Compile the fragmentt shader
         uni_app::App::print(format!("Compiling shader file : {}\n", fs_unit.filename));

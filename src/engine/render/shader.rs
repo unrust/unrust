@@ -36,8 +36,51 @@ impl ShaderKindProvider for ShaderKindFs {
 }
 
 #[derive(Debug)]
+pub struct PreprocessedShaderCode(String);
+
+impl PreprocessedShaderCode {
+    pub fn as_string(&self) -> &String {
+        &self.0
+    }
+
+    pub fn new(kind: ShaderKind, filename: &str, s: &str) -> PreprocessedShaderCode {
+        let prefix = match kind {
+            ShaderKind::Vertex => if !webgl::IS_GL_ES {
+                "#version 150\n".to_owned()
+            } else {
+                if s.starts_with("#define USE_GLSL_300ES") {
+                    "#version 300 es\n".to_owned()
+                } else {
+                    "".to_owned()
+                }
+            },
+
+            ShaderKind::Fragment => if !webgl::IS_GL_ES {
+                "#version 150\n".to_owned()
+            } else {
+                if s.starts_with("#define USE_GLSL_300ES") {
+                    "#version 300 es\n".to_owned() + "precision highp float;\n"
+                } else {
+                    "precision highp float;\n".to_owned()
+                }
+            },
+        };
+
+        let mut predefs: HashMap<String, String> = HashMap::new();
+        if webgl::IS_GL_ES {
+            predefs.insert("GL_ES".to_string(), "".to_string());
+        }
+
+        webgl::print(&format!("preprocessing {}...\n", filename));
+        let processed = preprocessor::preprocess(&s, &predefs).unwrap();
+
+        PreprocessedShaderCode(prefix + &processed)
+    }
+}
+
+#[derive(Debug)]
 pub struct Shader<T: ShaderKindProvider> {
-    pub code: String,
+    pub code: PreprocessedShaderCode,
     pub filename: String,
     //unit: parser::TranslationUnit,
     phantom: PhantomData<*const T>,
@@ -59,42 +102,12 @@ where
     T: ShaderKindProvider,
 {
     pub fn new(filename: &str, s: &str) -> Shader<T> {
-        let s = match T::kind() {
-            ShaderKind::Vertex => if !webgl::IS_GL_ES {
-                "#version 150\n".to_string() + s
-            } else {
-                if s.starts_with("#define USE_GLSL_300ES") {
-                    webgl::print("Use 300 es");
-                    "#version 300 es\n".to_owned() + s
-                } else {
-                    s.to_owned()
-                }
-            },
-
-            ShaderKind::Fragment => if !webgl::IS_GL_ES {
-                "#version 150\n".to_string() + s
-            } else {
-                if s.starts_with("#define USE_GLSL_300ES") {
-                    webgl::print("Use 300 es");
-                    "#version 300 es\n".to_owned() + "precision highp float;\n" + s
-                } else {
-                    "precision highp float;\n".to_owned() + s
-                }
-            },
-        };
-
-        let mut predefs: HashMap<String, String> = HashMap::new();
-        predefs.insert("GL_ES".to_string(), "".to_string());
-
-        webgl::print(&format!("preprocessing {}...\n", filename));
-
-        preprocessor::preprocess(&s, &predefs).unwrap();
-        //let unit = parser::parse(&preprocessed.unwrap()).unwrap();
+        let code = PreprocessedShaderCode::new(T::kind(), filename, s);
 
         Shader {
             //unit: unit,
             filename: filename.to_string(),
-            code: s.to_string(),
+            code,
             phantom: PhantomData,
         }
     }

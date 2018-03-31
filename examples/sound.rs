@@ -2,8 +2,6 @@ extern crate uni_app;
 extern crate uni_snd;
 extern crate unrust;
 
-use uni_app::App;
-
 use unrust::world::{Actor, Camera, World, WorldBuilder};
 use unrust::engine::{GameObject, SoundHandle};
 use unrust::world::events::AppEvent;

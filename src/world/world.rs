@@ -102,6 +102,8 @@ impl<'a> WorldBuilder<'a> {
             .add_watcher(ActorWatcher::<Box<Actor>>::new())
             .build(main_tree.clone());
 
+        let asys = engine.asset_system.clone();
+
         let mut w = World {
             engine,
             app: Some(app),
@@ -112,7 +114,7 @@ impl<'a> WorldBuilder<'a> {
             events: events,
             golist: Vec::new(),
             processor_builders: self.processor_builders.clone(),
-            sound: SoundSystem::new(),
+            sound: SoundSystem::new(asys),
         };
 
         // add all processor into the scenes
@@ -245,6 +247,8 @@ impl World {
 
         let watcher = self.watcher.clone();
         watcher.step(self);
+
+        self.sound.step();
 
         use engine::imgui::Metric::*;
 

@@ -104,6 +104,12 @@ impl SoundSystem {
         self.driver.borrow_mut().send_event(SoundEvent::Play(evt))
     }
 
+    pub fn stop_channel(&mut self, channel: usize) {
+        self.driver
+            .borrow_mut()
+            .send_event(SoundEvent::StopChannel(channel));
+    }
+
     pub fn step(&mut self) {
         let mut pending: Vec<_> = self.pending_play.drain(0..).collect();
 
@@ -128,6 +134,7 @@ impl SoundSystem {
 enum SoundEvent {
     LoadBuffer(usize, Vec<u8>, String),
     Play(SoundPlayEvent),
+    StopChannel(usize),
 }
 
 #[derive(Clone, Copy)]

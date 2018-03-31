@@ -481,13 +481,15 @@ named!(
     ))
 );
 
-#[derive(Default, Debug, Clone)]
-struct PreprocessState {
+#[derive(Debug, Clone)]
+struct PreprocessState<'a> {
     defines: HashMap<String, Define>,
     normal_tokens: Vec<String>,
+    external_files: &'a HashMap<String, String>,
+    include_called: bool,
 }
 
-impl PreprocessState {
+impl<'a> PreprocessState<'a> {
     pub fn get_defined(&self, s: &String) -> Option<Define> {
         match self.defines.get(s) {
             Some(def) => Some(def.clone()),
@@ -496,7 +498,7 @@ impl PreprocessState {
     }
 }
 
-impl EvalContext for PreprocessState {
+impl<'a> EvalContext for PreprocessState<'a> {
     fn get(&self, i: &Identifier) -> Option<Constant> {
         let r = self.defines.get(i);
         if r.is_none() {
@@ -596,8 +598,19 @@ fn preprocess_session(s: MacroSession, state: &mut PreprocessState) -> Result<()
         MacroSession::Undefine(ident) => {
             state.defines.remove(&ident);
         }
-        MacroSession::Include(ref _filepath) => {
-            unimplemented!()
+        MacroSession::Include(ref filepath) => {
+            let external = state.external_files.get(filepath);
+            match external {
+                None => {
+                    return Err(PreprocessError::MissingFiles(vec![filepath.clone()]));
+                }
+                Some(content) => {
+                    state.normal_tokens.push(content.clone());
+                    state.normal_tokens.push("\n".to_owned());
+                    state.include_called = true;
+                }
+            }
+            
         }
         MacroSession::Ignored => (),
         MacroSession::IfDefine(ident, b, first, second) => {
@@ -696,6 +709,7 @@ impl<'a> From<Err<CompleteStr<'a>>> for PreprocessError {
 /// #define
 /// #undef
 ///
+/// #include
 /// #ifdef
 /// #ifndef
 /// #else
@@ -713,35 +727,52 @@ impl<'a> From<Err<CompleteStr<'a>>> for PreprocessError {
 ///
 ///
 
-pub fn preprocess(s: &str, predefs: &HashMap<String, String>) -> Result<String, PreprocessError> {
-    let stage0 = lines(CompleteStr(s))?.1;
-    let stage1 = remove_comment(CompleteStr(&stage0))?.1;
-    let sessions = preprocess_parser(CompleteStr(&stage1));
+pub fn preprocess(s: &str, predefs: &HashMap<String, String>, 
+    external_files: &HashMap<String, String>) -> Result<String, PreprocessError> {
+    
+    let mut input = s.to_owned();
 
-    let sessions = sessions?.1;
-    let mut state = PreprocessState::default();
+    loop {        
+        let stage0 = lines(CompleteStr(&input))?.1;
+        let stage1 = remove_comment(CompleteStr(&stage0))?.1;
+        let sessions = preprocess_parser(CompleteStr(&stage1));
 
-    // append predefs
-    for (k, v) in predefs.iter() {
-        let whole_line = format!("#define {} {}", k, v);
-        let m = parse_macro(CompleteStr(&whole_line))?;
-
-        match m.1 {
-            MacroSession::Define(s, a) => {
-                state.defines.insert(s, a);
-            }
-            _ => (),
+        let sessions = sessions?.1;
+        let mut state = PreprocessState {
+            defines: HashMap::new(),
+            normal_tokens: Vec::new(),
+            external_files,
+            include_called: false,
         };
+
+        // append predefs
+        for (k, v) in predefs.iter() {
+            let whole_line = format!("#define {} {}", k, v);
+            let m = parse_macro(CompleteStr(&whole_line))?;
+
+            match m.1 {
+                MacroSession::Define(s, a) => {
+                    state.defines.insert(s, a);
+                }
+                _ => (),
+            };
+        }
+
+        for session in sessions.into_iter() {
+            preprocess_session(session, &mut state)?;
+        }
+
+        input = state
+            .normal_tokens
+            .into_iter()
+            .fold("".into(), |s, t| s + " " + t.as_str());
+        
+        if !state.include_called {
+            break;
+        }
     }
 
-    for session in sessions.into_iter() {
-        preprocess_session(session, &mut state)?;
-    }
-
-    Ok(state
-        .normal_tokens
-        .into_iter()
-        .fold("".into(), |s, t| s + " " + &t))
+    Ok(input)
 }
 
 #[cfg(test)]
@@ -775,7 +806,7 @@ mod tests {
     fn preprocess_test_file() {
         let test_text = include_str!("../data/test/preprocessor_test.glsl");
         let expect_result = include_str!("../data/test/preprocessor_test_result.glsl");
-        let r = preprocess(test_text, &HashMap::new()).unwrap();
+        let r = preprocess(test_text, &HashMap::new(), &HashMap::new()).unwrap();
 
         //Write result to temp directory.
         // use std::fs::File;
@@ -792,7 +823,7 @@ mod tests {
             F((1+3),2)
         "#;
 
-        let r = preprocess(test_text, &HashMap::new()).unwrap();
+        let r = preprocess(test_text, &HashMap::new(), &HashMap::new()).unwrap();
 
         assert_eq!(r.trim(), "( 1 + 3 ) + 2 + 2 + ( 1 + 3 )");
     }
@@ -806,7 +837,7 @@ mod tests {
         #endif
         "#;
 
-        let r = preprocess(test_text, &HashMap::new()).unwrap();
+        let r = preprocess(test_text, &HashMap::new(), &HashMap::new()).unwrap();
 
         assert_eq!(r.trim(), "B");
     }
@@ -825,7 +856,7 @@ mod tests {
         let mut hm: HashMap<String, String> = HashMap::new();
         hm.insert("C1".into(), "1".to_string());
         hm.insert("C2".into(), "4".to_string());
-        let r = preprocess(test_text, &hm).unwrap();
+        let r = preprocess(test_text, &hm, &HashMap::new()).unwrap();
 
         assert_eq!(r.trim(), "B");
     }
@@ -843,7 +874,7 @@ mod tests {
 
         let mut hm: HashMap<String, String> = HashMap::new();
         hm.insert("K".into(), "".to_string());
-        let r = preprocess(test_text, &hm).unwrap();
+        let r = preprocess(test_text, &hm, &HashMap::new()).unwrap();
         assert_eq!(r.trim(), "A");
     }
 

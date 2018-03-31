@@ -18,7 +18,7 @@ fn test_vs() {
 
     predefs.insert("GL_ES".into(), "".into());
 
-    let preprocessed: String = preprocessor::preprocess(test_text, &predefs).unwrap();
+    let preprocessed: String = preprocessor::preprocess(test_text, &predefs, &HashMap::new()).unwrap();
 
     let unit = parser::parse(&preprocessed).unwrap();
 

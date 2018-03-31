@@ -1,12 +1,12 @@
 use uni_glsl::preprocessor;
+use uni_glsl::preprocessor::PreprocessError;
+
 //use uni_glsl::parser;
 // use uni_glsl::TypeQualifier;
 // use uni_glsl::query::*;
 
 use webgl;
 use std::collections::HashMap;
-use engine::asset::loader::Loadable;
-use engine::asset::loader;
 use std::marker::PhantomData;
 
 #[derive(Debug, PartialEq)]
@@ -43,7 +43,11 @@ impl PreprocessedShaderCode {
         &self.0
     }
 
-    pub fn new(kind: ShaderKind, filename: &str, s: &str) -> PreprocessedShaderCode {
+    pub fn new(
+        kind: ShaderKind,
+        filename: &str,
+        s: &str,
+    ) -> Result<PreprocessedShaderCode, PreprocessError> {
         let prefix = match kind {
             ShaderKind::Vertex => if !webgl::IS_GL_ES {
                 "#version 150\n".to_owned()
@@ -72,9 +76,9 @@ impl PreprocessedShaderCode {
         }
 
         webgl::print(&format!("preprocessing {}...\n", filename));
-        let processed = preprocessor::preprocess(&s, &predefs).unwrap();
+        let processed = preprocessor::preprocess(&s, &predefs);
 
-        PreprocessedShaderCode(prefix + &processed)
+        processed.map(|s| PreprocessedShaderCode(prefix + &s))
     }
 }
 
@@ -86,14 +90,6 @@ pub struct Shader<T: ShaderKindProvider> {
     phantom: PhantomData<*const T>,
 }
 
-impl Loadable for Shader<ShaderKindVs> {
-    type Loader = loader::ShaderVSLoader;
-}
-
-impl Loadable for Shader<ShaderKindFs> {
-    type Loader = loader::ShaderFSLoader;
-}
-
 pub type ShaderVs = Shader<ShaderKindVs>;
 pub type ShaderFs = Shader<ShaderKindFs>;
 
@@ -102,8 +98,17 @@ where
     T: ShaderKindProvider,
 {
     pub fn new(filename: &str, s: &str) -> Shader<T> {
-        let code = PreprocessedShaderCode::new(T::kind(), filename, s);
+        let code = PreprocessedShaderCode::new(T::kind(), filename, s).unwrap();
 
+        Shader {
+            //unit: unit,
+            filename: filename.to_string(),
+            code,
+            phantom: PhantomData,
+        }
+    }
+
+    pub fn from_preprocessed(filename: &str, code: PreprocessedShaderCode) -> Shader<T> {
         Shader {
             //unit: unit,
             filename: filename.to_string(),

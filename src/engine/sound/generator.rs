@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use uni_snd::SoundGenerator;
-use wavefile::WaveFile;
+use hound::WavReader;
 
 use super::{SoundEvent, SoundPlayEvent};
 use super::channel::Channel;
@@ -72,31 +72,30 @@ impl Generator {
         self.cache.insert(id, Arc::new(new_buf));
     }
     fn new_buffer(&mut self, filepath: &str) -> SoundBuffer {
-        let wav = WaveFile::open(filepath).expect(&format!("error cannot open {}", filepath));
+        let mut wav = WavReader::open(filepath).expect(&format!("error cannot open {}", filepath));
+        let spec = wav.spec();
+
         println!(
             "loading sound {} channels {} sample rate {} bits per sample {}",
-            filepath,
-            wav.channels(),
-            wav.sample_rate(),
-            wav.bits_per_sample()
+            filepath, spec.channels, spec.sample_rate, spec.bits_per_sample
         );
 
         let mut buffer = SoundBuffer {
-            output_count: wav.channels(),
-            sample_rate: wav.sample_rate(),
+            output_count: spec.channels as usize,
+            sample_rate: spec.sample_rate as usize,
             samples: Vec::new(),
         };
-        let coef = 2.0 / (1 << wav.bits_per_sample()) as f32;
-        if wav.channels() == 1 {
+        let coef = 2.0 / (1 << spec.bits_per_sample) as f32;
+        if spec.channels == 1 {
             // mono sample
-            for frame in wav.iter() {
-                buffer.samples.push(frame[0] as f32 * coef);
+            for frame in wav.samples::<i32>() {
+                buffer.samples.push(frame.unwrap() as f32 * coef);
             }
         } else {
             // stereo sample
-            for frame in wav.iter() {
-                buffer.samples.push(frame[0] as f32 * coef);
-                buffer.samples.push(frame[1] as f32 * coef);
+            // hound sample is interleaved
+            for frame in wav.samples::<i32>() {
+                buffer.samples.push(frame.unwrap() as f32 * coef);
             }
         }
         buffer

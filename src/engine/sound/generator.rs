@@ -71,6 +71,11 @@ impl Generator {
         let new_buf = self.new_buffer(buffer, &filepath);
         self.cache.insert(id, Arc::new(new_buf));
     }
+    fn handle_stop_channel_event(&mut self, channel: usize) {
+        if channel < self.channels.len() {
+            self.channels[channel].clear();
+        }
+    }
     fn new_buffer(&mut self, buffer: Vec<u8>, filepath: &str) -> SoundBuffer {
         let mut wav =
             WavReader::new(&buffer[..]).expect(&format!("error cannot read from {}", filepath));
@@ -115,6 +120,7 @@ impl SoundGenerator<SoundEvent> for Generator {
             SoundEvent::LoadBuffer(id, buffer, filepath) => {
                 self.handle_load_buffer_event(id, buffer, filepath)
             }
+            SoundEvent::StopChannel(channel) => self.handle_stop_channel_event(channel),
         }
     }
     fn next_value(&mut self) -> f32 {

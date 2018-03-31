@@ -13,6 +13,7 @@ struct SoundEmitter {
     flute_id: SoundHandle,
     sword_id: SoundHandle,
     mouse_pos: f64,
+    flute_on: bool,
 }
 
 impl SoundEmitter {
@@ -23,6 +24,7 @@ impl SoundEmitter {
             flute_id,
             sword_id,
             mouse_pos: 0.0,
+            flute_on: true,
         })
     }
 }
@@ -33,16 +35,22 @@ impl Actor for SoundEmitter {
         let go = world.new_game_object();
         go.borrow_mut().add_component(Camera::default());
         // flute is priority 1 so that it doesn't get replaced by a sword if all channels are used
+        // we also force the use of channel 0 to be able to stop the loop
         world
             .sound
-            .play_sound(self.flute_id, None, true, 1, 0.5, 0.5);
+            .play_sound(self.flute_id, Some(0), true, 1, 0.5, 0.5);
     }
     fn update(&mut self, _go: &mut GameObject, world: &mut World) {
         let mut sword = false;
+        let mut flute = false;
         for evt in world.events().iter() {
             match evt {
-                &AppEvent::MouseUp(_) => {
-                    sword = true;
+                &AppEvent::MouseUp(ref event) => {
+                    if event.button == 0 {
+                        sword = true;
+                    } else if event.button == 2 {
+                        flute = true;
+                    }
                 }
                 &AppEvent::MousePos((x, _)) => {
                     self.mouse_pos = x;
@@ -51,7 +59,7 @@ impl Actor for SoundEmitter {
             }
         }
         if sword {
-            // play sword sound on click, using mouse position to balance
+            // play sword sound on left click, using mouse position to balance
             world.sound.play_sound(
                 self.sword_id,
                 None,
@@ -61,12 +69,23 @@ impl Actor for SoundEmitter {
                 self.mouse_pos as f32 / 640.0,
             );
         }
+        if flute {
+            // start/stop flute on right click
+            if self.flute_on {
+                world.sound.stop_channel(0);
+            } else {
+                world
+                    .sound
+                    .play_sound(self.flute_id, Some(0), true, 1, 0.5, 0.5);
+            }
+            self.flute_on = !self.flute_on;
+        }
         use imgui::Metric::*;
 
         imgui::pivot((1.0, 1.0));
         imgui::label(
             Native(1.0, 1.0) - Pixel(8.0, 8.0),
-            "left click to hit with your sword!",
+            "right click to start/stop playing flute\nleft click to hit with your sword!",
         );
     }
 }

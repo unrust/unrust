@@ -112,6 +112,7 @@ enum MacroSession {
     Undefine(Identifier),
     IfDefine(Identifier, bool, Vec<MacroSession>, Vec<MacroSession>),
     IfCond(Vec<IfCondSession>),
+    Include(String),
     Ignored,
     Empty,
     Normal(Vec<Token>),
@@ -203,7 +204,7 @@ impl DefineFunc {
         }
 
         if params.len() != self.nargs {
-            return Err(PreprocessError(format!(
+            return Err(PreprocessError::ParseError(format!(
                 "Fail to apply define macro for {}, expects {} args, given {} args",
                 name,
                 self.nargs,
@@ -271,6 +272,15 @@ named!(define_macro<CS, MacroSession>,
         tag_no_case!("define") >> 
         ms: spe!(call!(define_parser)) >>
         (ms)
+    )
+);
+
+named!(include_macro<CS, MacroSession>,
+    do_parse!(
+        spe!(char!('#')) >>         
+        tag_no_case!("include") >> 
+        ms: spe!(delimited!(tag!("\""), take_until!("\""), tag!("\""))) >>
+        (MacroSession::Include(ms.0.to_string()))
     )
 );
 
@@ -449,6 +459,7 @@ named!(
         ifcond_macro |
         ignored_macro |
         define_macro |
+        include_macro |
         undef_macro |
         empty_macro |
         normal_macro |        
@@ -571,7 +582,7 @@ fn is_condition_true(c: Constant) -> bool {
 
 impl From<EvalError> for PreprocessError {
     fn from(e: EvalError) -> PreprocessError {
-        PreprocessError(e.into_string())
+        PreprocessError::ParseError(e.into_string())
     }
 }
 
@@ -584,6 +595,9 @@ fn preprocess_session(s: MacroSession, state: &mut PreprocessState) -> Result<()
         }
         MacroSession::Undefine(ident) => {
             state.defines.remove(&ident);
+        }
+        MacroSession::Include(ref _filepath) => {
+            unimplemented!()
         }
         MacroSession::Ignored => (),
         MacroSession::IfDefine(ident, b, first, second) => {
@@ -635,23 +649,40 @@ fn preprocess_session(s: MacroSession, state: &mut PreprocessState) -> Result<()
 }
 
 #[derive(Debug)]
-pub struct PreprocessError(String);
+pub enum PreprocessError {
+    ParseError(String),
+    MissingFiles(Vec<String>)
+}
 
 impl error::Error for PreprocessError {
     fn description(&self) -> &str {
-        &self.0
+        match self {
+            &PreprocessError::ParseError(_) => {
+                "Parse Error"
+            }
+            &PreprocessError::MissingFiles(_) => {
+                "MissingFiles"
+            }
+        }
     }
 }
 
 impl fmt::Display for PreprocessError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
+        match self {
+            &PreprocessError::ParseError(ref s) => {
+                write!(f, "ParseError {}", &s)
+            }
+            &PreprocessError::MissingFiles(ref s) => {
+                write!(f, "MissingFileError {}", &s.join(","))
+            }
+        }
     }
 }
 
 impl<'a> From<Err<CompleteStr<'a>>> for PreprocessError {
     fn from(error: Err<CompleteStr>) -> Self {
-        PreprocessError(match error {
+        PreprocessError::ParseError(match error {
             Err::Incomplete(needed) => format!("Imcompleted : {:?}", needed),
             Err::Error(ctx) => format!("Preprocess Error {:?}", ctx),
             Err::Failure(f) => format!("Preprocess Failure {:?}", f),

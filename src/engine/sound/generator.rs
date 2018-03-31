@@ -67,12 +67,13 @@ impl Generator {
             }
         }
     }
-    fn handle_load_buffer_event(&mut self, id: usize, filepath: String) {
-        let new_buf = self.new_buffer(&filepath);
+    fn handle_load_buffer_event(&mut self, id: usize, buffer: Vec<u8>, filepath: String) {
+        let new_buf = self.new_buffer(buffer, &filepath);
         self.cache.insert(id, Arc::new(new_buf));
     }
-    fn new_buffer(&mut self, filepath: &str) -> SoundBuffer {
-        let mut wav = WavReader::open(filepath).expect(&format!("error cannot open {}", filepath));
+    fn new_buffer(&mut self, buffer: Vec<u8>, filepath: &str) -> SoundBuffer {
+        let mut wav =
+            WavReader::new(&buffer[..]).expect(&format!("error cannot read from {}", filepath));
         let spec = wav.spec();
 
         println!(
@@ -111,7 +112,9 @@ impl SoundGenerator<SoundEvent> for Generator {
     fn handle_event(&mut self, evt: SoundEvent) {
         match evt {
             SoundEvent::Play(ref play_evt) => self.handle_play_event(play_evt),
-            SoundEvent::LoadBuffer(id, filepath) => self.handle_load_buffer_event(id, filepath),
+            SoundEvent::LoadBuffer(id, buffer, filepath) => {
+                self.handle_load_buffer_event(id, buffer, filepath)
+            }
         }
     }
     fn next_value(&mut self) -> f32 {

@@ -19,8 +19,8 @@ struct SoundEmitter {
 
 impl SoundEmitter {
     pub fn new(world: &mut World) -> Box<Actor> {
-        let flute_id = world.sound.load_sound("static/sounds/flute_48000.wav");
-        let sword_id = world.sound.load_sound("static/sounds/sword.wav");
+        let flute_id = world.sound.load_sound("sounds/flute_48000.wav");
+        let sword_id = world.sound.load_sound("sounds/sword.wav");
         Box::new(Self {
             flute_id,
             sword_id,

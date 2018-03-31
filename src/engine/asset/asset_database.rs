@@ -34,6 +34,7 @@ pub type AssetResult<T> = Result<T, AssetError>;
 
 type PrefabHandler = Box<FnBox(AssetResult<loader::Prefab>)>;
 type MaterialHandler = Box<Fn(&AssetSystem, loader::ObjMaterial) -> Rc<Material>>;
+type AssetTask = Box<Future<Item = (), Error = AssetError>>;
 
 pub trait AssetSystem {
     fn new() -> Self
@@ -55,6 +56,8 @@ pub trait AssetSystem {
     fn step(&mut self);
 
     fn loading_files(&self) -> Vec<String>;
+
+    fn execute(&self, AssetTask);
 }
 
 pub trait Asset {
@@ -97,6 +100,7 @@ pub struct AssetDatabaseContext<FS> {
     programs: RefCell<HashMap<String, Rc<ShaderProgram>>>,
 
     pending_prefabs: RefCell<Vec<(PrefabHandler, PrefabFuture)>>,
+    pending_tasks: RefCell<Vec<AssetTask>>,
 }
 
 pub struct AssetDatabase<FS, F>
@@ -168,6 +172,10 @@ where
         self.pending_prefabs.borrow_mut().push((f, prefab));
     }
 
+    fn execute(&self, task: AssetTask) {
+        self.pending_tasks.borrow_mut().push(task);
+    }
+
     fn new() -> AssetDatabase<FS, F> {
         let mut db = AssetDatabase {
             context: Rc::new(AssetDatabaseContext {
@@ -177,6 +185,7 @@ where
                 mesh_buffers: RefCell::new(HashMap::new()),
                 programs: RefCell::new(HashMap::new()),
                 pending_prefabs: RefCell::new(Vec::new()),
+                pending_tasks: RefCell::new(Vec::new()),
             }),
         };
 
@@ -185,27 +194,49 @@ where
     }
 
     fn step(&mut self) {
-        let pending_prefabs = self.pending_prefabs
-            .borrow_mut()
-            .drain(0..)
-            .collect::<Vec<_>>();
+        {
+            let pending_prefabs = self.pending_prefabs
+                .borrow_mut()
+                .drain(0..)
+                .collect::<Vec<_>>();
 
-        let new_pending = pending_prefabs
-            .into_iter()
-            .filter_map(|(f, mut prefab)| match prefab.poll() {
-                Err(e) => {
-                    f(Err(e));
-                    None
-                }
-                Ok(Async::NotReady) => Some((f, prefab)),
-                Ok(Async::Ready(i)) => {
-                    f(Ok(i));
-                    None
-                }
-            })
-            .collect();
+            let new_pending = pending_prefabs
+                .into_iter()
+                .filter_map(|(f, mut prefab)| match prefab.poll() {
+                    Err(e) => {
+                        f(Err(e));
+                        None
+                    }
+                    Ok(Async::NotReady) => Some((f, prefab)),
+                    Ok(Async::Ready(i)) => {
+                        f(Ok(i));
+                        None
+                    }
+                })
+                .collect();
 
-        *self.pending_prefabs.borrow_mut() = new_pending;
+            *self.pending_prefabs.borrow_mut() = new_pending;
+        }
+
+        {
+            let pending_tasks = self.pending_tasks
+                .borrow_mut()
+                .drain(0..)
+                .collect::<Vec<_>>();
+
+            let new_pending = pending_tasks
+                .into_iter()
+                .filter_map(|mut t| match t.poll() {
+                    Err(e) => {
+                        panic!("Task failed. reason: {:?}", e);
+                    }
+                    Ok(Async::NotReady) => Some(t),
+                    Ok(Async::Ready(_)) => None,
+                })
+                .collect();
+
+            *self.pending_tasks.borrow_mut() = new_pending;
+        }
     }
 
     fn loading_files(&self) -> Vec<String> {

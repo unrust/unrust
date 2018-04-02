@@ -4,6 +4,13 @@ cache: cargo
 rust:
   - nightly
 
+before_install:
+  # hot fix for https://github.com/ggez/ggez/issues/100
+  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then
+      sudo apt-get -qq update
+      && sudo apt-get install -y libasound2-dev;
+    fi
+
 matrix:
   include:
     # Linux 64bit

@@ -22,5 +22,17 @@ install:
   - rustup target add $TARGET; true
 
 script:
+  - ./ci/install_cargo_web.sh
   - cargo build --target $TARGET --verbose
   - cargo build --target $TARGET --verbose --examples
+  - cargo web build --examples basic 
+  - cargo web build --examples boxes
+  - cargo web build --examples framebuffer
+  - cargo web build --examples meshobj
+  - cargo web build --examples postprocessing
+  - cargo web build --examples scenenodes
+  - cargo web build --examples shadow
+  - cargo web build --examples skybox
+  - cargo web build --examples sound
+  - cargo web build --examples sponza
+  - cargo web build --examples basic --release

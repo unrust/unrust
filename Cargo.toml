@@ -2,6 +2,7 @@
 name = "unrust"
 version = "0.1.0"
 authors = ["Edwin Cheng <edwin0cheng@gmail.com>"]
+license = "MIT OR Apache-2.0"
 
 [dependencies]
 cgmath = "0.16.1"

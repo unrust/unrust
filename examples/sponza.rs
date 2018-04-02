@@ -127,7 +127,7 @@ impl Actor for MainScene {
 
         fpc.eye = Vector3::new(0.0, 200.06, -3.36);
         fpc.eye_dir = Vector3::new(-3.0, 0.0, -1.0).normalize();
-        fpc.speed = 8.0;
+        fpc.speed = 200.0;
 
         {
             let shadow_pass = world.find_component::<ShadowPass>().unwrap();

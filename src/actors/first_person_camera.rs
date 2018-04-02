@@ -22,13 +22,15 @@ bitflags! {
 
 pub struct FirstPersonCamera {
     pub speed: f32,
+    pub angle_speed: f32,
+
     pub eye: Vector3<f32>,
     pub eye_dir: Vector3<f32>,
 
     camera: Option<Arc<Component>>,
 
     state: Movement,
-    handlers: Vec<(Movement, String, Box<Fn(&mut FirstPersonCamera)>)>,
+    handlers: Vec<(Movement, String, Box<Fn(&mut FirstPersonCamera, f64)>)>,
 }
 
 impl ComponentBased for FirstPersonCamera {}
@@ -38,7 +40,8 @@ impl Processor for FirstPersonCamera {
         use math::*;
 
         let mut m = FirstPersonCamera {
-            speed: 0.1,
+            speed: 10.0,
+            angle_speed: 0.5,
             state: Movement::empty(),
             handlers: Vec::new(),
             camera: None,
@@ -48,31 +51,31 @@ impl Processor for FirstPersonCamera {
 
         let up = Vector3::unit_y();
 
-        m.add(Movement::TURN_LEFT, "KeyA", move |s| {
-            s.eye_dir = Quaternion::from_angle_y(Rad(0.01)) * s.eye_dir;
+        m.add(Movement::TURN_LEFT, "KeyA", move |s, dt| {
+            s.eye_dir = Quaternion::from_angle_y(Rad(s.angle_speed * dt as f32)) * s.eye_dir;
         });
-        m.add(Movement::TURN_RIGHT, "KeyD", move |s| {
-            s.eye_dir = Quaternion::from_angle_y(Rad(-0.01)) * s.eye_dir
+        m.add(Movement::TURN_RIGHT, "KeyD", move |s, dt| {
+            s.eye_dir = Quaternion::from_angle_y(Rad(-s.angle_speed * dt as f32)) * s.eye_dir
         });
-        m.add(Movement::UP, "KeyE", move |s| {
-            s.eye = s.eye + up * s.speed;
+        m.add(Movement::UP, "KeyE", move |s, dt| {
+            s.eye = s.eye + up * s.speed * dt as f32;
         });
-        m.add(Movement::DOWN, "KeyC", move |s| {
-            s.eye = s.eye + up * -s.speed;
+        m.add(Movement::DOWN, "KeyC", move |s, dt| {
+            s.eye = s.eye + up * -s.speed * dt as f32;
         });
-        m.add(Movement::FORWARD, "KeyW", move |s| {
-            s.eye = s.eye + s.eye_dir * s.speed;
+        m.add(Movement::FORWARD, "KeyW", move |s, dt| {
+            s.eye = s.eye + s.eye_dir * s.speed * dt as f32;
         });
-        m.add(Movement::BACKWARD, "KeyS", move |s| {
-            s.eye = s.eye + s.eye_dir * -s.speed;
+        m.add(Movement::BACKWARD, "KeyS", move |s, dt| {
+            s.eye = s.eye + s.eye_dir * -s.speed * dt as f32;
         });
-        m.add(Movement::LEFT, "KeyZ", move |s| {
+        m.add(Movement::LEFT, "KeyZ", move |s, dt| {
             let right = s.eye_dir.cross(up).normalize();
-            s.eye = s.eye - right * s.speed;
+            s.eye = s.eye - right * s.speed * dt as f32;
         });
-        m.add(Movement::RIGHT, "KeyX", move |s| {
+        m.add(Movement::RIGHT, "KeyX", move |s, dt| {
             let right = s.eye_dir.cross(up).normalize();
-            s.eye = s.eye + right * s.speed;
+            s.eye = s.eye + right * s.speed * dt as f32;
         });
         m
     }
@@ -102,7 +105,7 @@ impl Actor for FirstPersonCamera {
 
         for &(ref mv, _, ref h) in handlers.iter() {
             if self.state.contains(*mv) {
-                h(self);
+                h(self, world.delta_time());
             }
         }
 
@@ -137,7 +140,7 @@ impl FirstPersonCamera {
 
     fn add<F>(&mut self, mv: Movement, key: &str, f: F)
     where
-        F: Fn(&mut FirstPersonCamera) + 'static,
+        F: Fn(&mut FirstPersonCamera, f64) + 'static,
     {
         self.handlers.push((mv, key.to_string(), Box::new(f)));
     }

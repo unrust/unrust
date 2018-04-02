@@ -237,6 +237,10 @@ impl World {
         watcher.pre_render(self);
     }
 
+    pub fn delta_time(&self) -> f64 {
+        self.fps.delta_time()
+    }
+
     #[cfg_attr(feature = "flame_it", flame)]
     fn step(&mut self) {
         for evt in self.events.borrow().iter() {

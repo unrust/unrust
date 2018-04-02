@@ -356,7 +356,7 @@ where
     fn map_component<T, F>(&self, mut func: F)
     where
         T: 'static + ComponentBased,
-        F: FnMut(Arc<Component>) -> bool,
+        F: FnMut(Rc<RefCell<GameObject>>, Arc<Component>) -> bool,
     {
         for obj in self.objects.iter() {
             let result = obj.upgrade().and_then(|obj| {
@@ -366,7 +366,7 @@ where
             });
 
             if let Some(com) = result {
-                if !func(com) {
+                if !func(obj.upgrade().unwrap(), com) {
                     return;
                 }
             }
@@ -378,7 +378,7 @@ where
         T: 'static + ComponentBased,
     {
         let mut result = Vec::new();
-        self.map_component::<T, _>(|c| {
+        self.map_component::<T, _>(|_, c| {
             result.push(c);
             true
         });
@@ -391,7 +391,7 @@ where
         T: 'static + ComponentBased,
     {
         let mut r = None;
-        self.map_component::<T, _>(|c| {
+        self.map_component::<T, _>(|_, c| {
             r = Some(c);
             false
         });
@@ -413,11 +413,20 @@ where
     }
 
     fn prepare_ctx(&self, ctx: &mut EngineContext) {
+        // Update all components which need to update
+        // Update lights
+        self.map_component::<Light, _>(|obj, c| {
+            let modelm = obj.borrow().transform.as_global_matrix();
+
+            c.try_as::<Light>().unwrap().borrow_mut().update(&modelm);
+            true
+        });
+
         // prepare main light.
-        ctx.main_light = Some(
-            self.find_main_light()
-                .unwrap_or({ Component::new(Light::new(Directional::default())) }),
-        );
+        let main_light = self.find_main_light()
+            .unwrap_or({ Component::new(Light::new(Directional::default())) });
+
+        ctx.main_light = Some(main_light);
 
         ctx.point_lights = self.find_all_components::<Light>()
                 .into_iter()

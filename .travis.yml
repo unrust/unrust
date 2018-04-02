@@ -25,14 +25,14 @@ script:
   - ./ci/install_cargo_web.sh
   - cargo build --target $TARGET --verbose
   - cargo build --target $TARGET --verbose --examples
-  - cargo web build --examples basic 
-  - cargo web build --examples boxes
-  - cargo web build --examples framebuffer
-  - cargo web build --examples meshobj
-  - cargo web build --examples postprocessing
-  - cargo web build --examples scenenodes
-  - cargo web build --examples shadow
-  - cargo web build --examples skybox
-  - cargo web build --examples sound
-  - cargo web build --examples sponza
-  - cargo web build --examples basic --release
+  - cargo web build --example basic 
+  - cargo web build --example boxes
+  - cargo web build --example framebuffer
+  - cargo web build --example meshobj
+  - cargo web build --example postprocessing
+  - cargo web build --example scenenodes
+  - cargo web build --example shadow
+  - cargo web build --example skybox
+  - cargo web build --example sound
+  - cargo web build --example sponza
+  - cargo web build --example basic --release

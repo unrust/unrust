@@ -4,10 +4,19 @@
 
 A pure rust based (webgl 2.0 / native) game engine
 
+Current Version : 0.1.1
+
+**This engine is under heavily development, all api is not very unstable until version 0.2**
+
+
 ## Live Demo
 
 * [Boxes](https://edwin0cheng.github.io/unrust/demo/boxes)
 * [Sponza](https://edwin0cheng.github.io/unrust/demo/sponza)
+* [Sound](https://edwin0cheng.github.io/unrust/demo/sound)
+* [Post-Processing](https://edwin0cheng.github.io/unrust/demo/postprocessing)
+* [MeshObj](https://edwin0cheng.github.io/unrust/demo/meshobj)
+* [Basic](https://edwin0cheng.github.io/unrust/demo/basic)
 
 ## Build
 

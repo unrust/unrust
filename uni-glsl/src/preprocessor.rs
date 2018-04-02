@@ -485,8 +485,7 @@ named!(
 struct PreprocessState<'a> {
     defines: HashMap<String, Define>,
     normal_tokens: Vec<String>,
-    external_files: &'a HashMap<String, String>,
-    include_called: bool,
+    external_macros: &'a HashMap<String, Vec<MacroSession>>,
 }
 
 impl<'a> PreprocessState<'a> {
@@ -599,18 +598,17 @@ fn preprocess_session(s: MacroSession, state: &mut PreprocessState) -> Result<()
             state.defines.remove(&ident);
         }
         MacroSession::Include(ref filepath) => {
-            let external = state.external_files.get(filepath);
+            let external = state.external_macros.get(filepath);
             match external {
                 None => {
-                    return Err(PreprocessError::MissingFiles(vec![filepath.clone()]));
+                    return Err(PreprocessError::MissingFile(filepath.clone()));
                 }
                 Some(content) => {
-                    state.normal_tokens.push(content.clone());
-                    state.normal_tokens.push("\n".to_owned());
-                    state.include_called = true;
+                    for child in content.clone().into_iter() {
+                        preprocess_session(child, state)?;
+                    }    
                 }
             }
-            
         }
         MacroSession::Ignored => (),
         MacroSession::IfDefine(ident, b, first, second) => {
@@ -664,18 +662,14 @@ fn preprocess_session(s: MacroSession, state: &mut PreprocessState) -> Result<()
 #[derive(Debug)]
 pub enum PreprocessError {
     ParseError(String),
-    MissingFiles(Vec<String>)
+    MissingFile(String),
 }
 
 impl error::Error for PreprocessError {
     fn description(&self) -> &str {
         match self {
-            &PreprocessError::ParseError(_) => {
-                "Parse Error"
-            }
-            &PreprocessError::MissingFiles(_) => {
-                "MissingFiles"
-            }
+            &PreprocessError::ParseError(_) => "Parse Error",
+            &PreprocessError::MissingFile(_) => "MissingFile",
         }
     }
 }
@@ -683,12 +677,8 @@ impl error::Error for PreprocessError {
 impl fmt::Display for PreprocessError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            &PreprocessError::ParseError(ref s) => {
-                write!(f, "ParseError {}", &s)
-            }
-            &PreprocessError::MissingFiles(ref s) => {
-                write!(f, "MissingFileError {}", &s.join(","))
-            }
+            &PreprocessError::ParseError(ref s) => write!(f, "ParseError {}", &s),
+            &PreprocessError::MissingFile(ref s) => write!(f, "MissingFileError {}", &s),
         }
     }
 }
@@ -727,50 +717,62 @@ impl<'a> From<Err<CompleteStr<'a>>> for PreprocessError {
 ///
 ///
 
-pub fn preprocess(s: &str, predefs: &HashMap<String, String>, 
-    external_files: &HashMap<String, String>) -> Result<String, PreprocessError> {
-    
+fn preparse_extern_files(extern_files: &HashMap<String, String>) 
+    -> Result<HashMap<String, Vec<MacroSession>>, PreprocessError> {
+    let mut res = HashMap::new();
+
+    for (k, v) in extern_files.iter() {
+        let stage0 = lines(CompleteStr(&v))?.1;
+        let stage1 = remove_comment(CompleteStr(&stage0))?.1;
+        let sessions = preprocess_parser(CompleteStr(&stage1))?.1;
+
+        res.insert(k.clone(), sessions);
+    }
+
+    Ok(res)
+}
+
+pub fn preprocess(
+    s: &str,
+    predefs: &HashMap<String, String>,
+    external_files: &HashMap<String, String>,
+) -> Result<String, PreprocessError> {
     let mut input = s.to_owned();
 
-    loop {        
-        let stage0 = lines(CompleteStr(&input))?.1;
-        let stage1 = remove_comment(CompleteStr(&stage0))?.1;
-        let sessions = preprocess_parser(CompleteStr(&stage1));
+    let external_macros = preparse_extern_files(external_files)?;
 
-        let sessions = sessions?.1;
-        let mut state = PreprocessState {
-            defines: HashMap::new(),
-            normal_tokens: Vec::new(),
-            external_files,
-            include_called: false,
+    let stage0 = lines(CompleteStr(&input))?.1;
+    let stage1 = remove_comment(CompleteStr(&stage0))?.1;
+    let sessions = preprocess_parser(CompleteStr(&stage1))?.1;
+
+    let mut state = PreprocessState {
+        defines: HashMap::new(),
+        normal_tokens: Vec::new(),
+        external_macros: &external_macros,
+    };
+
+    // append predefs
+    for (k, v) in predefs.iter() {
+        let whole_line = format!("#define {} {}", k, v);
+        let m = parse_macro(CompleteStr(&whole_line))?;
+
+        match m.1 {
+            MacroSession::Define(s, a) => {
+                state.defines.insert(s, a);
+            }
+            _ => (),
         };
-
-        // append predefs
-        for (k, v) in predefs.iter() {
-            let whole_line = format!("#define {} {}", k, v);
-            let m = parse_macro(CompleteStr(&whole_line))?;
-
-            match m.1 {
-                MacroSession::Define(s, a) => {
-                    state.defines.insert(s, a);
-                }
-                _ => (),
-            };
-        }
-
-        for session in sessions.into_iter() {
-            preprocess_session(session, &mut state)?;
-        }
-
-        input = state
-            .normal_tokens
-            .into_iter()
-            .fold("".into(), |s, t| s + " " + t.as_str());
-        
-        if !state.include_called {
-            break;
-        }
     }
+
+    for session in sessions.into_iter() {
+        preprocess_session(session, &mut state)?;
+    }
+
+    input = state
+        .normal_tokens
+        .into_iter()
+        .fold("".into(), |s, t| s + " " + t.as_str());
+
 
     Ok(input)
 }

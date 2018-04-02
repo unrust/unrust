@@ -23,9 +23,15 @@ pub struct Prefab {
 fn parent_path(filename: &str) -> String {
     let path = Path::new(filename);
     let parent = path.parent();
-    parent
+    let mut parent = parent
         .map_or("".to_string(), |p| p.to_str().unwrap().to_string() + "/")
-        .to_string()
+        .to_string();
+
+    if parent == "/" {
+        parent = "".to_owned()
+    }
+
+    parent
 }
 
 pub struct PrefabLoader {}

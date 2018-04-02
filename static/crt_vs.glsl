@@ -3,10 +3,11 @@
 #define varying out
 #endif
 
+#include "unrust/default_uniforms.glsl"
+
 attribute vec3 aVertexPosition;
 attribute vec2 aTextureCoord;
 varying vec2 vTextureCoord;
-uniform mat4 uMMatrix;
             
 void main(void) {
     gl_Position = uMMatrix * vec4(aVertexPosition, 1.0);        

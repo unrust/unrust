@@ -7,16 +7,12 @@
 
 #define UNI_POINT_LIGHTS 4
 
+#include "unrust/default_uniforms.glsl"
+
 attribute vec3 aVertexPosition;
 attribute vec3 aVertexNormal;
 attribute vec3 aVertexTangent;
-
 attribute vec2 aTextureCoord;
-
-uniform mat4 uMVMatrix;
-uniform mat4 uPMatrix;
-uniform mat4 uNMatrix;
-uniform mat4 uMMatrix;
 
 uniform vec3 uViewPos;
 

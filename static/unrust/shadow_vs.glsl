@@ -3,8 +3,9 @@
 #define varying out
 #endif
 
+#include "unrust/default_uniforms.glsl"
+
 attribute vec3 aVertexPosition;
-uniform mat4 uMMatrix;
 uniform mat4 uShadowMatrix;            
 
 void main(void) {

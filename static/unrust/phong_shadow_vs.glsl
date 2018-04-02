@@ -3,14 +3,11 @@
 #define attribute in
 #define varying out
 
+#include "unrust/default_uniforms.glsl"
+
 attribute vec3 aVertexPosition;
 attribute vec3 aVertexNormal;
 attribute vec2 aTextureCoord;
-
-uniform mat4 uMVMatrix;
-uniform mat4 uPMatrix;
-uniform mat4 uNMatrix;
-uniform mat4 uMMatrix;
 
 varying vec3 vFragPos;
 varying vec3 vNormal;

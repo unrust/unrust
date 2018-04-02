@@ -2,23 +2,18 @@
 
 [![Build Status](https://travis-ci.org/edwin0cheng/unrust.svg?branch=master)](https://travis-ci.org/edwin0cheng/unrust)
 
-A simple webgl physics (wasm32-unknown-unknown / native-opengl) demo 
+A pure rust based (webgl 2.0 / native) game engine
 
-[Live demo](https://edwin0cheng.github.io/unrust_demo/)
+## Live Demo
 
-This project is my first try on rust, to test the possiblity of wasm32-unknown-unknown target.
+* [Boxes](https://edwin0cheng.github.io/unrust/demo/boxes)
+* [Sponza](https://edwin0cheng.github.io/unrust/demo/sponza)
 
-Crates Used :
+## Build
 
-* nphysics3d + ncollide (with minor cargo replace trick to let it build on wasm32, see Cargo.toml)
-* Some code snippet from https://github.com/oussama/webgl-rs project and https://github.com/oussama/glenum-rs.git
-* stdweb
-
-
-## Build 
 ### As web app (wasm32-unknown-unknown)
 
-The target `wasm32-unknown-unknown` is currently only on the nightly builds as of Jan-30 2018. 
+The target `wasm32-unknown-unknown` is currently only on the nightly builds as of Jan-30 2018.
 
 ```
 cargo install cargo-web # installs web sub command
@@ -28,6 +23,7 @@ cargo web start --example boxes --release
 ```
 
 ### As desktop app (native-opengl)
+
 ```
 rustup override set nightly
 cargo run --example boxes --release

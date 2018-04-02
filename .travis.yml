@@ -5,7 +5,8 @@ rust:
   - nightly
 
 matrix:
-   - env: TARGET=i686-unknown-linux-gnu
+  include:
+    - env: TARGET=i686-unknown-linux-gnu
       os: linux
 
 install:

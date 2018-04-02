@@ -1,0 +1,17 @@
+language: rust
+cache: cargo
+
+rust:
+  - nightly
+
+matrix:
+   - env: TARGET=i686-unknown-linux-gnu
+      os: linux
+
+install:
+  - rustup self update
+  - rustup target add $TARGET; true
+
+script:
+  - cargo build --target $TARGET --verbose
+  - cargo build --target $TARGET --verbose --examples

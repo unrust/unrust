@@ -1,4 +1,7 @@
 # unrust
+
+[![Build Status](https://travis-ci.org/edwin0cheng/unrust.svg?branch=master)](https://travis-ci.org/edwin0cheng/unrust)
+
 A simple webgl physics (wasm32-unknown-unknown / native-opengl) demo 
 
 [Live demo](https://edwin0cheng.github.io/unrust_demo/)

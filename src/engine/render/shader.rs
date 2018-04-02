@@ -9,7 +9,7 @@ use webgl;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum ShaderKind {
     Vertex,
     Fragment,
@@ -47,6 +47,7 @@ impl PreprocessedShaderCode {
         kind: ShaderKind,
         filename: &str,
         s: &str,
+        external_files: &HashMap<String, String>,
     ) -> Result<PreprocessedShaderCode, PreprocessError> {
         let prefix = match kind {
             ShaderKind::Vertex => if !webgl::IS_GL_ES {
@@ -76,7 +77,7 @@ impl PreprocessedShaderCode {
         }
 
         webgl::print(&format!("preprocessing {}...\n", filename));
-        let processed = preprocessor::preprocess(&s, &predefs);
+        let processed = preprocessor::preprocess(&s, &predefs, external_files);
 
         processed.map(|s| PreprocessedShaderCode(prefix + &s))
     }
@@ -98,7 +99,7 @@ where
     T: ShaderKindProvider,
 {
     pub fn new(filename: &str, s: &str) -> Shader<T> {
-        let code = PreprocessedShaderCode::new(T::kind(), filename, s).unwrap();
+        let code = PreprocessedShaderCode::new(T::kind(), filename, s, &HashMap::new()).unwrap();
 
         Shader {
             //unit: unit,

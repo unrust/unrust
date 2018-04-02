@@ -6,7 +6,7 @@ A pure rust based (webgl 2.0 / native) game engine
 
 Current Version : 0.1.1
 
-**This engine is under heavily development, all api is not very unstable until version 0.2**
+**This project is under heavily development, all api are very unstable until version 0.2**
 
 
 ## Live Demo

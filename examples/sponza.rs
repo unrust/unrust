@@ -96,7 +96,6 @@ impl Actor for MainScene {
             let go = world.new_game_object();
             let mut point = Point::default();
 
-            point.position = *pos;
             point.constant = 0.8;
             point.quadratic = 0.00001;
             point.linear = 0.0;
@@ -323,11 +322,17 @@ impl Actor for WaveObjActor {
     }
 }
 
-pub struct Cube {}
+pub struct Cube {
+    start_pos: Option<Vector3f>,
+    t: f64,
+}
 
 impl Cube {
     fn new() -> Box<Actor> {
-        Box::new(Cube {})
+        Box::new(Cube {
+            start_pos: None,
+            t: 0.0,
+        })
     }
 }
 
@@ -342,10 +347,24 @@ impl Actor for Cube {
         go.add_component(mesh);
     }
 
-    fn update(&mut self, go: &mut GameObject, _world: &mut World) {
+    fn update(&mut self, go: &mut GameObject, world: &mut World) {
+        let start_pos = match self.start_pos {
+            Some(p) => p,
+            None => {
+                let t = go.transform.local().disp;
+                self.start_pos = Some(t);
+                t
+            }
+        };
+
+        self.t += world.delta_time();
+        let offset = Vector3f::unit_y() * (self.t.sin() as f32) * 100.0;
+
         let mut ltran = go.transform.local();
         let q = Quaternion::from(Euler::new(Rad(0.01), Rad(0.01), Rad(0.01)));
         ltran.rot = ltran.rot * q;
+        ltran.disp = start_pos + offset;
+
         go.transform.set_local(ltran);
     }
 }

@@ -22,7 +22,7 @@ install:
   - rustup target add $TARGET; true
 
 script:
-  - ./ci/install_cargo_web.sh
+  - source ./ci/install_cargo_web.sh
   - cargo build --target $TARGET --verbose
   - cargo build --target $TARGET --verbose --examples
   - cargo web build --examples basic 

@@ -25,7 +25,6 @@ pub struct ShadowPass {
     rt: Rc<RenderTexture>,
     shadow_maps: [ShadowMap; 4],
 
-    light_cache: Option<Arc<Component>>,
     shadow_material: Option<Rc<Material>>,
     light_camera: Camera,
 
@@ -489,20 +488,14 @@ impl Actor for ShadowPass {
         }
 
         // update light
-        if self.light_cache.is_none() {
-            self.light_cache = world.engine().find_main_light();
-
-            // if still is none, do nothing
-            if self.light_cache.is_none() {
+        let main_light = match world.engine().find_main_light() {
+            Some(l) => l,
+            None => {
                 return;
             }
-        }
+        };
 
-        let ctx = LightMatrixContext::new(
-            &self.light_camera,
-            &self.light_cache.as_ref().unwrap(),
-            world,
-        );
+        let ctx = LightMatrixContext::new(&self.light_camera, &main_light, world);
 
         if let Some(ctx) = ctx {
             if self.use_scene_aabb {
@@ -625,7 +618,6 @@ impl Processor for ShadowPass {
                 },
             ],
             shadow_material: None,
-            light_cache: None,
             light_camera: Camera::new(),
             debug_gameobjects: Vec::new(),
             debug_mode: false,

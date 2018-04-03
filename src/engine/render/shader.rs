@@ -45,7 +45,6 @@ impl PreprocessedShaderCode {
 
     pub fn new(
         kind: ShaderKind,
-        filename: &str,
         s: &str,
         external_files: &HashMap<String, String>,
     ) -> Result<PreprocessedShaderCode, PreprocessError> {
@@ -76,7 +75,6 @@ impl PreprocessedShaderCode {
             predefs.insert("GL_ES".to_string(), "".to_string());
         }
 
-        webgl::print(&format!("preprocessing {}...\n", filename));
         let processed = preprocessor::preprocess(&s, &predefs, external_files);
 
         processed.map(|s| PreprocessedShaderCode(prefix + &s))
@@ -99,7 +97,7 @@ where
     T: ShaderKindProvider,
 {
     pub fn new(filename: &str, s: &str) -> Shader<T> {
-        let code = PreprocessedShaderCode::new(T::kind(), filename, s, &HashMap::new()).unwrap();
+        let code = PreprocessedShaderCode::new(T::kind(), s, &HashMap::new()).unwrap();
 
         Shader {
             //unit: unit,
@@ -110,6 +108,8 @@ where
     }
 
     pub fn from_preprocessed(filename: &str, code: PreprocessedShaderCode) -> Shader<T> {
+        webgl::print(&format!("preprocessing {}...\n", filename));
+
         Shader {
             //unit: unit,
             filename: filename.to_string(),

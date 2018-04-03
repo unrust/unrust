@@ -28,8 +28,7 @@ where
             reason: format!("{:?}", e),
         })?;
 
-        let code =
-            PreprocessedShaderCode::new(T::kind(), &file.name(), s, &HashMap::new()).unwrap();
+        let code = PreprocessedShaderCode::new(T::kind(), s, &HashMap::new()).unwrap();
         Ok(Shader::<T>::from_preprocessed(&file.name(), code))
     }
 }
@@ -91,12 +90,7 @@ where
     }
 
     fn parse(&self) -> Result<PreprocessedShaderCode, PreprocessError> {
-        return PreprocessedShaderCode::new(
-            self.kind,
-            &self.filename,
-            &self.source,
-            &self.extern_files,
-        );
+        return PreprocessedShaderCode::new(self.kind, &self.source, &self.extern_files);
     }
 }
 
@@ -109,6 +103,9 @@ where
 
     fn poll(&mut self) -> Result<Async<Self::Item>, Self::Error> {
         self.update_externs()?;
+        if self.loading_files.len() > 0 {
+            return Ok(Async::NotReady);
+        }
 
         let r = self.parse();
 

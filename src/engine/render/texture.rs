@@ -1,12 +1,12 @@
-use webgl::*;
 use webgl;
+use webgl::*;
 
 use image::{RgbImage, RgbaImage};
 
-use std::cell::{Cell, RefCell};
-use std::rc::Rc;
 use engine::asset::{Asset, AssetResult, AssetSystem, FileFuture, LoadableAsset, Resource, DDS};
+use std::cell::{Cell, RefCell};
 use std::path::Path;
+use std::rc::Rc;
 
 #[derive(Debug, Copy, Clone)]
 pub enum TextureFiltering {
@@ -172,7 +172,7 @@ impl Texture {
     }
 
     pub fn bind(&self, gl: &WebGLRenderingContext, unit: u32) -> AssetResult<()> {
-        self.prepare(gl)?;
+        self.prepare(gl, unit)?;
 
         let state_option = self.gl_state.borrow();
         let state = state_option.as_ref().unwrap();
@@ -187,7 +187,7 @@ impl Texture {
     }
 
     pub fn bind_with_frame_buffer(&self, gl: &WebGLRenderingContext, unit: u32) -> AssetResult<()> {
-        self.prepare(gl)?;
+        self.prepare(gl, unit)?;
 
         let state_option = self.gl_state.borrow();
         let state = state_option.as_ref().unwrap();
@@ -212,7 +212,7 @@ impl Texture {
         Ok(())
     }
 
-    pub fn prepare(&self, gl: &WebGLRenderingContext) -> AssetResult<()> {
+    pub fn prepare(&self, gl: &WebGLRenderingContext, unit: u32) -> AssetResult<()> {
         if self.gl_state.borrow().is_some() {
             return Ok(());
         }
@@ -224,6 +224,7 @@ impl Texture {
             self.wrap_v.get(),
             self.wrap_w.get(),
             &self.kind,
+            unit,
         )?);
 
         self.gl_state.replace(new_state);
@@ -242,16 +243,19 @@ fn bind_to_framebuffer(gl: &WebGLRenderingContext, tex: &WebGLTexture, buffer: B
     );
 }
 
-fn unbind_texture(gl: &WebGLRenderingContext, kind: &TextureKind) {
-    match kind {
-        &TextureKind::Image(_) | &TextureKind::RenderTexture { .. } => {
-            gl.unbind_texture();
-        }
-        &TextureKind::CubeMap(_) => {
-            gl.unbind_texture_cube();
-        }
-    }
-}
+// Web do no need to unbind the texture normally,
+// But just leave this code here if we need it later.
+
+// fn unbind_texture(gl: &WebGLRenderingContext, kind: &TextureKind) {
+//     match kind {
+//         &TextureKind::Image(_) | &TextureKind::RenderTexture { .. } => {
+//             gl.unbind_texture();
+//         }
+//         &TextureKind::CubeMap(_) => {
+//             gl.unbind_texture_cube();
+//         }
+//     }
+// }
 
 fn texture_bind_buffer(
     gl: &WebGLRenderingContext,
@@ -260,6 +264,7 @@ fn texture_bind_buffer(
     wrap_v: TextureWrap,
     wrap_w: Option<TextureWrap>,
     kind: &TextureKind,
+    unit: u32,
 ) -> AssetResult<TextureGLState> {
     let mut gl_tex_kind: webgl::TextureKind = webgl::TextureKind::Texture2d;
     let mut force_nearest_filtering = false;
@@ -271,7 +276,7 @@ fn texture_bind_buffer(
             let size: (u32, u32);
             let has_midmap;
 
-            gl.active_texture(0);
+            gl.active_texture(unit);
             gl.bind_texture(&tex);
 
             match teximg {
@@ -537,7 +542,7 @@ fn texture_bind_buffer(
         }
     }
 
-    unbind_texture(gl, kind);
+    //unbind_texture(gl, kind);
 
     Ok(TextureGLState { tex, size })
 }

@@ -63,7 +63,7 @@ impl Actor for MainScene {
             let shadow_pass = world.find_component::<ShadowPass>().unwrap();
             shadow_pass
                 .borrow_mut()
-                .set_partitions(&[5.0, 20.0, 50.0, 100.0]);
+                .set_partitions(&[5.0, 20.0, 50.0, 300.0]);
         }
     }
 

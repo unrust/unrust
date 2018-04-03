@@ -1091,7 +1091,7 @@ dependencies = [
 
 [[package]]
 name = "unrust"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "alga 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "bitflags 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",

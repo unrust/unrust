@@ -1,6 +1,6 @@
 [package]
 name = "unrust"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Edwin Cheng <edwin0cheng@gmail.com>"]
 license = "MIT OR Apache-2.0"
 

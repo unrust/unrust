@@ -303,6 +303,7 @@ fn compute_light_matrix(
 struct ShadowMapBinder {
     size: (String, Vector2f),
     light_matrix: (String, Matrix4f),
+    inv_light_matrix: (String, Matrix4f),
     range: (String, Vector2f),
     viewport_offset: (String, Vector2f),
     viewport_scale: (String, Vector2f),
@@ -319,6 +320,11 @@ impl ShadowMap {
         self.binder = Some(ShadowMapBinder {
             size: (self.name.clone() + ".map_size", shadow_map_size),
             light_matrix: (self.name.clone() + ".light_matrix", self.light_matrix),
+            inv_light_matrix: (
+                self.name.clone() + ".inv_light_matrix",
+                self.light_matrix.inverse_transform().unwrap(),
+            ),
+
             range: (
                 self.name.clone() + ".range",
                 Vector2::new(self.light_space_range.0, self.light_space_range.1),
@@ -344,6 +350,7 @@ impl ShadowMap {
         if let Some(ref binder) = self.binder {
             material.set(&binder.size.0, binder.size.1);
             material.set(&binder.light_matrix.0, binder.light_matrix.1);
+            material.set(&binder.inv_light_matrix.0, binder.inv_light_matrix.1);
             material.set(&binder.range.0, binder.range.1);
             material.set(&binder.viewport_offset.0, binder.viewport_offset.1);
             material.set(&binder.viewport_scale.0, binder.viewport_scale.1);

@@ -86,7 +86,7 @@ vec3 CalcDirectionalLight(DirectionalLight light, vec3 normal, vec3 viewDir, Mat
     float spec = pow(max(dot(normal, halfwayDir), 0.0), uMaterial.shininess);
     
     vec3 specular = light.specular * spec *  color.specular;
-    float shadow = ShadowCalculation(vFragPos, normal, lightDir);
+    float shadow = ShadowCalculation(vFragPos, normal, normal, lightDir);
 
     return ambient + (diffuse + specular) * shadow;
 }

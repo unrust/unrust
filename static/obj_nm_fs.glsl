@@ -38,6 +38,7 @@ varying vec3 vFragPos;
 varying vec2 vTexCoords;       
 varying mat3 vTBN;
 varying vec3 vNormal;
+varying vec3 vWorldNormal;
 varying vec3 vViewDirTgt;
 varying vec3 vFragPosTgt;
 
@@ -109,7 +110,7 @@ vec3 CalcDirectionalLight(DirectionalLight light, vec3 lightDirTgt, vec3 normal,
     
     vec3 specular = light.specular * spec * color.specular;
         
-    float shadow = ShadowCalculation(vFragPos, normal, lightDir);
+    float shadow = ShadowCalculation(vFragPos, normal, vWorldNormal, lightDir);
 
     return ambient + (diffuse + specular) * shadow;
 }

@@ -26,6 +26,8 @@ struct Node {
     children: Vec<u64>,
     go: Weak<RefCell<GameObject>>,
     transform: NodeTransform,
+    global_m_cache: Matrix4f,
+    dirty: bool,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -70,6 +72,8 @@ impl SceneTree {
                 children: Vec::new(),
                 go: Rc::downgrade(&root),
                 transform: NodeTransform::new(),
+                dirty: true,
+                global_m_cache: One::one(),
             },
         );
 
@@ -114,6 +118,8 @@ impl SceneTree {
                 children: Vec::new(),
                 go: Rc::downgrade(&go),
                 transform: NodeTransform::new(),
+                dirty: true,
+                global_m_cache: One::one(),
             },
         );
 
@@ -162,7 +168,27 @@ impl SceneTree {
 
     pub fn set_local_transform(&self, node_id: u64, t: NodeTransform) {
         let mut nodes = self.nodes.borrow_mut();
-        nodes.get_mut(&node_id).unwrap().transform = t;
+        let n = nodes.get_mut(&node_id).unwrap();
+
+        n.transform = t;
+        n.dirty = true;
+        drop(nodes);
+
+        // set all child
+        self.set_dirty(node_id);
+    }
+
+    pub fn set_dirty(&self, node_id: u64) {
+        let mut nodes = self.nodes.borrow_mut();
+        let n = nodes.get_mut(&node_id).unwrap();
+
+        if n.dirty {
+            return;
+        }
+
+        for c in n.children.iter() {
+            self.set_dirty(*c);
+        }
     }
 
     pub fn get_local_transform(&self, node_id: u64) -> NodeTransform {
@@ -178,13 +204,26 @@ impl SceneTree {
     }
 
     pub fn get_global_matrix(&self, node_id: u64) -> Matrix4<f32> {
+        let nodes = self.nodes.borrow();
+        let n = nodes.get(&node_id).unwrap();
+        if !n.dirty {
+            return n.global_m_cache;
+        }
+        drop(nodes);
+
         let local_m = self.get_local_matrix(node_id);
 
-        if node_id == 0 {
+        let gm = if node_id == 0 {
             local_m
         } else {
             self.get_global_matrix(self.get_parent_id(node_id)) * local_m
-        }
+        };
+
+        let mut nodes = self.nodes.borrow_mut();
+        let n = nodes.get_mut(&node_id).unwrap();
+        n.global_m_cache = gm;
+        n.dirty = false;
+        gm
     }
 
     pub fn get_global_transform(&self, node_id: u64) -> NodeTransform {

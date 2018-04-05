@@ -1,6 +1,7 @@
 use world::{Actor, Handle, World};
 use engine::{Asset, Camera, ClearOption, Component, ComponentBased, CullMode, GameObject, Light,
-             Material, Mesh, MeshBuffer, MeshData, RenderQueue, RenderTexture, TextureAttachment};
+             Material, MaterialParamMap, Mesh, MeshBuffer, MeshData, RenderQueue, RenderTexture,
+             TextureAttachment};
 use engine::mesh_util::*;
 
 use world::Processor;
@@ -301,12 +302,7 @@ fn compute_light_matrix(
 }
 
 struct ShadowMapBinder {
-    size: (String, Vector2f),
-    light_matrix: (String, Matrix4f),
-    inv_light_matrix: (String, Matrix4f),
-    range: (String, Vector2f),
-    viewport_offset: (String, Vector2f),
-    viewport_scale: (String, Vector2f),
+    params: MaterialParamMap,
 }
 
 impl ShadowMap {
@@ -314,46 +310,40 @@ impl ShadowMap {
         let shadow_map_size = self.rt
             .as_texture()
             .size()
-            .map(|(w, h)| Vector2::new(w as f32, h as f32))
-            .unwrap_or(Vector2::new(0.0, 0.0));
+            .map(|(w, h)| Vector2f::new(w as f32, h as f32))
+            .unwrap_or(Vector2f::new(0.0, 0.0));
 
-        self.binder = Some(ShadowMapBinder {
-            size: (self.name.clone() + ".map_size", shadow_map_size),
-            light_matrix: (self.name.clone() + ".light_matrix", self.light_matrix),
-            inv_light_matrix: (
-                self.name.clone() + ".inv_light_matrix",
-                self.light_matrix.inverse_transform().unwrap(),
-            ),
+        let mut params = MaterialParamMap::default();
+        params.insert(self.name.clone() + ".map_size", shadow_map_size.into());
+        params.insert(
+            self.name.clone() + ".light_matrix",
+            self.light_matrix.into(),
+        );
+        params.insert(
+            self.name.clone() + ".range",
+            Vector2f::new(self.light_space_range.0, self.light_space_range.1).into(),
+        );
+        params.insert(
+            self.name.clone() + ".viewport_offset",
+            Vector2f::new(
+                (self.viewport.0).0 as f32 / shadow_map_size.x,
+                (self.viewport.0).1 as f32 / shadow_map_size.y,
+            ).into(),
+        );
+        params.insert(
+            self.name.clone() + ".viewport_scale",
+            Vector2f::new(
+                (self.viewport.1).0 as f32 / shadow_map_size.x,
+                (self.viewport.1).1 as f32 / shadow_map_size.y,
+            ).into(),
+        );
 
-            range: (
-                self.name.clone() + ".range",
-                Vector2::new(self.light_space_range.0, self.light_space_range.1),
-            ),
-            viewport_offset: (
-                self.name.clone() + ".viewport_offset",
-                Vector2::new(
-                    (self.viewport.0).0 as f32 / shadow_map_size.x,
-                    (self.viewport.0).1 as f32 / shadow_map_size.y,
-                ),
-            ),
-            viewport_scale: (
-                self.name.clone() + ".viewport_scale",
-                Vector2::new(
-                    (self.viewport.1).0 as f32 / shadow_map_size.x,
-                    (self.viewport.1).1 as f32 / shadow_map_size.y,
-                ),
-            ),
-        });
+        self.binder = Some(ShadowMapBinder { params });
     }
 
     pub fn bind(&self, material: &Material) {
         if let Some(ref binder) = self.binder {
-            material.set(&binder.size.0, binder.size.1);
-            material.set(&binder.light_matrix.0, binder.light_matrix.1);
-            material.set(&binder.inv_light_matrix.0, binder.inv_light_matrix.1);
-            material.set(&binder.range.0, binder.range.1);
-            material.set(&binder.viewport_offset.0, binder.viewport_offset.1);
-            material.set(&binder.viewport_scale.0, binder.viewport_scale.1);
+            material.set(&self.name, binder.params.clone());
         }
     }
 

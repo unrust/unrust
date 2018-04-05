@@ -28,6 +28,7 @@ pub use self::texture::{Texture, TextureAsset, TextureAttachment, TextureFilteri
                         TextureWrap};
 pub use self::mesh::{Mesh, MeshSurface};
 pub use self::mesh_buffer::{MeshBuffer, MeshData};
-pub use self::material::{CullMode, DepthTest, Material, MaterialParam, MaterialState};
+pub use self::material::{CullMode, DepthTest, Material, MaterialParam, MaterialParamMap,
+                         MaterialState};
 pub use self::light::{Directional, Light, Point};
 pub use self::render_texture::RenderTexture;

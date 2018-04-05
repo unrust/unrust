@@ -6,7 +6,7 @@ use std::rc::Rc;
 use fnv::FnvHashMap;
 use math::*;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum MaterialParam {
     Texture(Rc<Texture>),
     Float(f32),
@@ -15,7 +15,10 @@ pub enum MaterialParam {
     Vec3(Vector3<f32>),
     Vec4(Vector4<f32>),
     Matrix4(Matrix4<f32>),
+    Params(MaterialParamMap),
 }
+
+pub type MaterialParamMap = FnvHashMap<String, MaterialParam>;
 
 macro_rules! impl_from_material_param {
     ($frm: ty, $to: ident) => {
@@ -34,6 +37,7 @@ impl_from_material_param!(Vector2<f32>, Vec2);
 impl_from_material_param!(Vector3<f32>, Vec3);
 impl_from_material_param!(Vector4<f32>, Vec4);
 impl_from_material_param!(Matrix4<f32>, Matrix4);
+impl_from_material_param!(MaterialParamMap, Params);
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum CullMode {
@@ -96,11 +100,16 @@ impl Material {
         self.params.borrow_mut().insert(name.to_string(), t.into());
     }
 
-    pub fn bind<F>(&self, mut request_tex_unit: F) -> AssetResult<()>
+    fn bind_params<F>(
+        &self,
+        params: &MaterialParamMap,
+        request_tex_unit: &mut F,
+        level: u32,
+    ) -> AssetResult<()>
     where
         F: FnMut(&Rc<Texture>) -> AssetResult<u32>,
     {
-        for (name, param) in self.params.borrow().iter() {
+        for (name, param) in params.iter() {
             match param {
                 &MaterialParam::Texture(ref tex) => {
                     let new_unit = request_tex_unit(&tex)?;
@@ -124,8 +133,20 @@ impl Material {
                 &MaterialParam::Matrix4(v) => {
                     self.program.set(&name, v);
                 }
+                &MaterialParam::Params(ref pm) => {
+                    self.bind_params(&pm, request_tex_unit, level + 1)?;
+                }
             }
         }
+
+        Ok(())
+    }
+
+    pub fn bind<F>(&self, mut request_tex_unit: F) -> AssetResult<()>
+    where
+        F: FnMut(&Rc<Texture>) -> AssetResult<u32>,
+    {
+        self.bind_params(&self.params.borrow(), &mut request_tex_unit, 0)?;
 
         Ok(())
     }

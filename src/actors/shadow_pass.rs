@@ -334,6 +334,10 @@ impl ShadowMap {
                 (self.viewport.1).1 as f32 / shadow_map_size.y,
             ).into(),
         );
+        params.insert(
+            (self.name.clone() + ".tex_size").into(),
+            (2.0 / (self.viewport.1).0 as f32).into(),
+        );
     }
 
     pub fn render(

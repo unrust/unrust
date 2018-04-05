@@ -129,8 +129,10 @@ impl Actor for MainScene {
         fpc.speed = 200.0;
 
         {
-            let shadow_pass = world.find_component::<ShadowPass>().unwrap();
-            shadow_pass.borrow_mut().disable_cascaded();
+            let shadow_pass = world.find_component::<ShadowPass>();
+            if let Some(sp) = shadow_pass {
+                sp.borrow_mut().disable_cascaded();
+            }
         }
     }
 

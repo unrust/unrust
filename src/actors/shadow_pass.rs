@@ -18,13 +18,12 @@ struct ShadowMap {
     light_space_range: (f32, f32),
     partition_z: f32,
     viewport: ((i32, i32), (u32, u32)),
-
-    binder: Option<ShadowMapBinder>,
 }
 
 pub struct ShadowPass {
     rt: Rc<RenderTexture>,
     shadow_maps: [ShadowMap; 4],
+    material_params: MaterialParamMap,
 
     shadow_material: Option<Rc<Material>>,
     light_camera: Camera,
@@ -301,19 +300,14 @@ fn compute_light_matrix(
     return (proj * ctx.view, (nearz, farz));
 }
 
-struct ShadowMapBinder {
-    params: MaterialParamMap,
-}
-
 impl ShadowMap {
-    pub fn update_binder(&mut self) {
+    pub fn update_params(&mut self, params: &mut MaterialParamMap) {
         let shadow_map_size = self.rt
             .as_texture()
             .size()
             .map(|(w, h)| Vector2f::new(w as f32, h as f32))
             .unwrap_or(Vector2f::new(0.0, 0.0));
 
-        let mut params = MaterialParamMap::default();
         params.insert(self.name.clone() + ".map_size", shadow_map_size.into());
         params.insert(
             self.name.clone() + ".light_matrix",
@@ -337,14 +331,6 @@ impl ShadowMap {
                 (self.viewport.1).1 as f32 / shadow_map_size.y,
             ).into(),
         );
-
-        self.binder = Some(ShadowMapBinder { params });
-    }
-
-    pub fn bind(&self, material: &Material) {
-        if let Some(ref binder) = self.binder {
-            material.set(&self.name, binder.params.clone());
-        }
     }
 
     pub fn render(
@@ -441,10 +427,7 @@ impl ShadowPass {
     fn apply(&self, material: &Material) {
         material.set("uShadowEnabled", true);
         material.set("uShadowMapTexture", self.rt.as_texture());
-
-        for map in self.shadow_maps.iter() {
-            map.bind(material);
-        }
+        material.set("ShadowMapParams", self.material_params.clone());
     }
 }
 
@@ -540,10 +523,10 @@ impl Actor for ShadowPass {
             }
         }
 
-        // update binder
+        // update material params
         {
             for map in self.shadow_maps.iter_mut() {
-                map.update_binder();
+                map.update_params(&mut self.material_params);
             }
         }
 
@@ -572,10 +555,10 @@ impl Processor for ShadowPass {
 
         ShadowPass {
             rt: rt.clone(),
+            material_params: MaterialParamMap::default(),
             use_scene_aabb: false,
             shadow_maps: [
                 ShadowMap {
-                    binder: None,
                     name: "uShadowMap[0]".to_owned(),
                     rt: rt.clone(),
                     light_matrix: Matrix4f::identity(),
@@ -584,7 +567,6 @@ impl Processor for ShadowPass {
                     viewport: ((0, 0), (texture_size2, texture_size2)),
                 },
                 ShadowMap {
-                    binder: None,
                     name: "uShadowMap[1]".to_owned(),
                     rt: rt.clone(),
                     light_matrix: Matrix4f::identity(),
@@ -593,7 +575,6 @@ impl Processor for ShadowPass {
                     viewport: ((texture_size2 as i32, 0), (texture_size2, texture_size2)),
                 },
                 ShadowMap {
-                    binder: None,
                     name: "uShadowMap[2]".to_owned(),
                     rt: rt.clone(),
                     light_matrix: Matrix4f::identity(),
@@ -602,7 +583,6 @@ impl Processor for ShadowPass {
                     viewport: ((0, texture_size2 as i32), (texture_size2, texture_size2)),
                 },
                 ShadowMap {
-                    binder: None,
                     name: "uShadowMap[3]".to_owned(),
                     rt: rt.clone(),
                     light_matrix: Matrix4f::identity(),

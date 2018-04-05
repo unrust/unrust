@@ -308,24 +308,27 @@ impl ShadowMap {
             .map(|(w, h)| Vector2f::new(w as f32, h as f32))
             .unwrap_or(Vector2f::new(0.0, 0.0));
 
-        params.insert(self.name.clone() + ".map_size", shadow_map_size.into());
         params.insert(
-            self.name.clone() + ".light_matrix",
+            (self.name.clone() + ".map_size").into(),
+            shadow_map_size.into(),
+        );
+        params.insert(
+            (self.name.clone() + ".light_matrix").into(),
             self.light_matrix.into(),
         );
         params.insert(
-            self.name.clone() + ".range",
+            (self.name.clone() + ".range").into(),
             Vector2f::new(self.light_space_range.0, self.light_space_range.1).into(),
         );
         params.insert(
-            self.name.clone() + ".viewport_offset",
+            (self.name.clone() + ".viewport_offset").into(),
             Vector2f::new(
                 (self.viewport.0).0 as f32 / shadow_map_size.x,
                 (self.viewport.0).1 as f32 / shadow_map_size.y,
             ).into(),
         );
         params.insert(
-            self.name.clone() + ".viewport_scale",
+            (self.name.clone() + ".viewport_scale").into(),
             Vector2f::new(
                 (self.viewport.1).0 as f32 / shadow_map_size.x,
                 (self.viewport.1).1 as f32 / shadow_map_size.y,

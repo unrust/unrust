@@ -201,10 +201,11 @@ impl Texture {
         if let TextureKind::RenderTexture { ref attach, .. } = self.kind {
             match attach {
                 &TextureAttachment::Color0 => {
-                    bind_to_framebuffer(gl, &state.tex, Buffers::ColorAttachment0)
+                    bind_to_framebuffer(gl, &state.tex, Buffers::ColorAttachment0);
                 }
                 &TextureAttachment::Depth => {
-                    bind_to_framebuffer(gl, &state.tex, Buffers::DepthAttachment)
+                    bind_to_framebuffer(gl, &state.tex, Buffers::DepthAttachment);
+                    gl.draw_buffer(&[ColorBuffer::None]);
                 }
             }
         }

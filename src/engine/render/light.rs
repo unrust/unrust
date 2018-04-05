@@ -93,12 +93,12 @@ impl From<Directional> for Light {
 impl Directional {
     fn bind(&self, lightname: &str, prog: &ShaderProgram) {
         prog.set(
-            &(lightname.to_string() + ".direction"),
+            lightname.to_string() + ".direction",
             self.world_space_direction,
         );
-        prog.set(&(lightname.to_string() + ".ambient"), self.ambient);
-        prog.set(&(lightname.to_string() + ".diffuse"), self.diffuse);
-        prog.set(&(lightname.to_string() + ".specular"), self.specular);
+        prog.set(lightname.to_string() + ".ambient", self.ambient);
+        prog.set(lightname.to_string() + ".diffuse", self.diffuse);
+        prog.set(lightname.to_string() + ".specular", self.specular);
     }
 
     fn update(&mut self, modelm: &Matrix4f) {
@@ -145,19 +145,19 @@ impl Default for Point {
 impl Point {
     fn bind(&self, lightname: &str, prog: &ShaderProgram) {
         prog.set(
-            &(lightname.to_string() + ".position"),
+            lightname.to_string() + ".position",
             self.world_space_position,
         );
 
-        prog.set(&(lightname.to_string() + ".ambient"), self.ambient);
-        prog.set(&(lightname.to_string() + ".diffuse"), self.diffuse);
-        prog.set(&(lightname.to_string() + ".specular"), self.specular);
+        prog.set(lightname.to_string() + ".ambient", self.ambient);
+        prog.set(lightname.to_string() + ".diffuse", self.diffuse);
+        prog.set(lightname.to_string() + ".specular", self.specular);
 
-        prog.set(&(lightname.to_string() + ".constant"), self.constant);
-        prog.set(&(lightname.to_string() + ".linear"), self.linear);
-        prog.set(&(lightname.to_string() + ".quadratic"), self.quadratic);
+        prog.set(lightname.to_string() + ".constant", self.constant);
+        prog.set(lightname.to_string() + ".linear", self.linear);
+        prog.set(lightname.to_string() + ".quadratic", self.quadratic);
 
-        prog.set(&(lightname.to_string() + ".rate"), 1.0);
+        prog.set(lightname.to_string() + ".rate", 1.0);
     }
 
     fn update(&mut self, modelm: &Matrix4f) {

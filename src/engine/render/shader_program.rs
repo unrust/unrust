@@ -6,6 +6,8 @@ use engine::asset::{Asset, AssetResult, AssetSystem, FileFuture, LoadableAsset, 
 use engine::render::shader::{ShaderFs, ShaderVs};
 use engine::render::uniforms::*;
 
+use std::borrow::Cow;
+
 use uni_app;
 
 impl Asset for ShaderProgram {
@@ -104,9 +106,10 @@ impl ShaderProgram {
         }
     }
 
-    pub fn set<T>(&self, s: &str, data: T)
+    pub fn set<T, S>(&self, s: S, data: T)
     where
         T: Into<UniformAdapter>,
+        S: Into<Cow<'static, str>>,
     {
         self.uniform_cache.set(s, data);
     }
@@ -155,6 +158,17 @@ impl ShaderProgramGLState {
 
         // Attach a fragment shader
         gl.attach_shader(&shader_program, &frag_shader);
+
+        // We bind the position to 0
+        // see: https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/WebGL_best_practices
+        //
+        //
+        // > Always have vertex attrib 0 array enabled. If you draw with vertex attrib 0 array disabled,
+        // you will force the browser to do complicated emulation when running on desktop OpenGL (e.g. on Mac OSX).
+        // This is because in desktop OpenGL, nothing gets drawn if vertex attrib 0 is not array-enabled.
+        // You can use bindAttribLocation() to force a vertex attribute to use location 0,
+        // and use enableVertexAttribArray() to make it array-enabled.
+        gl.bind_attrib_location(&shader_program, "aVertexPosition", 0);
 
         // Link both the programs
         gl.link_program(&shader_program);

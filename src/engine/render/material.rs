@@ -4,6 +4,7 @@ use engine::render::{RenderQueue, ShaderProgram, Texture};
 use std::cell::RefCell;
 use std::rc::Rc;
 use fnv::FnvHashMap;
+use std::borrow::Cow;
 use math::*;
 
 #[derive(Debug, Clone)]
@@ -18,7 +19,7 @@ pub enum MaterialParam {
     Params(MaterialParamMap),
 }
 
-pub type MaterialParamMap = FnvHashMap<String, MaterialParam>;
+pub type MaterialParamMap = FnvHashMap<Cow<'static, str>, MaterialParam>;
 
 macro_rules! impl_from_material_param {
     ($frm: ty, $to: ident) => {
@@ -80,7 +81,7 @@ pub struct Material {
     pub render_queue: RenderQueue,
     pub states: MaterialState,
 
-    params: RefCell<FnvHashMap<String, MaterialParam>>,
+    params: RefCell<MaterialParamMap>,
 }
 
 impl Material {
@@ -93,11 +94,12 @@ impl Material {
         };
     }
 
-    pub fn set<T>(&self, name: &str, t: T)
+    pub fn set<T, S>(&self, name: S, t: T)
     where
         T: Into<MaterialParam>,
+        S: Into<Cow<'static, str>>,
     {
-        self.params.borrow_mut().insert(name.to_string(), t.into());
+        self.params.borrow_mut().insert(name.into(), t.into());
     }
 
     fn bind_params<F>(
@@ -113,25 +115,26 @@ impl Material {
             match param {
                 &MaterialParam::Texture(ref tex) => {
                     let new_unit = request_tex_unit(&tex)?;
-                    self.program.set(&name, (Rc::downgrade(&tex), new_unit));
+                    self.program
+                        .set(name.clone(), (Rc::downgrade(&tex), new_unit));
                 }
                 &MaterialParam::Bool(v) => {
-                    self.program.set(&name, v);
+                    self.program.set(name.clone(), v);
                 }
                 &MaterialParam::Float(f) => {
-                    self.program.set(&name, f);
+                    self.program.set(name.clone(), f);
                 }
                 &MaterialParam::Vec2(v) => {
-                    self.program.set(&name, v);
+                    self.program.set(name.clone(), v);
                 }
                 &MaterialParam::Vec3(v) => {
-                    self.program.set(&name, v);
+                    self.program.set(name.clone(), v);
                 }
                 &MaterialParam::Vec4(v) => {
-                    self.program.set(&name, v);
+                    self.program.set(name.clone(), v);
                 }
                 &MaterialParam::Matrix4(v) => {
-                    self.program.set(&name, v);
+                    self.program.set(name.clone(), v);
                 }
                 &MaterialParam::Params(ref pm) => {
                     self.bind_params(&pm, request_tex_unit, level + 1)?;

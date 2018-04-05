@@ -5,6 +5,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::rc;
 use fnv::FnvHashMap;
+use std::borrow::Cow;
 
 use webgl::{WebGLProgram, WebGLRenderingContext, WebGLUniformLocation};
 use engine::render::Texture;
@@ -105,31 +106,27 @@ impl UniformAdapter {
     }
 }
 
-// #[derive(Debug)]
-// struct UniformAdapterEntry {
-//     adapter: UniformAdapter,
-//     commited: bool,
-// }
-
 #[derive(Default, Debug)]
 pub struct UniformCache {
-    uniform_entries: RefCell<FnvHashMap<String, UniformAdapter>>,
-    pending_entries: RefCell<FnvHashMap<String, UniformAdapter>>,
+    uniform_entries: RefCell<FnvHashMap<Cow<'static, str>, UniformAdapter>>,
+    pending_entries: RefCell<FnvHashMap<Cow<'static, str>, UniformAdapter>>,
 
-    uniform_map: RefCell<FnvHashMap<String, Option<Rc<WebGLUniformLocation>>>>,
+    uniform_map: RefCell<FnvHashMap<Cow<'static, str>, Option<Rc<WebGLUniformLocation>>>>,
 }
 
 impl UniformCache {
-    pub fn set<T>(&self, s: &str, data: T)
+    pub fn set<T, S>(&self, s: S, data: T)
     where
         T: Into<UniformAdapter>,
+        S: Into<Cow<'static, str>>,
     {
         use std::collections::hash_map::Entry;
 
         let mut entries = self.uniform_entries.borrow_mut();
         let adapter = data.into();
+        let s = s.into();
 
-        let entry = entries.entry(s.to_owned());
+        let entry = entries.entry(s.clone());
 
         if let Entry::Occupied(o) = entry {
             if *o.get() == adapter {
@@ -138,9 +135,7 @@ impl UniformCache {
             let (key, _) = o.remove_entry();
             self.pending_entries.borrow_mut().insert(key, adapter);
         } else {
-            self.pending_entries
-                .borrow_mut()
-                .insert(s.to_owned(), adapter);
+            self.pending_entries.borrow_mut().insert(s, adapter);
         }
     }
 
@@ -164,23 +159,23 @@ impl UniformCache {
         &self,
         gl: &WebGLRenderingContext,
         prog: &WebGLProgram,
-        s: &str,
+        s: &Cow<'static, str>,
     ) -> Option<Rc<WebGLUniformLocation>> {
         let mut m = self.uniform_map.borrow_mut();
 
         match m.get(s) {
             Some(ref u) => u.as_ref().map(|x| x.clone()),
             None => {
-                let uloc = gl.get_uniform_location(&prog, s.into());
+                let uloc = gl.get_uniform_location(&prog, s);
 
                 match uloc {
                     None => {
-                        m.insert(s.into(), None);
+                        m.insert(s.clone(), None);
                         None
                     }
                     Some(uloc) => {
                         let p = Rc::new(uloc);
-                        m.insert(s.into(), Some(p.clone()));
+                        m.insert(s.clone(), Some(p.clone()));
                         Some(p)
                     }
                 }

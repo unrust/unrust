@@ -219,6 +219,14 @@ impl GLContext {
         check_gl_error("attach_shader");
     }
 
+    pub fn bind_attrib_location(&self, program: &WebGLProgram, name: &str, loc: u32) {
+        let c_name = CString::new(name).unwrap();
+        unsafe {
+            gl::BindAttribLocation(program.0 as _, loc as _, c_name.as_ptr());
+            check_gl_error("bind_attrib_location");
+        }
+    }
+
     pub fn get_attrib_location(&self, program: &WebGLProgram, name: &str) -> Option<u32> {
         let c_name = CString::new(name).unwrap();
         unsafe {
@@ -367,6 +375,7 @@ impl GLContext {
         }
     }
 
+    // https://www.khronos.org/registry/OpenGL-Refpages/gl2.1/xhtml/glTexImage2D.xml
     pub fn tex_image2d(
         &self,
         target: TextureBindPoint,
@@ -389,11 +398,11 @@ impl GLContext {
             gl::TexImage2D(
                 target as _,
                 level as _,
-                format as _,
+                format as _, // internal format
                 width as _,
                 height as _,
                 0,
-                format as _,
+                format as _, // format
                 kind as _,
                 p as _,
             );
@@ -715,6 +724,15 @@ impl GLContext {
             gl::BindVertexArray(0);
         }
         check_gl_error("unbind_vertex_array");
+    }
+
+    pub fn draw_buffer(&self, buffers: &[ColorBuffer]) {
+        unsafe {
+            for value in buffers {
+                gl::DrawBuffer(*value as _);
+            }
+        }
+        check_gl_error("draw_buffer");
     }
 
     pub fn create_framebuffer(&self) -> WebGLFrameBuffer {

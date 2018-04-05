@@ -261,6 +261,17 @@ impl GLContext {
         };
     }
 
+    pub fn bind_attrib_location(&self, program: &WebGLProgram, name: &str, loc: u32) {
+        self.log("bind_attrib_location");
+        js! {
+            @(no_return)
+
+            var ctx = Module.gl.get(@{&self.reference});
+            var h = Module.gl.get(@{program.deref()});
+            ctx.bindAttribLocation(h.prog,@{loc}, @{name});
+        };
+    }
+
     pub fn get_attrib_location(&self, program: &WebGLProgram, name: &str) -> Option<u32> {
         self.log("get_attrib_location");
         let value = js! {
@@ -892,6 +903,19 @@ impl GLContext {
         js! {
             var ctx = Module.gl.get(@{self.reference});
             return ctx.texParameterf(@{kind as u32},@{pname as u32},@{param})
+        };
+    }
+
+    pub fn draw_buffer(&self, buffers: &[ColorBuffer]) {
+        self.log("draw_buffer");
+
+        let color_enums: Vec<i32> = buffers.iter().map(|c| *c as i32).collect();
+
+        js! {
+            @(no_return)
+
+            var ctx = Module.gl.get(@{self.reference});
+            ctx.drawBuffers(@{color_enums});
         };
     }
 

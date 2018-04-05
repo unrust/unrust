@@ -465,6 +465,12 @@ pub enum PixelType {
     UnsignedShort = 0x1403,
     ///
     UnsignedInt = 0x1405,
+
+    ///
+    UnsignedInt24 = 0x84FA,
+
+    ///
+    Float = 0x1406,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -739,4 +745,20 @@ pub enum TextureCompression {
     /// It also provides a 4:1 compression,
     /// but differs to the DXT3 compression in how the alpha compression is done.
     RgbaDxt5 = 0x83F3,
+}
+
+///
+#[derive(Debug, Clone, Copy)]
+pub enum ColorBuffer {
+    None = 0,
+    Back = 0x0405,
+    ColorAttachment0 = 0x8CE0,
+    ColorAttachment1 = 0x8CE1,
+    ColorAttachment2 = 0x8CE2,
+    ColorAttachment3 = 0x8CE3,
+    ColorAttachment4 = 0x8CE4,
+    ColorAttachment5 = 0x8CE5,
+    ColorAttachment6 = 0x8CE6,
+    ColorAttachment7 = 0x8CE7,
+    ColorAttachment8 = 0x8CE8,
 }

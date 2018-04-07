@@ -1,11 +1,11 @@
-use std::ops::Deref;
-use glenum::*;
 use gl;
+use glenum::*;
+use std::ops::Deref;
 use std::os::raw::c_void;
 
-use std::ffi::CString;
-use std::ffi::CStr;
 use common::*;
+use std::ffi::CStr;
+use std::ffi::CString;
 use std::ptr;
 use std::str;
 
@@ -115,7 +115,7 @@ impl GLContext {
         unsafe {
             gl::BufferSubData(kind as _, offset as _, data.len() as _, data.as_ptr() as _);
         }
-        check_gl_error("buffer_data");
+        check_gl_error("buffer_sub_data");
     }
 
     pub fn unbind_buffer(&self, kind: BufferKind) {

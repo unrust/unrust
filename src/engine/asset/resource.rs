@@ -1,8 +1,8 @@
-use std::mem;
-use std::fmt::Debug;
-use std::fmt;
-use std::cell::{Ref, RefCell};
 use futures::{Async, Future};
+use std::cell::{Ref, RefCell};
+use std::fmt;
+use std::fmt::Debug;
+use std::mem;
 
 use engine::asset::loader;
 use engine::asset::{AssetError, AssetResult};
@@ -102,6 +102,10 @@ impl<T: Debug + loader::Loadable> Resource<T> {
 
         let b0 = self.0.borrow();
         return Ok(Ref::map(b0, |t| t.try_as_data().unwrap()));
+    }
+
+    pub fn replace(&self, t: T) {
+        self.0.borrow_mut().replace(ResourceKind::Data(t));
     }
 }
 

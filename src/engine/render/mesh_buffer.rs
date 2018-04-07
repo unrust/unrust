@@ -1,17 +1,17 @@
-use webgl::*;
 use std::mem::size_of;
+use webgl::*;
 
 use super::ShaderProgram;
 use engine::asset::{Asset, AssetResult, AssetSystem, FileFuture, LoadableAsset, Resource};
-use engine::render::mesh::MeshBound;
 use engine::core::Aabb;
+use engine::render::mesh::MeshBound;
 
-use std::cell::RefCell;
-use std::rc::Rc;
-use std::cell::Cell;
-use std::f32::{MAX, MIN};
-use std::rc::Weak;
 use math::*;
+use std::cell::Cell;
+use std::cell::RefCell;
+use std::f32::{MAX, MIN};
+use std::rc::Rc;
+use std::rc::Weak;
 
 trait IntoBytes {
     fn into_bytes(self) -> Vec<u8>;
@@ -27,6 +27,15 @@ impl<T> IntoBytes for Vec<T> {
     }
 }
 
+enum RebindAction {
+    Vertices,
+    UV,
+    Normal,
+    Tangent,
+    Bitangent,
+    Indices,
+}
+
 struct MeshGLState {
     pub vao: WebGLVertexArray,
     pub vb: WebGLBuffer,
@@ -37,8 +46,60 @@ struct MeshGLState {
     pub btb: Option<WebGLBuffer>,
 
     pub ib: WebGLBuffer,
-
     pub gl: WebGLRenderingContext,
+
+    pub rebind_actions: Vec<RebindAction>,
+}
+
+impl MeshGLState {
+    fn rebind_buffer(
+        &mut self,
+        data: &MeshData,
+        tt: &RebindAction,
+    ) -> (BufferKind, Vec<u8>, &mut WebGLBuffer) {
+        match *tt {
+            RebindAction::Vertices => (
+                BufferKind::Array,
+                data.vertices.clone().into_bytes(),
+                &mut self.vb,
+            ),
+            RebindAction::UV => (
+                BufferKind::Array,
+                data.uvs.clone().unwrap().into_bytes(),
+                self.uvb.as_mut().unwrap(),
+            ),
+            RebindAction::Normal => (
+                BufferKind::Array,
+                data.normals.clone().unwrap().into_bytes(),
+                self.nb.as_mut().unwrap(),
+            ),
+            RebindAction::Tangent => (
+                BufferKind::Array,
+                data.tangents.clone().unwrap().into_bytes(),
+                self.tb.as_mut().unwrap(),
+            ),
+            RebindAction::Bitangent => (
+                BufferKind::Array,
+                data.bitangents.clone().unwrap().into_bytes(),
+                self.btb.as_mut().unwrap(),
+            ),
+            RebindAction::Indices => (
+                BufferKind::ElementArray,
+                data.indices.clone().into_bytes(),
+                &mut self.ib,
+            ),
+        }
+    }
+
+    fn rebind(&mut self, actions: &Vec<RebindAction>, data: &MeshData, gl: &WebGLRenderingContext) {
+        for action in actions.iter() {
+            let (k, p, mut buf) = self.rebind_buffer(data, action);
+
+            gl.bind_buffer(k, &buf);
+            gl.buffer_data(k, &p, DrawMode::Static);
+            gl.unbind_buffer(k);
+        }
+    }
 }
 
 impl Drop for MeshGLState {
@@ -66,12 +127,42 @@ pub struct MeshData {
     pub indices: Vec<u16>,
 }
 
+impl MeshData {
+    pub fn compute_bound(&self) -> MeshBound {
+        let mut min = Vector3::new(MAX, MAX, MAX);
+        let mut max = Vector3::new(MIN, MIN, MIN);
+        let mut r: f32 = 0.0;
+
+        for (i, v) in self.vertices.iter().enumerate() {
+            min[i % 3] = v.min(min[i % 3]);
+            max[i % 3] = v.max(max[i % 3]);
+
+            if i % 3 == 0 {
+                let vs = &self.vertices[i..i + 3];
+                let d = vec3(vs[0], vs[1], vs[2]).magnitude();
+                r = r.max(d);
+            }
+        }
+
+        MeshBound {
+            aabb: Aabb { min, max },
+            r,
+        }
+    }
+
+    pub fn translate(&mut self, disp: Vector3f) {
+        for (i, v) in self.vertices.iter_mut().enumerate() {
+            *v += disp[i % 3];
+        }
+    }
+}
+
 pub struct MeshBuffer {
     data: Resource<MeshData>,
     gl_state: RefCell<Option<MeshGLState>>,
     bounds: Cell<Option<MeshBound>>,
 
-    buffer_bound: RefCell<Weak<ShaderProgram>>,
+    bound_prog: RefCell<Weak<ShaderProgram>>,
 }
 
 impl Asset for MeshBuffer {
@@ -82,7 +173,7 @@ impl Asset for MeshBuffer {
             data: r,
             gl_state: Default::default(),
             bounds: Default::default(),
-            buffer_bound: RefCell::new(Weak::new()),
+            bound_prog: RefCell::new(Weak::new()),
         })
     }
 }
@@ -117,10 +208,61 @@ pub fn bind_buffer(
 }
 
 impl MeshBuffer {
+    pub fn update_mesh_data(&self, mesh_data: MeshData) {
+        let mut actions = Vec::new();
+
+        match self.data.try_borrow() {
+            Err(_) => {}
+            Ok(_da) => {
+                actions.push(RebindAction::Vertices);
+
+                mesh_data.uvs.as_ref().map(|_| {
+                    actions.push(RebindAction::UV);
+                });
+
+                mesh_data.normals.as_ref().map(|_| {
+                    actions.push(RebindAction::Normal);
+                });
+
+                mesh_data.tangents.as_ref().map(|_| {
+                    actions.push(RebindAction::Tangent);
+                });
+
+                mesh_data.bitangents.as_ref().map(|_| {
+                    actions.push(RebindAction::Bitangent);
+                });
+
+                actions.push(RebindAction::Indices);
+            }
+        };
+
+        self.data.replace(mesh_data);
+
+        // check whether the state is ready
+        match *self.gl_state.borrow_mut() {
+            None => {}
+            Some(ref mut state) => {
+                state.rebind_actions.append(&mut actions);
+                *self.bound_prog.borrow_mut() = Weak::new();
+            }
+        }
+    }
+
     pub fn prepare(&self, gl: &WebGLRenderingContext) -> AssetResult<()> {
-        if self.gl_state.borrow().is_some() {
+        if let Some(ref mut state) = *self.gl_state.borrow_mut() {
+            if state.rebind_actions.len() > 0 {
+                gl.bind_vertex_array(&state.vao);
+
+                let data = self.data.try_borrow()?;
+                let rebind_actions = state.rebind_actions.drain(..).collect();
+
+                // Rebind the mesh
+                state.rebind(&rebind_actions, &data, gl);
+            }
+
             return Ok(());
         }
+
         let data = self.data.try_borrow()?;
 
         self.gl_state.replace(Some(mesh_bind_buffer(
@@ -137,27 +279,8 @@ impl MeshBuffer {
     }
 
     fn compute_bounds(&self) -> Option<MeshBound> {
-        let mut min = Vector3::new(MAX, MAX, MAX);
-        let mut max = Vector3::new(MIN, MIN, MIN);
-        let mut r: f32 = 0.0;
-
         let data = self.data.try_borrow().ok()?;
-
-        for (i, v) in data.vertices.iter().enumerate() {
-            min[i % 3] = v.min(min[i % 3]);
-            max[i % 3] = v.max(max[i % 3]);
-
-            if i % 3 == 0 {
-                let vs = &data.vertices[i..i + 3];
-                let d = vec3(vs[0], vs[1], vs[2]).magnitude();
-                r = r.max(d);
-            }
-        }
-
-        Some(MeshBound {
-            aabb: Aabb { min, max },
-            r,
-        })
+        Some(data.compute_bound())
     }
 
     /// bounds return (vmin, vmax)
@@ -183,7 +306,7 @@ impl MeshBuffer {
         gl.bind_vertex_array(&state.vao);
 
         if gl.is_webgl2 {
-            if let Some(p) = self.buffer_bound.borrow().upgrade() {
+            if let Some(p) = self.bound_prog.borrow().upgrade() {
                 if Rc::ptr_eq(&p, &program) {
                     return Ok(());
                 }
@@ -218,7 +341,7 @@ impl MeshBuffer {
         // Bind index buffer object
         gl.bind_buffer(BufferKind::ElementArray, &state.ib);
 
-        *self.buffer_bound.borrow_mut() = Rc::downgrade(program);
+        *self.bound_prog.borrow_mut() = Rc::downgrade(program);
 
         Ok(())
     }
@@ -301,5 +424,7 @@ fn mesh_bind_buffer(
 
         ib: index_buffer,
         gl: gl.clone(),
+
+        rebind_actions: Vec::new(),
     }
 }

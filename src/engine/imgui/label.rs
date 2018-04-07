@@ -3,9 +3,7 @@ use super::widgets;
 use super::widgets::Widget;
 use super::{Metric, TextAlign};
 
-use engine::{Asset, GameObject, IEngine, Material, Mesh, MeshBuffer, MeshData, RenderQueue};
-use std::cell::RefCell;
-use std::rc::Rc;
+use engine::MeshData;
 
 struct BitmapFontData {
     hidpi: f32,
@@ -130,8 +128,8 @@ fn make_text_mesh_data(text_data: TextData) -> MeshData {
 #[derive(Debug, PartialEq)]
 pub struct Label {
     id: u32,
-    pos: Metric,
-    state: ImguiState,
+    pub pos: Metric,
+    pub state: ImguiState,
     s: String,
 }
 
@@ -145,14 +143,7 @@ impl Label {
         })
     }
 
-    pub fn bind(
-        &self,
-        ssize: (u32, u32),
-        parent: &GameObject,
-        engine: &mut IEngine,
-    ) -> Rc<RefCell<GameObject>> {
-        let hidpi = engine.hidpi_factor();
-
+    pub fn bind(&self, ssize: (u32, u32), hidpi: f32) -> MeshData {
         // Mesh Data
         let meshdata = {
             make_text_mesh_data(TextData {
@@ -167,42 +158,7 @@ impl Label {
             })
         };
 
-        // Material
-        let material = {
-            let db = engine.asset_system();
-            let mut material = Material::new(db.new_program("default_ui"));
-            material.set("uDiffuse", db.new_texture("default_font_bitmap"));
-            material.render_queue = RenderQueue::UI;
-            material
-        };
-
-        // Mesh
-        let mesh = {
-            let mut mesh = Mesh::new();
-            mesh.add_surface(MeshBuffer::new(meshdata), material);
-            mesh
-        };
-
-        // GameObject
-        let go = {
-            let go = engine.new_game_object(parent);
-
-            let mut gomut = go.borrow_mut();
-            let mut gtran = gomut.transform.global();
-            gtran.disp += widgets::compute_translate(
-                &self.pos,
-                &self.state.pivot,
-                &ssize,
-                hidpi,
-                &mesh.bounds().unwrap().local_aabb(),
-            );
-            gomut.transform.set_global(gtran);
-            gomut.add_component(mesh);
-            drop(gomut);
-            go
-        };
-
-        go
+        return meshdata;
     }
 }
 

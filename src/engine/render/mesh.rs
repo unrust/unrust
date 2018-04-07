@@ -1,8 +1,8 @@
-use engine::core::ComponentBased;
-use std::rc::Rc;
-use std::cell::Cell;
-use engine::render::{Material, MeshBuffer};
 use engine::core::Aabb;
+use engine::core::ComponentBased;
+use engine::render::{Material, MeshBuffer};
+use std::cell::Cell;
+use std::rc::Rc;
 
 #[derive(Copy, Clone)]
 pub struct MeshBound {
@@ -57,6 +57,11 @@ impl Mesh {
             buffer: buffer.into(),
             material: material.into(),
         }));
+    }
+
+    pub fn remove_buffer(&mut self, buffer: &Rc<MeshBuffer>) {
+        self.surfaces
+            .retain(|surface| !Rc::ptr_eq(buffer, &surface.buffer))
     }
 
     /// bounds return (vmin, vmax)

@@ -1,15 +1,24 @@
 use engine::asset::{Asset, AssetResult};
 use engine::render::{RenderQueue, ShaderProgram, Texture};
 
+use fnv::FnvHashMap;
+use math::*;
+use std::borrow::Cow;
 use std::cell::RefCell;
 use std::rc::Rc;
-use fnv::FnvHashMap;
-use std::borrow::Cow;
-use math::*;
 
 #[derive(Debug, Clone)]
+pub struct TexturePtr(Rc<Texture>);
+
+impl PartialEq for TexturePtr {
+    fn eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum MaterialParam {
-    Texture(Rc<Texture>),
+    Texture(TexturePtr),
     Float(f32),
     Bool(bool),
     Vec2(Vector2<f32>),
@@ -22,7 +31,7 @@ pub enum MaterialParam {
 pub type MaterialParamMap = FnvHashMap<Cow<'static, str>, MaterialParam>;
 
 macro_rules! impl_from_material_param {
-    ($frm: ty, $to: ident) => {
+    ($frm:ty, $to:ident) => {
         impl From<$frm> for MaterialParam {
             fn from(b: $frm) -> MaterialParam {
                 MaterialParam::$to(b)
@@ -33,12 +42,17 @@ macro_rules! impl_from_material_param {
 
 impl_from_material_param!(bool, Bool);
 impl_from_material_param!(f32, Float);
-impl_from_material_param!(Rc<Texture>, Texture);
 impl_from_material_param!(Vector2<f32>, Vec2);
 impl_from_material_param!(Vector3<f32>, Vec3);
 impl_from_material_param!(Vector4<f32>, Vec4);
 impl_from_material_param!(Matrix4<f32>, Matrix4);
 impl_from_material_param!(MaterialParamMap, Params);
+
+impl From<Rc<Texture>> for MaterialParam {
+    fn from(b: Rc<Texture>) -> MaterialParam {
+        MaterialParam::Texture(TexturePtr(b))
+    }
+}
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum CullMode {
@@ -84,6 +98,14 @@ pub struct Material {
     params: RefCell<MaterialParamMap>,
 }
 
+impl PartialEq for Material {
+    fn eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.program, &other.program) && self.render_queue == other.render_queue
+            && self.states == other.states
+            && *self.params.borrow() == *other.params.borrow()
+    }
+}
+
 impl Material {
     pub fn new(program: Rc<ShaderProgram>) -> Material {
         return Material {
@@ -114,9 +136,9 @@ impl Material {
         for (name, param) in params.iter() {
             match param {
                 &MaterialParam::Texture(ref tex) => {
-                    let new_unit = request_tex_unit(&tex)?;
+                    let new_unit = request_tex_unit(&tex.0)?;
                     self.program
-                        .set(name.clone(), (Rc::downgrade(&tex), new_unit));
+                        .set(name.clone(), (Rc::downgrade(&tex.0), new_unit));
                 }
                 &MaterialParam::Bool(v) => {
                     self.program.set(name.clone(), v);

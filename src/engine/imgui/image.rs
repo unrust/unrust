@@ -57,9 +57,16 @@ fn compute_size_to_ndc(size: &Metric, ssize: &(u32, u32), hidpi: f32) -> (f32, f
 
 #[derive(Debug)]
 pub struct ImageRef<T: Debug>(Rc<T>);
-impl<T: Debug> PartialEq for ImageRef<T> {
+
+impl PartialEq for ImageRef<Texture> {
     fn eq(&self, other: &Self) -> bool {
         Rc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl PartialEq for ImageRef<Material> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
     }
 }
 

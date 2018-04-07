@@ -1,9 +1,13 @@
 use uni_app::now;
 use std;
+use std::collections::VecDeque;
 
 pub struct DeltaTimeStats {
     pub dt_max: f64,
     pub dt_min: f64,
+    pub dt_avg: f64,
+
+    pub dt_history: VecDeque<f64>,
 }
 
 impl DeltaTimeStats {
@@ -11,6 +15,8 @@ impl DeltaTimeStats {
         DeltaTimeStats {
             dt_max: std::f64::MIN,
             dt_min: std::f64::MAX,
+            dt_avg: 0.0,
+            dt_history: VecDeque::new(),
         }
     }
 
@@ -19,6 +25,14 @@ impl DeltaTimeStats {
             if self.dt_max > dt { self.dt_max } else { dt };
         self.dt_min =
             if self.dt_min < dt { self.dt_min } else { dt };
+
+        self.dt_history.push_back(dt);
+        if self.dt_history.len() > 60 {
+            self.dt_history.pop_front();
+        }
+
+        self.dt_avg =
+            self.dt_history.iter().fold(0.0, |acc, dt| acc + *dt) / (self.dt_history.len() as f64);
     }
 }
 

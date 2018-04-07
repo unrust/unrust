@@ -278,9 +278,10 @@ impl World {
             imgui::label(
                 Native(0.0, 0.0) + Pixel(8.0, 8.0),
                 &format!(
-                    "fps: {} dt: {:04.2}[{:04.2}-{:04.2}]ms\nnobj: {} actors:{} gobjs:{} sf:{} oc:{} tc:{}\n{}",
+                    "fps: {} dt: {:04.2}[{:04.2}|{:04.2}-{:04.2}]ms\nnobj: {} actors:{} gobjs:{} sf:{} oc:{} tc:{}\n{}",
                     self.fps.fps,
                     self.fps.delta_time() * 1000.0,
+                    self.fps.delta_time_stats().dt_avg * 1000.0,
                     self.fps.delta_time_stats().dt_min * 1000.0,
                     self.fps.delta_time_stats().dt_max * 1000.0,
                     self.engine().objects.len(),

@@ -1,3 +1,4 @@
+use math::InnerSpace;
 use math::Vector3f;
 use std::default::Default;
 
@@ -61,5 +62,11 @@ impl Aabb {
             Vector3f::new(self.max.x, self.max.y, self.max.z),
             Vector3f::new(self.min.x, self.max.y, self.max.z),
         ]
+    }
+
+    pub fn sphere(&self) -> (Vector3f, f32) {
+        let center = (self.max + self.min) * 0.5;
+
+        (center, (self.max - center).magnitude())
     }
 }

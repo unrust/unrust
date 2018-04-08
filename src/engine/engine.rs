@@ -465,7 +465,6 @@ where
             let m = compute_model_m(&*object);
             use math::*;
 
-            let p = m.transform_point(Point3::new(0.0, 0.0, 0.0));
             // TODO: local scale only ?? should be using global scale??
             let scale = get_max_scale(&object.transform.local_scale());
 
@@ -494,7 +493,11 @@ where
                                 continue;
                             }
 
-                            let scaled_r = bounds.unwrap().r * scale;
+                            let bounds = bounds.unwrap();
+                            let (center, r) = bounds.local_aabb().sphere();
+
+                            let scaled_r = r * scale;
+                            let p = m.transform_point(Point3::from_vec(center));
 
                             if !frustum.collide_sphere(&p.to_vec(), scaled_r) {
                                 continue;
@@ -514,7 +517,8 @@ where
                 } else {
                     let bounds = surface.buffer.bounds();
                     if let Some(bounds) = bounds {
-                        let scaled_r = bounds.r * scale;
+                        let (center, r) = bounds.local_aabb().sphere();
+                        let p = m.transform_point(Point3::from_vec(center));
 
                         if render_q.aabb.is_none() {
                             render_q.aabb = Some(Aabb::empty());
@@ -524,7 +528,7 @@ where
                             .aabb
                             .as_mut()
                             .unwrap()
-                            .merge_sphere(&p.to_vec(), scaled_r);
+                            .merge_sphere(&p.to_vec(), r * scale);
                     }
                 }
 

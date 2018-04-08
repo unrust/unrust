@@ -5,6 +5,7 @@ use super::ShaderProgram;
 use engine::asset::{Asset, AssetResult, AssetSystem, FileFuture, LoadableAsset, Resource};
 use engine::core::Aabb;
 use engine::render::mesh::MeshBound;
+use engine::render::shader_program::ShaderAttrib;
 
 use math::*;
 use std::cell::Cell;
@@ -194,17 +195,13 @@ impl LoadableAsset for MeshBuffer {
 pub fn bind_buffer(
     gl: &WebGLRenderingContext,
     buffer: &WebGLBuffer,
-    program: &ShaderProgram,
-    name: &str,
+    coord: u32,
     asize: AttributeSize,
 ) {
     gl.bind_buffer(BufferKind::Array, buffer);
 
-    // Point an position attribute to the currently bound VBO
-    if let Some(coord) = program.attrib_loc(gl, name) {
-        gl.enable_vertex_attrib_array(coord);
-        gl.vertex_attrib_pointer(coord, asize, DataType::Float, false, 0, 0);
-    }
+    gl.enable_vertex_attrib_array(coord);
+    gl.vertex_attrib_pointer(coord, asize, DataType::Float, false, 0, 0);
 }
 
 impl MeshBuffer {
@@ -306,36 +303,43 @@ impl MeshBuffer {
         gl.bind_vertex_array(&state.vao);
 
         if gl.is_webgl2 {
-            if let Some(p) = self.bound_prog.borrow().upgrade() {
-                if Rc::ptr_eq(&p, &program) {
-                    return Ok(());
-                }
+            if let Some(_) = self.bound_prog.borrow().upgrade() {
+                return Ok(());
             }
         }
 
         // Bind vertex buffer object
+        // "aVertexPosition"
         bind_buffer(
             gl,
             &state.vb,
-            program,
-            "aVertexPosition",
+            ShaderAttrib::Position as u32,
             AttributeSize::Three,
         );
 
+        // "aTextureCoord"
         if let Some(ref uvb) = state.uvb {
-            bind_buffer(gl, uvb, program, "aTextureCoord", AttributeSize::Two);
+            bind_buffer(gl, uvb, ShaderAttrib::UV0 as u32, AttributeSize::Two);
         }
 
+        // "aVertexNormal"
         if let Some(ref nb) = state.nb {
-            bind_buffer(gl, nb, program, "aVertexNormal", AttributeSize::Three);
+            bind_buffer(gl, nb, ShaderAttrib::Normal as u32, AttributeSize::Three);
         }
 
+        // "aVertexTangent"
         if let Some(ref tb) = state.tb {
-            bind_buffer(gl, tb, program, "aVertexTangent", AttributeSize::Three);
+            bind_buffer(gl, tb, ShaderAttrib::Tangent as u32, AttributeSize::Three);
         }
 
+        // "aVertexBitangent"
         if let Some(ref btb) = state.btb {
-            bind_buffer(gl, btb, program, "aVertexBitangent", AttributeSize::Three);
+            bind_buffer(
+                gl,
+                btb,
+                ShaderAttrib::Bitangent as u32,
+                AttributeSize::Three,
+            );
         }
 
         // Bind index buffer object

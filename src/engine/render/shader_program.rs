@@ -1,14 +1,22 @@
-use std::rc::Rc;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use webgl::{ShaderKind as WebGLShaderKind, WebGLProgram, WebGLRenderingContext};
 use engine::asset::{Asset, AssetResult, AssetSystem, FileFuture, LoadableAsset, Resource};
 use engine::render::shader::{ShaderFs, ShaderVs};
 use engine::render::uniforms::*;
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::rc::Rc;
+use webgl::{ShaderKind as WebGLShaderKind, WebGLProgram, WebGLRenderingContext};
 
 use std::borrow::Cow;
 
 use uni_app;
+
+pub enum ShaderAttrib {
+    Position = 0,
+    UV0 = 1,
+    Normal = 2,
+    Tangent = 3,
+    Bitangent = 4,
+}
 
 impl Asset for ShaderProgram {
     type Resource = (Resource<ShaderVs>, Resource<ShaderFs>);
@@ -168,7 +176,23 @@ impl ShaderProgramGLState {
         // This is because in desktop OpenGL, nothing gets drawn if vertex attrib 0 is not array-enabled.
         // You can use bindAttribLocation() to force a vertex attribute to use location 0,
         // and use enableVertexAttribArray() to make it array-enabled.
-        gl.bind_attrib_location(&shader_program, "aVertexPosition", 0);
+        gl.bind_attrib_location(
+            &shader_program,
+            "aVertexPosition",
+            ShaderAttrib::Position as _,
+        );
+        gl.bind_attrib_location(&shader_program, "aTextureCoord", ShaderAttrib::UV0 as _);
+        gl.bind_attrib_location(&shader_program, "aVertexNormal", ShaderAttrib::Normal as _);
+        gl.bind_attrib_location(
+            &shader_program,
+            "aVertexTangent",
+            ShaderAttrib::Tangent as _,
+        );
+        gl.bind_attrib_location(
+            &shader_program,
+            "aVertexBitangent",
+            ShaderAttrib::Bitangent as _,
+        );
 
         // Link both the programs
         gl.link_program(&shader_program);

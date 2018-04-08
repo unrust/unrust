@@ -1,11 +1,11 @@
 extern crate unrust;
 
-use unrust::world::{Actor, Handle, Processor, World, WorldBuilder};
+use unrust::actors::{FirstPersonCamera, ShadowPass, SkyBox};
 use unrust::engine::{AssetError, AssetSystem, ComponentBased, Directional, GameObject, Light,
                      Material, Mesh, ObjMaterial, Point, Prefab, RenderQueue, TextureWrap};
-use unrust::world::events::*;
 use unrust::math::*;
-use unrust::actors::{FirstPersonCamera, ShadowPass, SkyBox};
+use unrust::world::events::*;
+use unrust::world::{Actor, Handle, Processor, World, WorldBuilder};
 
 // GUI
 use unrust::imgui;

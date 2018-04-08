@@ -1,13 +1,13 @@
-use std::rc::{Rc, Weak};
-use std::sync::Arc;
+use engine::asset::AssetResult;
+use engine::core::Component;
+use engine::engine::EngineStats;
 use engine::render::{CullMode, DepthTest, Material, MaterialState, MeshBuffer, ShaderProgram,
                      Texture};
 use std::collections::VecDeque;
-use engine::core::Component;
-use engine::engine::EngineStats;
-use webgl::{Culling, Flag, WebGLRenderingContext};
+use std::rc::{Rc, Weak};
+use std::sync::Arc;
 use webgl;
-use engine::asset::AssetResult;
+use webgl::{Culling, Flag, WebGLRenderingContext};
 
 trait ToGLState<T> {
     fn as_gl_state(&self) -> T;
@@ -154,7 +154,7 @@ pub struct EngineContext {
 }
 
 impl EngineContext {
-    pub fn new(stats: EngineStats) -> EngineContext {
+    pub fn new() -> EngineContext {
         EngineContext {
             mesh_buffer: Default::default(),
             prog: Default::default(),
@@ -167,7 +167,7 @@ impl EngineContext {
             switch_prog: 0,
             switch_tex: 0,
 
-            stats: stats,
+            stats: EngineStats::default(),
 
             states: Default::default(),
             last_light_bound: None,
@@ -177,7 +177,7 @@ impl EngineContext {
 }
 
 macro_rules! impl_cacher {
-    ($k: ident, $t: ty) => {
+    ($k:ident, $t:ty) => {
         impl EngineCacher for $t {
             fn get_cache(ctx: &mut EngineContext) -> &mut Weak<Self> {
                 &mut ctx.$k

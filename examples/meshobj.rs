@@ -1,11 +1,11 @@
 extern crate unrust;
 
-use unrust::world::{Actor, Handle, World, WorldBuilder};
+use unrust::actors::ShadowPass;
 use unrust::engine::{AssetError, AssetSystem, Camera, Directional, GameObject, Light, Material,
                      Mesh, ObjMaterial, Prefab, RenderQueue, TextureWrap};
-use unrust::world::events::*;
-use unrust::actors::ShadowPass;
 use unrust::math::*;
+use unrust::world::events::*;
+use unrust::world::{Actor, Handle, World, WorldBuilder};
 
 use std::rc::Rc;
 
@@ -60,10 +60,11 @@ impl Actor for MainScene {
 
         // Set the shadow map partitions
         {
-            let shadow_pass = world.find_component::<ShadowPass>().unwrap();
-            shadow_pass
-                .borrow_mut()
-                .set_partitions(&[5.0, 20.0, 50.0, 300.0]);
+            if let Some(shadow_pass) = world.find_component::<ShadowPass>() {
+                shadow_pass
+                    .borrow_mut()
+                    .set_partitions(&[5.0, 20.0, 50.0, 300.0]);
+            }
         }
     }
 

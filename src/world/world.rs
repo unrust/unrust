@@ -1,40 +1,35 @@
-use std::rc::Rc;
 use std::cell::{Ref, RefCell, RefMut};
-use std::sync::Arc;
 use std::ops::Deref;
+use std::rc::Rc;
+use std::sync::Arc;
 
-use world::app_fs::AppEngine;
 use engine::{AssetSystem, Camera, ClearOption, Component, ComponentBased, Engine, GameObject,
              IEngine, SceneTree};
+use world::app_fs::AppEngine;
 
-use engine::imgui;
 use engine::SoundSystem;
-use world::fps::FPS;
-use world::type_watcher::{ActorWatcher, TypeWatcher, TypeWatcherBuilder};
+use engine::imgui;
 use world::Actor;
+use world::fps::FPS;
 use world::processor::{IProcessorBuilder, Processor};
+use world::type_watcher::{ActorWatcher, TypeWatcher, TypeWatcherBuilder};
 
-use uni_app::{now, App, AppConfig, AppEvent};
-use uni_pad as pad;
 use std::default::Default;
 use std::marker::PhantomData;
+use uni_app::{now, App, AppConfig, AppEvent};
+use uni_pad as pad;
 
 pub type Handle<T> = Rc<RefCell<T>>;
 
 pub struct World {
     engine: AppEngine,
     main_tree: Rc<SceneTree>,
-
     app: Option<App>,
     fps: FPS,
-
     watcher: Rc<TypeWatcher>,
-
     shown_stats: bool,
     events: Rc<RefCell<Vec<AppEvent>>>,
-
     golist: Vec<Handle<GameObject>>,
-
     processor_builders: Vec<Rc<Box<IProcessorBuilder>>>,
 
     pub sound: SoundSystem,
@@ -168,9 +163,7 @@ mod profile {
     use super::*;
     use std::cell::Cell;
 
-    thread_local!(
-        static NEED_DUMP: Cell<bool> = Cell::new(false);
-    );
+    thread_local!(static NEED_DUMP: Cell<bool> = Cell::new(false););
 
     pub fn dump(evt: &AppEvent) {
         if let &AppEvent::KeyUp(ref k) = evt {
@@ -278,7 +271,7 @@ impl World {
             imgui::label(
                 Native(0.0, 0.0) + Pixel(8.0, 8.0),
                 &format!(
-                    "fps: {} dt: {:04.2}[{:04.2}|{:04.2}-{:04.2}]ms\nnobj: {} actors:{} gobjs:{} sf:{} oc:{} tc:{}\n{}",
+                    "fps: {} dt: {:04.2}[{:04.2}|{:04.2}-{:04.2}]ms\nnobj: {} actors:{} gobjs:{} sf:{} oc:[{}:{}] tc:[{}:{}]\n{}",
                     self.fps.fps,
                     self.fps.delta_time() * 1000.0,
                     self.fps.delta_time_stats().dt_avg * 1000.0,
@@ -287,9 +280,9 @@ impl World {
                     self.engine().objects.len(),
                     self.watcher.len(),
                     self.main_tree.len(),
-                    self.engine().stats.surfaces_count,
-                    self.engine().stats.opaque_count,
-                    self.engine().stats.transparent_count,
+                    self.engine().stats.surfaces_count, 
+                    self.engine().stats.opaque_count,self.engine().stats.total_opaque_count,
+                    self.engine().stats.transparent_count, self.engine().stats.total_transparent_count,
                     loading_stats
                 ),
             );

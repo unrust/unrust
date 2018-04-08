@@ -1,18 +1,18 @@
-use webgl::*;
 use math::*;
+use webgl::*;
 
-use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::rc::{Rc, Weak};
 use std::sync::Arc;
 
+use engine::asset::{AssetError, AssetResult, AssetSystem};
+use engine::context::EngineContext;
 use engine::core::{Component, ComponentBased, GameObject, SceneTree};
 use engine::render::Camera;
 use engine::render::{DepthTest, Directional, Light, Material, MaterialState, Mesh, MeshSurface,
                      ShaderProgram};
 use engine::render::{Frustum, RenderQueue};
-use engine::asset::{AssetError, AssetResult, AssetSystem};
-use engine::context::EngineContext;
 use math::Aabb;
 
 use std::default::Default;
@@ -38,6 +38,8 @@ pub struct EngineStats {
     pub surfaces_count: u32,
     pub opaque_count: u32,
     pub transparent_count: u32,
+    pub total_opaque_count: u32,
+    pub total_transparent_count: u32,
 }
 
 pub struct Engine<A>
@@ -452,6 +454,7 @@ where
         frustum_opt: &Option<Frustum>,
         render_q: &mut RenderQueueList,
         included_render_queues: &Option<BTreeSet<RenderQueue>>,
+        eng_stats: &mut Option<&mut EngineStats>,
     ) {
         if !object.active {
             return;
@@ -470,6 +473,14 @@ where
                 if let &Some(ref included) = included_render_queues {
                     if included.get(&surface.material.render_queue).is_none() {
                         continue;
+                    }
+                }
+
+                if let &mut Some(ref mut stats) = eng_stats {
+                    match surface.material.render_queue {
+                        RenderQueue::Transparent => stats.total_transparent_count += 1,
+                        RenderQueue::Opaque => stats.total_opaque_count += 1,
+                        _ => (),
                     }
                 }
 
@@ -536,7 +547,7 @@ where
     }
 
     pub fn get_bounds(&self, camera: &Camera) -> Option<Aabb> {
-        let render_q = self.gather_all_render_commands(camera, true);
+        let render_q = self.gather_all_render_commands(camera, true, None);
 
         return render_q.aabb;
     }
@@ -545,6 +556,7 @@ where
         &self,
         camera: &Camera,
         update_bounds_only: bool,
+        mut eng_stats: Option<&mut EngineStats>,
     ) -> RenderQueueList {
         let mut render_q = RenderQueueList::new();
         let objects = &self.objects;
@@ -565,6 +577,7 @@ where
                         &frustum,
                         &mut render_q,
                         &camera.included_render_queues,
+                        &mut eng_stats,
                     )
                 }
             });
@@ -579,8 +592,8 @@ where
         camera: &Camera,
         material: Option<&Rc<Material>>,
         clear_option: ClearOption,
-    ) {
-        let mut ctx: EngineContext = EngineContext::new(self.stats);
+    ) -> EngineStats {
+        let mut ctx: EngineContext = EngineContext::new();
 
         if let Some(ref rt) = camera.render_texture {
             rt.bind_frame_buffer(&self.gl);
@@ -601,7 +614,7 @@ where
         self.prepare_ctx(&mut ctx);
 
         // gather commands
-        let mut render_q = self.gather_all_render_commands(&camera, false);
+        let mut render_q = self.gather_all_render_commands(&camera, false, Some(&mut ctx.stats));
 
         // Sort the opaque queue
         render_q
@@ -640,12 +653,12 @@ where
             rt.unbind_frame_buffer(&self.gl);
         }
 
-        self.stats = ctx.stats;
+        ctx.stats
     }
 
     #[cfg_attr(feature = "flame_it", flame)]
-    pub fn render_pass(&mut self, camera: &Camera, clear_option: ClearOption) {
-        self.render_pass_with_material(camera, None, clear_option);
+    pub fn render_pass(&mut self, camera: &Camera, clear_option: ClearOption) -> EngineStats {
+        self.render_pass_with_material(camera, None, clear_option)
     }
 
     pub fn main_camera(&self) -> Option<Arc<Component>> {
@@ -667,7 +680,8 @@ where
         imgui::pre_render(self);
 
         if let Some(ref camera) = self.main_camera() {
-            self.render_pass(&camera.try_as::<Camera>().unwrap().borrow(), clear_option);
+            self.stats =
+                self.render_pass(&camera.try_as::<Camera>().unwrap().borrow(), clear_option);
         } else {
             // We dont have a main camera here, just clean the screen.
             self.clear(clear_option);

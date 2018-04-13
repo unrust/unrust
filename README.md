@@ -8,7 +8,6 @@ Current Version : 0.1.1
 
 **This project is under heavily development, all api are very unstable until version 0.2**
 
-
 ## Live Demo
 
 * [Boxes](https://edwin0cheng.github.io/unrust/demo/boxes)
@@ -17,6 +16,10 @@ Current Version : 0.1.1
 * [Post-Processing](https://edwin0cheng.github.io/unrust/demo/postprocessing)
 * [MeshObj](https://edwin0cheng.github.io/unrust/demo/meshobj)
 * [Basic](https://edwin0cheng.github.io/unrust/demo/basic)
+
+## Usage 
+
+You can reference [basic.rs](https://github.com/edwin0cheng/unrust/blob/master/examples/basic.rs) for now, more documetations will be incoming.
 
 ## Build
 

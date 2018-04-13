@@ -4,8 +4,6 @@
 #![feature(integer_atomics)]
 #![cfg_attr(feature = "flame_it", feature(plugin, custom_attribute))]
 #![cfg_attr(feature = "flame_it", plugin(flamer))]
-// It is stabled in 1.26, will remove it later
-#![feature(conservative_impl_trait)]
 
 /* common */
 extern crate fnv;
@@ -33,8 +31,8 @@ pub mod math {
     pub extern crate cgmath;
 
     pub use self::cgmath::prelude::*;
-    pub use self::cgmath::{ortho, Decomposed, Deg, Euler, Matrix3, Matrix4, PerspectiveFov,
-                           Point3, Quaternion, Rad, Vector2, Vector3, Vector4, vec3};
+    pub use self::cgmath::{ortho, vec3, Decomposed, Deg, Euler, Matrix3, Matrix4, PerspectiveFov,
+                           Point3, Quaternion, Rad, Vector2, Vector3, Vector4};
     pub use engine::Aabb;
 
     pub type Vector3f = Vector3<f32>;

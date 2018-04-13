@@ -1,19 +1,17 @@
 extern crate uni_pad;
 extern crate unrust;
 
-use unrust::world::{Actor, World, WorldBuilder};
-use unrust::engine::{Directional, GameObject, Light, Material, Mesh};
-use unrust::world::events::*;
-use unrust::math::*;
-use unrust::actors::FirstPersonCamera;
 use uni_pad::{gamepad_axis, gamepad_button};
+use unrust::actors::FirstPersonCamera;
+use unrust::engine::{Directional, GameObject, Light, Material, Mesh};
+use unrust::math::*;
+use unrust::world::events::*;
+use unrust::world::{Actor, World, WorldBuilder};
 
 // GUI
 use unrust::imgui;
 
 pub struct MainScene {
-    eye: Vector3<f32>,
-    target: Vector3<f32>,
     last_event: Option<AppEvent>,
 }
 
@@ -21,11 +19,7 @@ pub struct MainScene {
 // (Because Box<Actor> implemented ComponentBased)
 impl MainScene {
     fn new() -> Box<Actor> {
-        Box::new(MainScene {
-            eye: Vector3::new(0.0, 0.0, -3.0),
-            target: Vector3::new(0.0, 0.0, 0.0),
-            last_event: None,
-        })
+        Box::new(MainScene { last_event: None })
     }
 }
 
@@ -55,11 +49,6 @@ impl Actor for MainScene {
     fn update(&mut self, _go: &mut GameObject, world: &mut World) {
         // Handle Events
         {
-            let front = (self.eye - self.target).normalize();
-            let up = Vector3::unit_y();
-            let right = front.cross(up).normalize();
-            let speed = 0.2;
-
             let mut reset = false;
 
             for evt in world.events().iter() {
@@ -67,10 +56,6 @@ impl Actor for MainScene {
                 match evt {
                     &AppEvent::KeyDown(ref key) => {
                         match key.code.as_str() {
-                            "KeyA" => self.eye = self.eye + right * speed,
-                            "KeyD" => self.eye = self.eye - right * speed,
-                            "KeyW" => self.eye -= front * 2.0,
-                            "KeyS" => self.eye += front * 2.0,
                             "Escape" => reset = true,
                             _ => (),
                         };
@@ -79,8 +64,6 @@ impl Actor for MainScene {
                     _ => (),
                 }
             }
-
-            self.target = self.eye + Vector3::new(0.0, 0.0, 3.0);
 
             if reset {
                 world.reset();

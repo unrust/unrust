@@ -19,7 +19,7 @@ Current Version : 0.1.1
 
 ## Usage 
 
-You can reference [basic.rs](https://github.com/edwin0cheng/unrust/blob/master/examples/basic.rs) for now, more documetations will be incoming.
+You can reference [basic.rs](https://github.com/edwin0cheng/unrust/blob/master/examples/basic.rs) for now, more documetations will be coming soon.
 
 ## Build
 

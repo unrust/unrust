@@ -9,6 +9,6 @@ authors = ["Edwin Cheng <edwin0cheng@gmail.com>"]
 stdweb =  "0.4.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-glutin = "0.13.0"
+glutin = "0.14.0"
 time = "0.1.39"
 

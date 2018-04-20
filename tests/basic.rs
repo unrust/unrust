@@ -1,25 +1,21 @@
 extern crate uni_pad;
 extern crate unrust;
 
-use uni_pad::{gamepad_axis, gamepad_button};
 use unrust::actors::FirstPersonCamera;
 use unrust::engine::{Directional, GameObject, Light, Material, Mesh};
 use unrust::math::*;
-use unrust::world::events::*;
 use unrust::world::{Actor, World, WorldBuilder};
 
 // GUI
 use unrust::imgui;
 
-pub struct MainScene {
-    last_event: Option<AppEvent>,
-}
+pub struct MainScene {}
 
 // Actor is a trait object which would act like an component
 // (Because Box<Actor> implemented ComponentBased)
 impl MainScene {
     fn new() -> Box<Actor> {
-        Box::new(MainScene { last_event: None })
+        Box::new(MainScene {})
     }
 }
 
@@ -46,55 +42,12 @@ impl Actor for MainScene {
         }
     }
 
-    fn update(&mut self, _go: &mut GameObject, world: &mut World) {
-        // Handle Events
-        {
-            let mut reset = false;
-
-            for evt in world.events().iter() {
-                self.last_event = Some(evt.clone());
-                match evt {
-                    &AppEvent::KeyDown(ref key) => {
-                        match key.code.as_str() {
-                            "Escape" => reset = true,
-                            _ => (),
-                        };
-                    }
-
-                    _ => (),
-                }
-            }
-
-            if reset {
-                world.reset();
-                // Because reset will remove all objects in the world,
-                // included this Actor itself
-                // so will need to add it back.
-                let scene = world.new_game_object();
-                scene.borrow_mut().add_component(MainScene::new());
-                return;
-            }
-        }
-
+    fn update(&mut self, _go: &mut GameObject, _: &mut World) {
         // GUI
         use imgui::Metric::*;
 
-        imgui::pivot((1.0, 1.0));
-        imgui::label(
-            Native(1.0, 1.0) - Pixel(8.0, 8.0),
-            &format!("[WASD ZXEC] : control camera\n[Esc] : reload all (include assets)\ngamepad: {:?} buttons {} {} {} {}",
-                gamepad_axis(0),
-                gamepad_button(0, 0),
-                gamepad_button(0, 1),
-                gamepad_button(0, 2),
-                gamepad_button(0, 3))
-        );
-
         imgui::pivot((1.0, 0.0));
-        imgui::label(
-            Native(1.0, 0.0) + Pixel(-8.0, 8.0),
-            &format!("last event: {:?}", self.last_event),
-        );
+        imgui::label(Native(1.0, 0.0) + Pixel(-8.0, 8.0), "Testing");
     }
 }
 
@@ -130,7 +83,7 @@ impl Actor for Cube {
 }
 
 #[test]
-fn test_headless() {
+fn test_basic() {
     let mut world = WorldBuilder::new("Headless")
         .with_headless(true)
         .with_size((640, 480))

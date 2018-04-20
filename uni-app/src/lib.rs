@@ -29,13 +29,14 @@ pub mod sys;
 #[path = "native_fs.rs"]
 pub mod fs;
 
-pub use self::sys::*;
 pub use self::fs::*;
+pub use self::sys::*;
 
 pub struct AppConfig {
     pub title: String,
     pub size: (u32, u32),
     pub vsync: bool,
+    pub headless: bool,
     pub show_cursor: bool,
 }
 
@@ -45,6 +46,7 @@ impl AppConfig {
             title: title.into(),
             size,
             vsync: true,
+            headless: false,
             show_cursor: true,
         }
     }

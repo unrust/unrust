@@ -1,14 +1,14 @@
 use stdweb;
 use AppConfig;
 
-use stdweb::web::IEventTarget;
-use stdweb::web::window;
+use stdweb::traits::IEvent;
+use stdweb::unstable::TryInto;
 use stdweb::web::event::{IKeyboardEvent, IMouseEvent, KeyDownEvent, KeyUpEvent, MouseButton,
                          MouseDownEvent, MouseMoveEvent, MouseUpEvent, ResizeEvent};
-use stdweb::unstable::TryInto;
 use stdweb::web::html_element::CanvasElement;
+use stdweb::web::window;
+use stdweb::web::IEventTarget;
 use stdweb::web::IHtmlElement;
-use stdweb::traits::IEvent;
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -24,31 +24,32 @@ pub struct App {
 use super::events;
 
 macro_rules! map_event {
-    ($events:expr, $x:ident,$y:ident, $ee:ident, $e:expr, $prevent: expr ) => {
-        {
-            let events = $events.clone();
-            move |$ee: $x| {
-                if $prevent {
-                    $ee.prevent_default();
-                }
-                events.borrow_mut().push(AppEvent::$y($e));
+    ($events:expr, $x:ident, $y:ident, $ee:ident, $e:expr, $prevent:expr) => {{
+        let events = $events.clone();
+        move |$ee: $x| {
+            if $prevent {
+                $ee.prevent_default();
             }
+            events.borrow_mut().push(AppEvent::$y($e));
         }
-    };
+    }};
 
-    ($events:expr, $x:ident,$y:ident, $e:expr ) => {
-        {
-            let events = $events.clone();
-            move |_: $x| {
-                events.borrow_mut().push(AppEvent::$y($e));
-            }
+    ($events:expr, $x:ident, $y:ident, $e:expr) => {{
+        let events = $events.clone();
+        move |_: $x| {
+            events.borrow_mut().push(AppEvent::$y($e));
         }
-    };
+    }};
 }
 
 impl App {
     pub fn new(config: AppConfig) -> App {
         use stdweb::web::*;
+
+        if config.headless {
+            // Right now we did not support headless in web.
+            unimplemented!();
+        }
 
         let _ = stdweb::initialize();
         let canvas: CanvasElement = document()
@@ -88,45 +89,18 @@ impl App {
         js!{
             @{&canvas}.focus();
         }
-        App {
+
+        let mut app = App {
             window: canvas,
             events: Rc::new(RefCell::new(vec![])),
             device_pixel_ratio: device_pixel_ratio as f32,
-        }
+        };
+        app.setup_listener();
+
+        app
     }
 
-    pub fn print<T: Into<String>>(msg: T) {
-        js!{ console.log(@{msg.into()})};
-    }
-
-    pub fn get_params() -> Vec<String> {
-        let params = js!{ return window.location.search.substring(1).split("&"); };
-        params.try_into().unwrap()
-    }
-
-    pub fn hidpi_factor(&self) -> f32 {
-        return self.device_pixel_ratio;
-    }
-
-    pub fn canvas(&self) -> &CanvasElement {
-        &self.window
-    }
-
-    pub fn run_loop<F>(mut self, mut callback: F)
-    where
-        F: 'static + FnMut(&mut Self) -> (),
-    {
-        window().request_animation_frame(move |_t: f64| {
-            callback(&mut self);
-            self.events.borrow_mut().clear();
-            self.run_loop(callback);
-        });
-    }
-
-    pub fn run<F>(self, callback: F)
-    where
-        F: 'static + FnMut(&mut Self) -> (),
-    {
+    fn setup_listener(&mut self) {
         let canvas: &CanvasElement = self.canvas();
 
         canvas.add_event_listener(map_event!{
@@ -228,7 +202,50 @@ impl App {
                 (canvas.offset_width() as u32, canvas.offset_height() as u32)
             }
         });
+    }
 
+    pub fn print<T: Into<String>>(msg: T) {
+        js!{ console.log(@{msg.into()})};
+    }
+
+    pub fn get_params() -> Vec<String> {
+        let params = js!{ return window.location.search.substring(1).split("&"); };
+        params.try_into().unwrap()
+    }
+
+    pub fn hidpi_factor(&self) -> f32 {
+        return self.device_pixel_ratio;
+    }
+
+    pub fn canvas(&self) -> &CanvasElement {
+        &self.window
+    }
+
+    pub fn run_loop<F>(mut self, mut callback: F)
+    where
+        F: 'static + FnMut(&mut Self) -> (),
+    {
+        window().request_animation_frame(move |_t: f64| {
+            callback(&mut self);
+            self.events.borrow_mut().clear();
+            self.run_loop(callback);
+        });
+    }
+
+    pub fn poll_events<F>(&mut self, callback: F) -> bool
+    where
+        F: FnOnce(&mut Self) -> (),
+    {
+        callback(self);
+        self.events.borrow_mut().clear();
+
+        true
+    }
+
+    pub fn run<F>(self, callback: F)
+    where
+        F: 'static + FnMut(&mut Self) -> (),
+    {
         self.run_loop(callback);
 
         stdweb::event_loop();

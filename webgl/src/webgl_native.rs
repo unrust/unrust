@@ -126,8 +126,10 @@ impl GLContext {
     }
 
     pub fn create_shader(&self, kind: ShaderKind) -> WebGLShader {
+        let shader = unsafe { WebGLShader(gl::CreateShader(kind as _)) };
         check_gl_error("create_shader");
-        unsafe { WebGLShader(gl::CreateShader(kind as _)) }
+
+        return shader;
     }
 
     pub fn shader_source(&self, shader: &WebGLShader, source: &str) {
@@ -372,6 +374,7 @@ impl GLContext {
     pub fn pixel_storei(&self, storage: PixelStorageMode, value: i32) {
         unsafe {
             gl::PixelStorei(storage as _, value);
+            check_gl_error("pixel_storei");
         }
     }
 
@@ -436,6 +439,8 @@ impl GLContext {
                 pixels.as_ptr() as _,
             );
         }
+
+        check_gl_error("tex_sub_image2d");
     }
 
     pub fn compressed_tex_image2d(
@@ -468,6 +473,8 @@ impl GLContext {
         unsafe {
             gl::GetProgramiv(program.0, pname as _, &mut res);
         }
+
+        check_gl_error("get_program_parameter");
         res
     }
 
@@ -612,18 +619,24 @@ impl GLContext {
         unsafe {
             gl::BlendEquation(eq as _);
         }
+
+        check_gl_error("blend_equation");
     }
 
     pub fn blend_func(&self, b1: BlendMode, b2: BlendMode) {
         unsafe {
             gl::BlendFunc(b1 as _, b2 as _);
         }
+
+        check_gl_error("blend_func");
     }
 
     pub fn blend_color(&self, r: f32, g: f32, b: f32, a: f32) {
         unsafe {
             gl::BlendColor(r, g, b, a);
         }
+
+        check_gl_error("blend_color");
     }
 
     pub fn uniform_matrix_4fv(&self, location: &WebGLUniformLocation, value: &[[f32; 4]; 4]) {

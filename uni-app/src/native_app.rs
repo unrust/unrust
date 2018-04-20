@@ -1,21 +1,49 @@
 mod native_keycode;
 
 use glutin;
-use std::os::raw::c_void;
 use glutin::{ElementState, Event, MouseButton, WindowEvent};
 use std::cell::RefCell;
-use std::rc::Rc;
 use std::env;
+use std::os::raw::c_void;
+use std::rc::Rc;
 use time;
 
 use AppConfig;
 use AppEvent;
 
-use super::events;
 use self::native_keycode::{translate_scan_code, translate_virtual_key};
+use super::events;
+
+enum WindowContext {
+    Normal(glutin::GlWindow),
+    Headless(glutin::HeadlessContext),
+}
+
+impl WindowContext {
+    fn hidpi_factor(&self) -> f32 {
+        match self {
+            &WindowContext::Normal(ref w) => w.hidpi_factor(),
+            _ => 1.0,
+        }
+    }
+
+    fn window(&self) -> &glutin::GlWindow {
+        match self {
+            &WindowContext::Normal(ref w) => w,
+            _ => unimplemented!(),
+        }
+    }
+
+    fn context(&self) -> &glutin::GlContext {
+        match self {
+            &WindowContext::Normal(ref w) => w,
+            &WindowContext::Headless(ref w) => w,
+        }
+    }
+}
 
 pub struct App {
-    window: glutin::GlWindow,
+    window: WindowContext,
     events_loop: glutin::EventsLoop,
     exiting: bool,
     pub events: Rc<RefCell<Vec<AppEvent>>>,
@@ -87,26 +115,43 @@ impl App {
     pub fn new(config: AppConfig) -> App {
         use glutin::*;
         let events_loop = glutin::EventsLoop::new();
-        let window = glutin::WindowBuilder::new()
-            .with_title(config.title)
-            .with_dimensions(config.size.0, config.size.1);
-        let context = glutin::ContextBuilder::new()
-            .with_vsync(config.vsync)
-            .with_gl(GlRequest::GlThenGles {
-                opengl_version: (3, 2),
-                opengles_version: (2, 0),
-            })
-            .with_gl_profile(GlProfile::Core);
+        let gl_req = GlRequest::GlThenGles {
+            opengl_version: (3, 2),
+            opengles_version: (2, 0),
+        };
 
-        let gl_window = glutin::GlWindow::new(window, context, &events_loop).unwrap();
-        if !config.show_cursor {
-            gl_window.set_cursor_state(CursorState::Hide).unwrap();
-        }
+        let window = if config.headless {
+            let context = glutin::HeadlessRendererBuilder::new(config.size.0, config.size.1)
+                .with_gl(gl_req)
+                .with_gl_profile(GlProfile::Core)
+                .build()
+                .unwrap();
+
+            WindowContext::Headless(context)
+        } else {
+            let window = glutin::WindowBuilder::new()
+                .with_title(config.title)
+                .with_dimensions(config.size.0, config.size.1);
+
+            let context = glutin::ContextBuilder::new()
+                .with_vsync(config.vsync)
+                .with_gl(gl_req)
+                .with_gl_profile(GlProfile::Core);
+
+            let gl_window = glutin::GlWindow::new(window, context, &events_loop).unwrap();
+            if !config.show_cursor {
+                gl_window.set_cursor_state(CursorState::Hide).unwrap();
+            }
+
+            WindowContext::Normal(gl_window)
+        };
+
         unsafe {
-            gl_window.make_current().unwrap();
+            window.context().make_current().unwrap();
         }
+
         App {
-            window: gl_window,
+            window: window,
             events_loop,
             exiting: false,
             events: Rc::new(RefCell::new(Vec::new())),
@@ -128,52 +173,72 @@ impl App {
     }
 
     pub fn window(&self) -> &glutin::GlWindow {
-        &self.window
+        &self.window.window()
     }
 
     pub fn get_proc_address(&self, name: &str) -> *const c_void {
-        use glutin::GlContext;
-        self.window().get_proc_address(name) as *const c_void
+        self.window.context().get_proc_address(name) as *const c_void
     }
 
     pub fn canvas<'p>(&'p self) -> Box<'p + FnMut(&str) -> *const c_void> {
         Box::new(move |name| self.get_proc_address(name))
     }
 
+    fn handle_events(&mut self) -> bool {
+        use glutin::*;
+        let mut running = true;
+
+        let (window, events_loop, events) = (&self.window, &mut self.events_loop, &mut self.events);
+
+        events_loop.poll_events(|event| {
+            match event {
+                glutin::Event::WindowEvent { ref event, .. } => match event {
+                    &glutin::WindowEvent::Closed => running = false,
+                    &glutin::WindowEvent::Resized(w, h) => window.context().resize(w, h),
+                    &glutin::WindowEvent::KeyboardInput { input, .. } => {
+                        // issue tracked in https://github.com/tomaka/winit/issues/41
+                        // Right now we handle it manually.
+                        if cfg!(target_os = "macos") {
+                            if let Some(keycode) = input.virtual_keycode {
+                                if keycode == VirtualKeyCode::Q && input.modifiers.logo {
+                                    running = false;
+                                }
+                            }
+                        }
+                    }
+                    _ => (),
+                },
+                _ => (),
+            };
+            translate_event(event).map(|evt| events.borrow_mut().push(evt));
+        });
+
+        return running;
+    }
+
+    pub fn poll_events<F>(&mut self, callback: F) -> bool
+    where
+        F: FnOnce(&mut Self) -> (),
+    {
+        if !self.handle_events() {
+            return false;
+        }
+
+        callback(self);
+        self.events.borrow_mut().clear();
+        self.window.context().swap_buffers().unwrap();
+
+        return !self.exiting;
+    }
+
     pub fn run<'a, F>(mut self, mut callback: F)
     where
         F: 'static + FnMut(&mut Self) -> (),
     {
-        use glutin::*;
         let mut running = true;
 
         while running {
-            {
-                let (window, events_loop, events) =
-                    (&self.window, &mut self.events_loop, &mut self.events);
-                events_loop.poll_events(|event| {
-                    match event {
-                        glutin::Event::WindowEvent { ref event, .. } => match event {
-                            &glutin::WindowEvent::Closed => running = false,
-                            &glutin::WindowEvent::Resized(w, h) => window.resize(w, h),
-                            &glutin::WindowEvent::KeyboardInput { input, .. } => {
-                                // issue tracked in https://github.com/tomaka/winit/issues/41
-                                // Right now we handle it manually.
-                                if cfg!(target_os = "macos") {
-                                    if let Some(keycode) = input.virtual_keycode {
-                                        if keycode == VirtualKeyCode::Q && input.modifiers.logo {
-                                            running = false;
-                                        }
-                                    }
-                                }
-                            }
-                            _ => (),
-                        },
-                        _ => (),
-                    };
-                    translate_event(event).map(|evt| events.borrow_mut().push(evt));
-                });
-            }
+            running = self.handle_events();
 
             if !running {
                 break;
@@ -181,8 +246,7 @@ impl App {
 
             callback(&mut self);
             self.events.borrow_mut().clear();
-
-            self.window.swap_buffers().unwrap();
+            self.window.context().swap_buffers().unwrap();
 
             if self.exiting {
                 break;

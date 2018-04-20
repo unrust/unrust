@@ -7,12 +7,12 @@ use engine::{AssetSystem, Camera, ClearOption, Component, ComponentBased, Engine
              IEngine, SceneTree};
 use world::app_fs::AppEngine;
 
-use engine::SoundSystem;
 use engine::imgui;
-use world::Actor;
+use engine::SoundSystem;
 use world::fps::FPS;
 use world::processor::{IProcessorBuilder, Processor};
 use world::type_watcher::{ActorWatcher, TypeWatcher, TypeWatcherBuilder};
+use world::Actor;
 
 use std::default::Default;
 use std::marker::PhantomData;
@@ -22,9 +22,9 @@ use uni_pad as pad;
 pub type Handle<T> = Rc<RefCell<T>>;
 
 pub struct World {
-    engine: AppEngine,
+    pub sound: SoundSystem,
+
     main_tree: Rc<SceneTree>,
-    app: Option<App>,
     fps: FPS,
     watcher: Rc<TypeWatcher>,
     shown_stats: bool,
@@ -32,12 +32,16 @@ pub struct World {
     golist: Vec<Handle<GameObject>>,
     processor_builders: Vec<Rc<Box<IProcessorBuilder>>>,
 
-    pub sound: SoundSystem,
+    engine: AppEngine,
+
+    // App should be the last object to drop
+    app: Option<App>,
 }
 
 pub struct WorldBuilder<'a> {
     title: &'a str,
     size: Option<(u32, u32)>,
+    headless: bool,
     shown_stats: Option<bool>,
     watcher_builder: TypeWatcherBuilder,
     processor_builders: Vec<Rc<Box<IProcessorBuilder>>>,
@@ -49,9 +53,15 @@ impl<'a> WorldBuilder<'a> {
             title: title,
             size: None,
             shown_stats: None,
+            headless: false,
             watcher_builder: TypeWatcherBuilder::new(),
             processor_builders: Vec::new(),
         }
+    }
+
+    pub fn with_headless(mut self, b: bool) -> WorldBuilder<'a> {
+        self.headless = b;
+        self
     }
 
     pub fn with_size(mut self, size: (u32, u32)) -> WorldBuilder<'a> {
@@ -79,7 +89,9 @@ impl<'a> WorldBuilder<'a> {
 
     pub fn build(self) -> World {
         let size = self.size.unwrap_or((800, 600));
-        let config = AppConfig::new(self.title, size);
+        let mut config = AppConfig::new(self.title, size);
+        config.headless = self.headless;
+
         let app = App::new(config);
 
         let hidpi = app.hidpi_factor();
@@ -103,6 +115,7 @@ impl<'a> WorldBuilder<'a> {
         let asys = engine.asset_system.clone();
 
         let mut w = World {
+            sound: SoundSystem::new(asys),
             engine,
             app: Some(app),
             main_tree: main_tree.clone(),
@@ -112,7 +125,6 @@ impl<'a> WorldBuilder<'a> {
             events: events,
             golist: Vec::new(),
             processor_builders: self.processor_builders.clone(),
-            sound: SoundSystem::new(asys),
         };
 
         // add all processor into the scenes
@@ -327,15 +339,9 @@ impl World {
 
     pub fn run_frame(&mut self, _app: &mut App) {
         self.begin();
-
         self.step();
-
         self.pre_render();
-
-        // Render
         self.render();
-
-        // End
         self.end();
 
         profile::clear();
@@ -347,6 +353,18 @@ impl World {
         app.run(move |app: &mut App| {
             self.run_frame(app);
         });
+    }
+
+    pub fn poll_events(&mut self) -> bool {
+        let mut a = self.app.take().unwrap();
+
+        let r = a.poll_events(|app: &mut App| {
+            self.run_frame(app);
+        });
+
+        self.app = Some(a);
+
+        r
     }
 
     pub fn new_game_object(&mut self) -> Handle<GameObject> {

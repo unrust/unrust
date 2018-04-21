@@ -3,6 +3,7 @@ extern crate uni_pad;
 extern crate unrust;
 
 use std::env;
+use std::fmt;
 use std::path::PathBuf;
 use unrust::actors::FirstPersonCamera;
 use unrust::engine::{Directional, GameObject, Light, Material, Mesh};
@@ -92,8 +93,18 @@ fn is_golden() -> bool {
     }
 }
 
-#[derive(Debug)]
 struct Image<'a>(&'a image::RgbaImage);
+
+impl<'a> fmt::Debug for Image<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "Image {{ width: {}, height: {} }}",
+            self.0.width(),
+            self.0.height()
+        )
+    }
+}
 
 impl<'a> PartialEq for Image<'a> {
     fn eq(&self, b: &Self) -> bool {
@@ -148,11 +159,15 @@ fn test_basic() {
     } else {
         let golden = image::open(golden_path).unwrap();
         // For test fail
-        // if !r {
+        // if Image(&golden.to_rgba()) != Image(&img) {
         //     img.save(golden_dir.join("basic_fail.png"))
         //         .expect("Cannot save to file");
         // }
 
-        assert_eq!(Image(&golden.to_rgba()), Image(&img));
+        assert_eq!(
+            Image(&golden.to_rgba()),
+            Image(&img),
+            "Image is not the same."
+        );
     }
 }

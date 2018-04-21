@@ -1,6 +1,9 @@
+extern crate image;
 extern crate uni_pad;
 extern crate unrust;
 
+use std::env;
+use std::path::PathBuf;
 use unrust::actors::FirstPersonCamera;
 use unrust::engine::{Directional, GameObject, Light, Material, Mesh};
 use unrust::math::*;
@@ -82,12 +85,41 @@ impl Actor for Cube {
     }
 }
 
+fn is_golden() -> bool {
+    match env::var("UNRUST_TEST_GOLDEN") {
+        Ok(golden) => golden == "1",
+        _ => false,
+    }
+}
+
+#[derive(Debug)]
+struct Image<'a>(&'a image::RgbaImage);
+
+impl<'a> PartialEq for Image<'a> {
+    fn eq(&self, b: &Self) -> bool {
+        if self.0.dimensions() != b.0.dimensions() {
+            return false;
+        }
+
+        let (w, h) = self.0.dimensions();
+
+        for x in 0..w {
+            for y in 0..h {
+                if self.0.get_pixel(x, y) != b.0.get_pixel(x, y) {
+                    return false;
+                }
+            }
+        }
+
+        true
+    }
+}
+
 #[test]
 fn test_basic() {
     let mut world = WorldBuilder::new("Headless")
         .with_headless(true)
         .with_size((640, 480))
-        .with_stats(true)
         .with_processor::<FirstPersonCamera>()  // Use first person camera
         .build();
 
@@ -101,5 +133,26 @@ fn test_basic() {
         if !world.poll_events() {
             break;
         }
+    }
+
+    let img = world.engine().capture_frame_buffer();
+
+    let mut golden_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    golden_dir.push("tests");
+    golden_dir.push("resources");
+    let golden_path = golden_dir.join("basic_golden.png");
+    let img = img.expect("Cannot capture frame buffer");
+
+    if is_golden() {
+        img.save(golden_path).expect("Cannot save to file");
+    } else {
+        let golden = image::open(golden_path).unwrap();
+        // For test fail
+        // if !r {
+        //     img.save(golden_dir.join("basic_fail.png"))
+        //         .expect("Cannot save to file");
+        // }
+
+        assert_eq!(Image(&golden.to_rgba()), Image(&img));
     }
 }

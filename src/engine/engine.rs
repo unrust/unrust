@@ -13,6 +13,7 @@ use engine::render::Camera;
 use engine::render::{DepthTest, Directional, Light, Material, MaterialState, Mesh, MeshSurface,
                      ShaderProgram};
 use engine::render::{Frustum, RenderQueue};
+use image;
 use math::Aabb;
 
 use std::default::Default;
@@ -746,6 +747,29 @@ where
                 cam_mut.take();
             }
         }
+    }
+
+    pub fn capture_frame_buffer(&self) -> Option<image::RgbaImage> {
+        use image::imageops;
+        use webgl;
+
+        let (width, height) = self.screen_size();
+
+        let mut values: Vec<u8> = vec![0; (width * height * 4) as usize];
+        self.gl.read_pixels(
+            0,
+            0,
+            width,
+            height,
+            webgl::PixelFormat::Rgba,
+            webgl::PixelType::UnsignedByte,
+            &mut values,
+        );
+
+        let img = image::RgbaImage::from_raw(width, height, values);
+        // because opengl read_pixels (0,0) is in left bottom,
+        // we flip it vertically
+        img.map(|img| imageops::flip_vertical(&img))
     }
 }
 

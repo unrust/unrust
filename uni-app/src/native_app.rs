@@ -40,6 +40,14 @@ impl WindowContext {
             &WindowContext::Headless(ref w) => w,
         }
     }
+
+    fn swap_buffers(&self) -> Result<(), glutin::ContextError> {
+        use glutin::GlContext;
+        match self {
+            &WindowContext::Normal(ref w) => w.swap_buffers(),
+            &WindowContext::Headless(_) => Ok(()),
+        }
+    }
 }
 
 pub struct App {
@@ -226,7 +234,7 @@ impl App {
 
         callback(self);
         self.events.borrow_mut().clear();
-        self.window.context().swap_buffers().unwrap();
+        self.window.swap_buffers().unwrap();
 
         return !self.exiting;
     }
@@ -246,7 +254,7 @@ impl App {
 
             callback(&mut self);
             self.events.borrow_mut().clear();
-            self.window.context().swap_buffers().unwrap();
+            self.window.swap_buffers().unwrap();
 
             if self.exiting {
                 break;

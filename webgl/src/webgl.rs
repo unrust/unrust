@@ -1,9 +1,9 @@
+use common::*;
+use glenum::*;
 use std::ops::Deref;
-use stdweb::web::*;
 use stdweb::unstable::TryInto;
 use stdweb::web::html_element::CanvasElement;
-use glenum::*;
-use common::*;
+use stdweb::web::*;
 
 pub type Reference = i32;
 
@@ -67,6 +67,7 @@ macro_rules! js_raw {
 }
 
 impl GLContext {
+    #[inline]
     pub fn log<T: Into<String>>(&self, _msg: T) {
         // js!{ console.log(@{msg.into()})};
     }
@@ -439,6 +440,42 @@ impl GLContext {
             var ctx = Module.gl.get(@{&self.reference});
             ctx.drawArrays(@{mode as i32},0,@{count as i32});
         };
+    }
+
+    pub fn read_pixels(
+        &self,
+        x: u32,
+        y: u32,
+        width: u32,
+        height: u32,
+        format: PixelFormat,
+        kind: PixelType,
+        data: &mut [u8],
+    ) {
+        self.log("read_pixels");
+        let data_len = data.len();
+
+        let pixels = js!{
+            var ctx = Module.gl.get(@{&self.reference});
+
+            var pixelValues = new Uint8Array(@{data_len as u32});
+            ctx.readPixels(
+                @{x as i32},
+                @{y as i32},
+                @{width as i32},
+                @{height as i32},
+                @{format as u32},
+                @{kind as u32},
+                pixelValues,
+            );
+
+            return pixelValues;
+        };
+
+        let pixels: TypedArray<u8> = pixels.try_into().unwrap();
+        let pixels_arr: Vec<_> = pixels.into();
+
+        data.clone_from_slice(&pixels_arr);
     }
 
     pub fn pixel_storei(&self, storage: PixelStorageMode, value: i32) {

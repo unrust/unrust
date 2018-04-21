@@ -371,6 +371,30 @@ impl GLContext {
         check_gl_error("draw_arrays");
     }
 
+    pub fn read_pixels(
+        &self,
+        x: u32,
+        y: u32,
+        width: u32,
+        height: u32,
+        format: PixelFormat,
+        kind: PixelType,
+        data: &mut [u8],
+    ) {
+        unsafe {
+            gl::ReadPixels(
+                x as _,
+                y as _,
+                width as _,
+                height as _,
+                format as _,
+                kind as _,
+                data.as_mut_ptr() as _,
+            );
+            check_gl_error("read_pixels");
+        }
+    }
+
     pub fn pixel_storei(&self, storage: PixelStorageMode, value: i32) {
         unsafe {
             gl::PixelStorei(storage as _, value);

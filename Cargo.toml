@@ -47,6 +47,3 @@ features = ["png_codec", "tga"]
 [features]
 default = []
 flame_it = ["flame", "flamer"]
-
-[workspace]
-members = ["unrust-derive"]

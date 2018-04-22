@@ -26,14 +26,13 @@ impl Actor for MainScene {
         // add direction light to scene.
         {
             let go = world.new_game_object();
-            go.borrow_mut()
-                .add_component(DirectionalLight::default());
+            go.borrow_mut().add_component(DirectionalLight::default());
         }
 
         // Added a cube in the scene
         {
             let go = world.new_game_object();
-            go.borrow_mut().add_component(Cube{});
+            go.borrow_mut().add_component(Cube {});
         }
 
         // Setup camera
@@ -69,7 +68,9 @@ impl Actor for MainScene {
                 // included this Actor itself
                 // so will need to add it back.
                 let scene = world.new_game_object();
-                scene.borrow_mut().add_component(MainScene { last_event: None });
+                scene
+                    .borrow_mut()
+                    .add_component(MainScene { last_event: None });
                 return;
             }
         }
@@ -131,7 +132,9 @@ pub fn main() {
 
     // Add the main scene as component of scene game object
     let scene = world.new_game_object();
-    scene.borrow_mut().add_component(MainScene { last_event: None });
+    scene
+        .borrow_mut()
+        .add_component(MainScene { last_event: None });
     drop(scene);
 
     world.event_loop();

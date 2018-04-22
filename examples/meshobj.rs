@@ -1,4 +1,6 @@
 extern crate unrust;
+#[macro_use]
+extern crate unrust_derive;
 
 use unrust::actors::ShadowPass;
 use unrust::engine::{AssetError, AssetSystem, Camera, Directional, GameObject, Light, Material,
@@ -12,20 +14,19 @@ use std::rc::Rc;
 // GUI
 use unrust::imgui;
 
+#[derive(Actor)]
 pub struct MainScene {
     eye: Vector3<f32>,
     last_event: Option<AppEvent>,
 }
 
-// Actor is a trait object which would act like an component
-// (Because Box<Actor> is Component)
 impl MainScene {
-    fn new() -> Box<Actor> {
-        Box::new(MainScene {
+    fn new() -> MainScene {
+        MainScene {
             eye: Vector3::new(0.0, 0.36, -3.36),
             //eye: Vector3::new(12.0, 12.0, -12.0),
             last_event: None,
-        })
+        }
     }
 }
 
@@ -49,13 +50,13 @@ impl Actor for MainScene {
         // Added the obj display
         {
             let go = world.new_game_object();
-            go.borrow_mut().add_component(WaveObjActor::new());
+            go.borrow_mut().add_component(WaveObjActor{});
         }
 
         // Added a simple plane
         {
             let plane = world.new_game_object();
-            plane.borrow_mut().add_component(Plane::new_actor(Plane {}));
+            plane.borrow_mut().add_component(Plane {});
         }
 
         // Set the shadow map partitions
@@ -139,13 +140,8 @@ impl Actor for MainScene {
     }
 }
 
+#[derive(Actor)]
 pub struct WaveObjActor {}
-
-impl WaveObjActor {
-    fn new() -> Box<Actor> {
-        Box::new(WaveObjActor {})
-    }
-}
 
 fn build_material(asys: &AssetSystem, obj_mat: ObjMaterial) -> Rc<Material> {
     let shader_program = match obj_mat.normal_map {
@@ -224,6 +220,7 @@ impl Actor for WaveObjActor {
     }
 }
 
+#[derive(Actor)]
 pub struct Plane;
 
 impl Actor for Plane {

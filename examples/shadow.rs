@@ -1,4 +1,6 @@
 extern crate unrust;
+#[macro_use]
+extern crate unrust_derive;
 
 use unrust::world::{Actor, World, WorldBuilder};
 use unrust::engine::{Camera, Directional, GameObject, Light, Material, Mesh};
@@ -9,17 +11,18 @@ use unrust::actors::ShadowPass;
 // GUI
 use unrust::imgui;
 
+#[derive(Actor)]
 pub struct MainScene {
     eye: Vector3<f32>,
     last_event: Option<AppEvent>,
 }
 
 impl MainScene {
-    fn new() -> Box<Actor> {
-        Box::new(MainScene {
+    fn new() -> MainScene {
+        MainScene {
             eye: Vector3::new(12.0, 12.0, -12.0),
             last_event: None,
-        })
+        }
     }
 
     fn build(world: &mut World) {
@@ -28,8 +31,6 @@ impl MainScene {
     }
 }
 
-// Actor is a trait object which would act like an component
-// (Because Box<Actor> is Component)
 impl Actor for MainScene {
     fn start(&mut self, _go: &mut GameObject, world: &mut World) {
         // add main camera to scene
@@ -51,7 +52,7 @@ impl Actor for MainScene {
         {
             let cube = world.new_game_object();
             cube.borrow_mut()
-                .add_component(Cube::new_actor(Cube { rotating: true }));
+                .add_component(Cube { rotating: true });
             let mut gtran = cube.borrow_mut().transform.global();
             gtran.disp = Vector3::new(0.0, 3.0, 0.0);
             cube.borrow_mut().transform.set_global(gtran);
@@ -61,7 +62,7 @@ impl Actor for MainScene {
         {
             let cube = world.new_game_object();
             cube.borrow_mut()
-                .add_component(Cube::new_actor(Cube { rotating: false }));
+                .add_component(Cube { rotating: false });
             let mut gtran = cube.borrow_mut().transform.global();
             gtran.disp = Vector3::new(5.0, 1.0, 0.0);
 
@@ -71,7 +72,7 @@ impl Actor for MainScene {
         // Added a plane in the scene
         {
             let plane = world.new_game_object();
-            plane.borrow_mut().add_component(Plane::new_actor(Plane {}));
+            plane.borrow_mut().add_component(Plane {});
         }
     }
 
@@ -139,6 +140,7 @@ impl Actor for MainScene {
     }
 }
 
+#[derive(Actor)]
 pub struct Cube {
     rotating: bool,
 }
@@ -164,6 +166,7 @@ impl Actor for Cube {
     }
 }
 
+#[derive(Actor)]
 pub struct Plane;
 
 impl Actor for Plane {

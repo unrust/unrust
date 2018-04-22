@@ -2,6 +2,9 @@ extern crate image;
 extern crate uni_pad;
 extern crate unrust;
 
+#[macro_use]
+extern crate unrust_derive;
+
 use std::env;
 use std::fmt;
 use std::path::PathBuf;
@@ -13,15 +16,8 @@ use unrust::world::{Actor, World, WorldBuilder};
 // GUI
 use unrust::imgui;
 
+#[derive(Actor)]
 pub struct MainScene {}
-
-// Actor is a trait object which would act like an component
-// (Because Box<Actor> is Component)
-impl MainScene {
-    fn new() -> Box<Actor> {
-        Box::new(MainScene {})
-    }
-}
 
 impl Actor for MainScene {
     fn start(&mut self, _go: &mut GameObject, world: &mut World) {
@@ -35,7 +31,7 @@ impl Actor for MainScene {
         // Added a cube in the scene
         {
             let go = world.new_game_object();
-            go.borrow_mut().add_component(Cube::new());
+            go.borrow_mut().add_component(Cube{});
         }
 
         // Setup camera
@@ -55,13 +51,8 @@ impl Actor for MainScene {
     }
 }
 
+#[derive(Actor)]
 pub struct Cube {}
-
-impl Cube {
-    fn new() -> Box<Actor> {
-        Box::new(Cube {})
-    }
-}
 
 impl Actor for Cube {
     fn start(&mut self, go: &mut GameObject, world: &mut World) {
@@ -136,7 +127,7 @@ fn test_basic() {
 
     // Add the main scene as component of scene game object
     let scene = world.new_game_object();
-    scene.borrow_mut().add_component(MainScene::new());
+    scene.borrow_mut().add_component(MainScene{});
     drop(scene);
 
     // We try to render 100 frames

@@ -1,4 +1,4 @@
-use engine::{Component, ComponentBased, IntoComponentPtr, GameObject};
+use engine::{ComponentBased, GameObject};
 use world::{Handle, World};
 
 pub trait Actor {
@@ -15,20 +15,6 @@ pub trait Actor {
     }
 
     fn update(&mut self, &mut GameObject, &mut World) {}
-
-    fn new_actor<T: Actor>(t: T) -> Box<Actor>
-    where
-        Self: Sized,
-        T: 'static,
-    {
-        Box::new(t)
-    }
 }
 
 impl ComponentBased for Box<Actor> {}
-
-impl IntoComponentPtr for Box<Actor> {
-    fn into_component_ptr(self) -> ::std::sync::Arc<Component> {
-        ::unrust::engine::Component::new(self)
-    }
-}

@@ -1,6 +1,9 @@
 extern crate uni_pad;
 extern crate unrust;
 
+#[macro_use]
+extern crate unrust_derive;
+
 use uni_pad::{gamepad_axis, gamepad_button};
 use unrust::actors::FirstPersonCamera;
 use unrust::engine::{Directional, GameObject, Light, Material, Mesh};
@@ -11,16 +14,11 @@ use unrust::world::{Actor, World, WorldBuilder};
 // GUI
 use unrust::imgui;
 
+// Actor is a trait object which would act like an component
+// We use custom derive to tell unrust handle it
+#[derive(Actor)]
 pub struct MainScene {
     last_event: Option<AppEvent>,
-}
-
-// Actor is a trait object which would act like an component
-// (Because Box<Actor> is Component)
-impl MainScene {
-    fn new() -> Box<Actor> {
-        Box::new(MainScene { last_event: None })
-    }
 }
 
 impl Actor for MainScene {
@@ -35,7 +33,7 @@ impl Actor for MainScene {
         // Added a cube in the scene
         {
             let go = world.new_game_object();
-            go.borrow_mut().add_component(Cube::new());
+            go.borrow_mut().add_component(Cube{});
         }
 
         // Setup camera
@@ -71,7 +69,7 @@ impl Actor for MainScene {
                 // included this Actor itself
                 // so will need to add it back.
                 let scene = world.new_game_object();
-                scene.borrow_mut().add_component(MainScene::new());
+                scene.borrow_mut().add_component(MainScene { last_event: None });
                 return;
             }
         }
@@ -98,13 +96,8 @@ impl Actor for MainScene {
     }
 }
 
+#[derive(Actor)]
 pub struct Cube {}
-
-impl Cube {
-    fn new() -> Box<Actor> {
-        Box::new(Cube {})
-    }
-}
 
 impl Actor for Cube {
     fn start(&mut self, go: &mut GameObject, world: &mut World) {
@@ -138,7 +131,7 @@ pub fn main() {
 
     // Add the main scene as component of scene game object
     let scene = world.new_game_object();
-    scene.borrow_mut().add_component(MainScene::new());
+    scene.borrow_mut().add_component(MainScene { last_event: None });
     drop(scene);
 
     world.event_loop();

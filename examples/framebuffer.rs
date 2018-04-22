@@ -1,5 +1,8 @@
 extern crate unrust;
 
+#[macro_use]
+extern crate unrust_derive;
+
 use unrust::world::{Actor, World, WorldBuilder};
 use unrust::engine::{Camera, ClearOption, Directional, GameObject, Light, Material, Mesh,
                      RenderTexture, TextureAttachment};
@@ -8,22 +11,20 @@ use unrust::math::*;
 
 // GUI
 use unrust::imgui;
-
 use std::rc::Rc;
 
+#[derive(Actor)]
 pub struct MainScene {
     eye: Vector3<f32>,
     last_event: Option<AppEvent>,
 }
 
-// Actor is a trait object which would act like an component
-// (Because Box<Actor> is Component)
 impl MainScene {
-    fn new() -> Box<Actor> {
-        Box::new(MainScene {
+    fn new() -> MainScene {
+        MainScene {
             eye: Vector3::new(-3.0, 3.0, -3.0),
             last_event: None,
-        })
+        }
     }
 }
 
@@ -42,7 +43,7 @@ impl Actor for MainScene {
 
         // Added a cube in the scene
         let go = world.new_game_object();
-        go.borrow_mut().add_component(Cube::new());
+        go.borrow_mut().add_component(Cube{});
 
         // Added mini screen
         let go = world.new_game_object();
@@ -113,17 +114,18 @@ impl Actor for MainScene {
     }
 }
 
+#[derive(Actor)]
 pub struct MiniScreen {
     crt: bool,
     rt: Rc<RenderTexture>,
 }
 
 impl MiniScreen {
-    fn new() -> Box<Actor> {
-        Box::new(MiniScreen {
+    fn new() -> MiniScreen {
+        MiniScreen {
             crt: false,
             rt: Rc::new(RenderTexture::new(1024, 1024, TextureAttachment::Color0)),
-        })
+        }
     }
 }
 
@@ -164,13 +166,8 @@ impl Actor for MiniScreen {
     }
 }
 
+#[derive(Actor)]
 pub struct Cube {}
-
-impl Cube {
-    fn new() -> Box<Actor> {
-        Box::new(Cube {})
-    }
-}
 
 impl Actor for Cube {
     fn start(&mut self, go: &mut GameObject, world: &mut World) {

@@ -1,5 +1,8 @@
 extern crate unrust;
 
+#[macro_use]
+extern crate unrust_derive;
+
 use unrust::world::{Actor, Handle, World, WorldBuilder};
 use unrust::engine::{Camera, ClearOption, Directional, GameObject, Light, Material, Mesh,
                      RenderTexture, TextureAttachment};
@@ -11,19 +14,18 @@ use unrust::imgui;
 
 use std::rc::Rc;
 
+#[derive(Actor)]
 pub struct MainScene {
     eye: Vector3<f32>,
     last_event: Option<AppEvent>,
 }
 
-// Actor is a trait object which would act like an component
-// (Because Box<Actor> is Component)
 impl MainScene {
-    fn new() -> Box<Actor> {
-        Box::new(MainScene {
+    fn new() -> MainScene {
+        MainScene {
             eye: Vector3::new(-3.0, 3.0, -3.0),
             last_event: None,
-        })
+        }
     }
 }
 
@@ -109,17 +111,18 @@ impl Actor for MainScene {
     }
 }
 
+#[derive(Actor)]
 pub struct Crt {
     rt: Rc<RenderTexture>,
     cube: Handle<GameObject>,
 }
 
 impl Crt {
-    fn new() -> Box<Actor> {
-        Box::new(Crt {
+    fn new() -> Crt {
+        Crt {
             rt: Rc::new(RenderTexture::new(1024, 1024, TextureAttachment::Color0)),
             cube: GameObject::empty(),
-        })
+        }
     }
 }
 
@@ -175,11 +178,12 @@ impl Actor for Crt {
     }
 }
 
+#[derive(Actor)]
 pub struct Cube {}
 
 impl Cube {
-    fn new() -> Box<Actor> {
-        Box::new(Cube {})
+    fn new() -> Cube {
+        Cube {}
     }
 }
 

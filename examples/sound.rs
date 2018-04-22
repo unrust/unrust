@@ -2,6 +2,9 @@ extern crate uni_app;
 extern crate uni_snd;
 extern crate unrust;
 
+#[macro_use]
+extern crate unrust_derive;
+
 use unrust::world::{Actor, Camera, World, WorldBuilder};
 use unrust::engine::{GameObject, SoundHandle};
 use unrust::world::events::AppEvent;
@@ -9,6 +12,7 @@ use unrust::world::events::AppEvent;
 // GUI
 use unrust::imgui;
 
+#[derive(Actor)]
 struct SoundEmitter {
     flute_id: SoundHandle,
     sword_id: SoundHandle,
@@ -17,15 +21,15 @@ struct SoundEmitter {
 }
 
 impl SoundEmitter {
-    pub fn new(world: &mut World) -> Box<Actor> {
+    pub fn new(world: &mut World) -> SoundEmitter {
         let flute_id = world.sound.load_sound("sounds/flute_48000.wav");
         let sword_id = world.sound.load_sound("sounds/sword.wav");
-        Box::new(Self {
+        Self {
             flute_id,
             sword_id,
             mouse_pos: 0.0,
             flute_on: true,
-        })
+        }
     }
 }
 

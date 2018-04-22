@@ -1,4 +1,6 @@
 extern crate unrust;
+#[macro_use]
+extern crate unrust_derive;
 
 use unrust::world::{Actor, World, WorldBuilder};
 use unrust::engine::{Camera, Directional, GameObject, Light, Material, Mesh};
@@ -9,6 +11,7 @@ use std::f32::consts;
 // GUI
 use unrust::imgui;
 
+#[derive(Actor)]
 pub struct MainScene {
     eye: Vector3<f32>,
     last_event: Option<AppEvent>,
@@ -17,11 +20,11 @@ pub struct MainScene {
 // Actor is a trait object which would act like an component
 // (Because Box<Actor> is Component)
 impl MainScene {
-    fn new() -> Box<Actor> {
-        Box::new(MainScene {
+    fn new() -> MainScene {
+        MainScene {
             eye: Vector3::new(13.0, 26.0, -34.0),
             last_event: None,
-        })
+        }
     }
 }
 
@@ -109,17 +112,18 @@ impl Actor for MainScene {
     }
 }
 
+#[derive(Actor)]
 pub struct Cube {
     level: u32,
     radius: f32,
 }
 
 impl Cube {
-    fn new() -> Box<Actor> {
-        Box::new(Cube {
+    fn new() -> Cube {
+        Cube {
             level: 0,
             radius: 10.0,
-        })
+        }
     }
 }
 
@@ -148,10 +152,10 @@ impl Actor for Cube {
                 let cube = world.new_game_object();
                 let mut cube_mut = cube.borrow_mut();
 
-                cube_mut.add_component(Cube::new_actor(Cube {
+                cube_mut.add_component(Cube {
                     level: self.level + 1,
                     radius: self.radius * 0.5,
-                }));
+                });
                 go.add_child(&cube_mut);
 
                 let r = self.radius;

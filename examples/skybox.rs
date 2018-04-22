@@ -1,5 +1,8 @@
 extern crate unrust;
 
+#[macro_use]
+extern crate unrust_derive;
+
 use unrust::world::{Actor, World, WorldBuilder};
 use unrust::engine::{Camera, Directional, GameObject, Light, Material, Mesh};
 use unrust::world::events::*;
@@ -9,17 +12,18 @@ use unrust::math::*;
 // GUI
 use unrust::imgui;
 
+#[derive(Actor)]
 pub struct MainScene {
     eye: Vector3<f32>,
     last_event: Option<AppEvent>,
 }
 
 impl MainScene {
-    fn new() -> Box<Actor> {
-        Box::new(MainScene {
+    fn new() -> MainScene {
+        MainScene {
             eye: Vector3::new(-9.0, 0.0, -9.0),
             last_event: None,
-        })
+        }
     }
 }
 
@@ -120,11 +124,12 @@ impl Actor for MainScene {
     }
 }
 
+#[derive(Actor)]
 pub struct Cube {}
 
 impl Cube {
-    fn new() -> Box<Actor> {
-        Box::new(Cube {})
+    fn new() -> Cube {
+        Cube {}
     }
 }
 

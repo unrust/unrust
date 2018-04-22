@@ -109,6 +109,7 @@ impl PhysicObject {
     }
 }
 
+#[derive(Actor)]
 pub struct MainScene {
     eye: math::Vector3<f32>,
     last_event: Option<AppEvent>,
@@ -139,24 +140,24 @@ impl MainScene {
         go.borrow_mut().add_component(PhysicObject(rb.clone()));
 
         if let Some(_) = shape.as_shape::<Cuboid3<f32>>() {
-            let actor = CubeActor::new(self.counter);
+            let actor = CubeActor{ id: self.counter};
             self.counter += 1;
             go.borrow_mut().add_component(actor);
         } else if let Some(_) = shape.as_shape::<Plane3<f32>>() {
-            go.borrow_mut().add_component(PlaneActor::new());
+            go.borrow_mut().add_component(PlaneActor{});
         } else {
             unimplemented!();
         }
     }
 
-    fn new() -> Box<Actor> {
-        Box::new(MainScene {
+    fn new() -> Self {
+        MainScene {
             eye: math::Vector3::new(26.0, 38.0, -43.0),
             last_event: None,
             phy_scene: Scene::new(),
             point_lights: Vec::new(),
             counter: 0,
-        })
+        }
     }
 }
 
@@ -299,14 +300,9 @@ impl Actor for MainScene {
     }
 }
 
+#[derive(Actor)]
 pub struct CubeActor {
     id: u32,
-}
-
-impl CubeActor {
-    fn new(id: u32) -> Box<Actor> {
-        Box::new(CubeActor { id: id })
-    }
 }
 
 impl Actor for CubeActor {
@@ -338,13 +334,8 @@ impl Actor for CubeActor {
     }
 }
 
+#[derive(Actor)]
 pub struct PlaneActor {}
-
-impl PlaneActor {
-    fn new() -> Box<Actor> {
-        Box::new(PlaneActor {})
-    }
-}
 
 impl Actor for PlaneActor {
     fn start(&mut self, go: &mut GameObject, world: &mut World) {

@@ -14,6 +14,7 @@ use unrust::imgui;
 
 use std::rc::Rc;
 
+#[derive(Actor)]
 pub struct MainScene {
     dir_light: Handle<GameObject>,
     point_light: Handle<GameObject>,
@@ -50,16 +51,14 @@ impl Processor for MaterialFilter {
     }
 }
 
-// Actor is a trait object which would act like an component
-// (Because Box<Actor> is Component)
 impl MainScene {
-    fn new() -> Box<Actor> {
-        Box::new(MainScene {
+    fn new() -> MainScene {
+        MainScene {
             last_event: None,
             animate_light: true,
             dir_light: GameObject::empty(),
             point_light: GameObject::empty(),
-        })
+        }
     }
 }
 
@@ -239,11 +238,12 @@ impl Actor for MainScene {
     }
 }
 
+#[derive(Actor)]
 pub struct WaveObjActor {}
 
 impl WaveObjActor {
-    fn new() -> Box<Actor> {
-        Box::new(WaveObjActor {})
+    fn new() -> WaveObjActor {
+        WaveObjActor {}
     }
 }
 
@@ -326,17 +326,18 @@ impl Actor for WaveObjActor {
     }
 }
 
+#[derive(Actor)]
 pub struct Cube {
     start_pos: Option<Vector3f>,
     t: f64,
 }
 
 impl Cube {
-    fn new() -> Box<Actor> {
-        Box::new(Cube {
+    fn new() -> Cube {
+        Cube {
             start_pos: None,
             t: 0.0,
-        })
+        }
     }
 }
 

@@ -1,6 +1,9 @@
 extern crate uni_pad;
 extern crate unrust;
 
+#[macro_use]
+extern crate unrust_derive;
+
 use unrust::actors::FirstPersonCamera;
 use unrust::engine::{Directional, GameObject, Light, Material, Mesh};
 use unrust::math::*;
@@ -9,13 +12,12 @@ use unrust::world::{Actor, World, WorldBuilder};
 // GUI
 use unrust::imgui;
 
+#[derive(Actor)]
 pub struct MainScene {}
 
-// Actor is a trait object which would act like an component
-// (Because Box<Actor> is Component)
 impl MainScene {
-    fn new() -> Box<Actor> {
-        Box::new(MainScene {})
+    fn new() -> MainScene {
+        MainScene {}
     }
 }
 
@@ -31,7 +33,7 @@ impl Actor for MainScene {
         // Added a cube in the scene
         {
             let go = world.new_game_object();
-            go.borrow_mut().add_component(Cube::new());
+            go.borrow_mut().add_component(Cube{});
         }
 
         // Setup camera
@@ -51,13 +53,9 @@ impl Actor for MainScene {
     }
 }
 
+#[derive(Actor)]
 pub struct Cube {}
 
-impl Cube {
-    fn new() -> Box<Actor> {
-        Box::new(Cube {})
-    }
-}
 
 impl Actor for Cube {
     fn start(&mut self, go: &mut GameObject, world: &mut World) {

@@ -3,6 +3,9 @@ extern crate ncollide;
 extern crate nphysics3d;
 extern crate unrust;
 
+#[macro_use]
+extern crate unrust_derive;
+
 use unrust::world::{Actor, Handle, World, WorldBuilder};
 use unrust::engine::{Camera, Directional, GameObject, Light, Material, Mesh, Point};
 use unrust::world::events::*;
@@ -11,8 +14,6 @@ use unrust::math;
 use ncollide::shape::{Cuboid, Cuboid3, Plane, Plane3};
 use nphysics3d::world::World as PhyWorld;
 use nphysics3d::object::{RigidBody, RigidBodyHandle};
-
-use unrust::engine::ComponentBased;
 use unrust::actors::{ShadowPass, SkyBox};
 
 // GUI
@@ -83,6 +84,7 @@ impl Scene {
 }
 
 // Physic Object Component
+#[derive(Component)]
 struct PhysicObject(Handle<RigidBody<f32>>);
 impl PhysicObject {
     fn phy_transform(&self) -> math::Isometry3<f32> {
@@ -106,7 +108,6 @@ impl PhysicObject {
         }
     }
 }
-impl ComponentBased for PhysicObject {}
 
 pub struct MainScene {
     eye: math::Vector3<f32>,
@@ -160,7 +161,7 @@ impl MainScene {
 }
 
 // Actor is a trait object which would act like an component
-// (Because Box<Actor> implemented ComponentBased)
+// (Because Box<Actor> is Component)
 impl Actor for MainScene {
     fn start(&mut self, _: &mut GameObject, world: &mut World) {
         // add main camera to scene

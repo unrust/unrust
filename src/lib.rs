@@ -18,10 +18,20 @@ extern crate uni_snd;
 extern crate webgl;
 
 #[macro_use]
+extern crate unrust_derive;
+
+#[macro_use]
 extern crate bitflags;
 
 #[cfg(feature = "flame_it")]
 extern crate flame;
+
+// This is here so that our procedural macros
+// can work within the crate.
+pub(crate) mod unrust {
+    pub use super::*;
+}
+
 
 pub mod actors;
 pub mod engine;

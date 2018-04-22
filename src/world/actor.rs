@@ -1,4 +1,4 @@
-use engine::{ComponentBased, GameObject};
+use engine::{Component, ComponentBased, IntoComponentPtr, GameObject};
 use world::{Handle, World};
 
 pub trait Actor {
@@ -26,3 +26,9 @@ pub trait Actor {
 }
 
 impl ComponentBased for Box<Actor> {}
+
+impl IntoComponentPtr for Box<Actor> {
+    fn into_component_ptr(self) -> ::std::sync::Arc<Component> {
+        ::unrust::engine::Component::new(self)
+    }
+}

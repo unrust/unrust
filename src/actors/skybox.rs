@@ -1,6 +1,7 @@
 use world::{Actor, Processor, World};
-use engine::{ComponentBased, GameObject, Material, Mesh, RenderQueue};
+use engine::{GameObject, Material, Mesh, RenderQueue};
 
+#[derive(Component)]
 pub struct SkyBox {}
 
 impl Actor for SkyBox {
@@ -16,8 +17,6 @@ impl Actor for SkyBox {
         go.add_component(mesh);
     }
 }
-
-impl ComponentBased for SkyBox {}
 
 impl Processor for SkyBox {
     fn new() -> SkyBox {

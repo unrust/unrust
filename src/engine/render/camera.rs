@@ -1,6 +1,5 @@
 use std::rc::Rc;
 use engine::render::{RenderQueue, RenderTexture};
-use engine::core::ComponentBased;
 use std::collections::BTreeSet;
 use math::*;
 
@@ -36,6 +35,7 @@ impl Frustum {
     }
 }
 
+#[derive(Component)]
 pub struct Camera {
     pub v: Matrix4<f32>,
 
@@ -75,8 +75,6 @@ fn extract_right(m: &Matrix4<f32>) -> Vector3<f32> {
     //Vector3::new(m.data[0], m.data[0 + 1 * 4], m.data[0 + 2 * 4])
     m.row(0).truncate()
 }
-
-impl ComponentBased for Camera {}
 
 impl Camera {
     pub fn forward(&self) -> Vector3<f32> {

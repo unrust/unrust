@@ -11,7 +11,7 @@ pub use self::imgui::Metric;
 
 pub use self::render::*;
 pub use self::asset::*;
-pub use self::core::{Component, ComponentBased, ComponentEvent, GameObject, SceneTree};
+pub use self::core::{Component, ComponentBased, ComponentEvent, GameObject, SceneTree, IntoComponentPtr};
 pub use self::core::Aabb;
 
 pub use self::engine::{ClearOption, IEngine};

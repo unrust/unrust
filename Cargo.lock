@@ -1151,7 +1151,16 @@ dependencies = [
  "uni-glsl 0.1.0",
  "uni-pad 0.1.0",
  "uni-snd 0.1.0",
+ "unrust-derive 0.1.0",
  "webgl 0.1.0",
+]
+
+[[package]]
+name = "unrust-derive"
+version = "0.1.0"
+dependencies = [
+ "quote 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "syn 0.13.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

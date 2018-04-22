@@ -29,7 +29,7 @@ impl MainScene {
 }
 
 // Actor is a trait object which would act like an component
-// (Because Box<Actor> implemented ComponentBased)
+// (Because Box<Actor> is Component)
 impl Actor for MainScene {
     fn start(&mut self, _go: &mut GameObject, world: &mut World) {
         // add main camera to scene

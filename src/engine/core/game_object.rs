@@ -1,9 +1,9 @@
-use std::rc::Rc;
-use std::rc;
-use std::cell::{Ref, RefCell, RefMut};
-use std::sync::Arc;
-use std::any::{Any, TypeId};
 use math::*;
+use std::any::{Any, TypeId};
+use std::cell::{Ref, RefCell, RefMut};
+use std::rc;
+use std::rc::Rc;
+use std::sync::Arc;
 
 use super::scene_tree::{ComponentEvent, NodeTransform, SceneTree};
 
@@ -75,15 +75,6 @@ impl Component {
 
 pub trait IntoComponentPtr {
     fn into_component_ptr(self) -> Arc<Component>;
-}
-
-impl<T> IntoComponentPtr for T
-where
-    T: ComponentBased + 'static,
-{
-    fn into_component_ptr(self) -> Arc<Component> {
-        Component::new(self)
-    }
 }
 
 impl IntoComponentPtr for Arc<Component> {

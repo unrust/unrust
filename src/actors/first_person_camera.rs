@@ -1,4 +1,4 @@
-use engine::{Camera, Component, ComponentBased, GameObject};
+use engine::{Camera, Component, GameObject};
 use world::{Actor, Processor, World};
 use uni_app::AppEvent;
 
@@ -20,6 +20,7 @@ bitflags! {
     }
 }
 
+#[derive(Component)]
 pub struct FirstPersonCamera {
     pub speed: f32,
     pub angle_speed: f32,
@@ -32,8 +33,6 @@ pub struct FirstPersonCamera {
     state: Movement,
     handlers: Vec<(Movement, String, Box<Fn(&mut FirstPersonCamera, f64)>)>,
 }
-
-impl ComponentBased for FirstPersonCamera {}
 
 impl Processor for FirstPersonCamera {
     fn new() -> FirstPersonCamera {

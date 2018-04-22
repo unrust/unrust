@@ -1,5 +1,5 @@
 use world::{Actor, Handle, World};
-use engine::{Asset, Camera, ClearOption, Component, ComponentBased, CullMode, GameObject, Light,
+use engine::{Asset, Camera, ClearOption, Component, CullMode, GameObject, Light,
              Material, MaterialParamMap, Mesh, MeshBuffer, MeshData, RenderQueue, RenderTexture,
              TextureAttachment};
 use engine::mesh_util::*;
@@ -20,6 +20,7 @@ struct ShadowMap {
     viewport: ((i32, i32), (u32, u32)),
 }
 
+#[derive(Component)]
 pub struct ShadowPass {
     rt: Rc<RenderTexture>,
     shadow_maps: [ShadowMap; 4],
@@ -413,8 +414,6 @@ impl ShadowMap {
         );
     }
 }
-
-impl ComponentBased for ShadowPass {}
 
 impl ShadowPass {
     pub fn disable_cascaded(&mut self) {

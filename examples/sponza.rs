@@ -1,7 +1,9 @@
 extern crate unrust;
+#[macro_use]
+extern crate unrust_derive;
 
 use unrust::actors::{FirstPersonCamera, ShadowPass, SkyBox};
-use unrust::engine::{AssetError, AssetSystem, ComponentBased, Directional, GameObject, Light,
+use unrust::engine::{AssetError, AssetSystem, Directional, GameObject, Light,
                      Material, Mesh, ObjMaterial, Point, Prefab, RenderQueue, TextureWrap};
 use unrust::math::*;
 use unrust::world::events::*;
@@ -20,11 +22,11 @@ pub struct MainScene {
     last_event: Option<AppEvent>,
 }
 
+#[derive(Component)]
 pub struct MaterialFilter {
     force_no_normal_map: bool,
 }
 
-impl ComponentBased for MaterialFilter {}
 impl Actor for MaterialFilter {}
 
 impl Processor for MaterialFilter {
@@ -49,7 +51,7 @@ impl Processor for MaterialFilter {
 }
 
 // Actor is a trait object which would act like an component
-// (Because Box<Actor> implemented ComponentBased)
+// (Because Box<Actor> is Component)
 impl MainScene {
     fn new() -> Box<Actor> {
         Box::new(MainScene {

@@ -16,7 +16,7 @@ use unrust::imgui;
 pub struct MainScene {}
 
 // Actor is a trait object which would act like an component
-// (Because Box<Actor> implemented ComponentBased)
+// (Because Box<Actor> implemented Component)
 impl MainScene {
     fn new() -> Box<Actor> {
         Box::new(MainScene {})

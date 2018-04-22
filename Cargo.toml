@@ -11,6 +11,8 @@ uni-app = {path="uni-app"}
 uni-glsl = {path="uni-glsl"}
 uni-snd = {path="uni-snd"}
 uni-pad = {path="uni-pad"}
+unrust-derive= {path="unrust-derive"}
+
 futures = "0.1"
 obj = "0.8.2"
 bitflags = "1.0"
@@ -45,3 +47,6 @@ features = ["png_codec", "tga"]
 [features]
 default = []
 flame_it = ["flame", "flamer"]
+
+[workspace]
+members = ["unrust-derive"]

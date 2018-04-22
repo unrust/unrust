@@ -1,7 +1,7 @@
-use engine::core::ComponentBased;
 use super::ShaderProgram;
 use math::*;
 
+#[derive(Component)]
 pub enum Light {
     Directional(Directional),
     Point(Point),
@@ -52,8 +52,6 @@ impl Light {
         }
     }
 }
-
-impl ComponentBased for Light {}
 
 pub struct Directional {
     pub direction: Vector3<f32>,

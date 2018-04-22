@@ -1,5 +1,4 @@
 use engine::core::Aabb;
-use engine::core::ComponentBased;
 use engine::render::{Material, MeshBuffer};
 use std::cell::Cell;
 use std::rc::Rc;
@@ -33,12 +32,11 @@ pub struct MeshSurface {
     pub material: Rc<Material>,
 }
 
+#[derive(Component)]
 pub struct Mesh {
     pub surfaces: Vec<Rc<MeshSurface>>,
     pub mesh_bounds: Cell<Option<MeshBound>>,
 }
-
-impl ComponentBased for Mesh {}
 
 impl Mesh {
     pub fn new() -> Mesh {

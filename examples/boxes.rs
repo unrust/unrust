@@ -7,7 +7,7 @@ extern crate unrust;
 extern crate unrust_derive;
 
 use unrust::world::{Actor, Handle, World, WorldBuilder};
-use unrust::engine::{Camera, Directional, GameObject, Light, Material, Mesh, Point};
+use unrust::engine::{Camera, DirectionalLight, GameObject, Light, Material, Mesh, PointLight};
 use unrust::world::events::*;
 use unrust::math;
 
@@ -175,7 +175,7 @@ impl Actor for MainScene {
         {
             let go = world.new_game_object();
             go.borrow_mut()
-                .add_component(Light::new(Directional::default()));
+                .add_component(DirectionalLight::default());
         }
 
         // add points light
@@ -190,9 +190,9 @@ impl Actor for MainScene {
 
         for p in point_light_positions.into_iter() {
             let go = world.new_game_object();
-            let mut point_light = Point::default();
+            let mut point_light = PointLight::default();
             point_light.position = p;
-            go.borrow_mut().add_component(Light::new(point_light));
+            go.borrow_mut().add_component(point_light);
 
             self.point_lights.push(go.clone());
         }

@@ -3,8 +3,8 @@ extern crate unrust;
 extern crate unrust_derive;
 
 use unrust::actors::{FirstPersonCamera, ShadowPass, SkyBox};
-use unrust::engine::{AssetError, AssetSystem, Directional, GameObject, Light,
-                     Material, Mesh, ObjMaterial, Point, Prefab, RenderQueue, TextureWrap};
+use unrust::engine::{AssetError, AssetSystem, DirectionalLight, GameObject, Light,
+                     Material, Mesh, ObjMaterial, PointLight, Prefab, RenderQueue, TextureWrap};
 use unrust::math::*;
 use unrust::world::events::*;
 use unrust::world::{Actor, Handle, Processor, World, WorldBuilder};
@@ -67,8 +67,8 @@ impl Actor for MainScene {
         // add direction light to scene.
         {
             let go = world.new_game_object();
-            let mut light = Light::new(Directional::default());
-            light.directional_mut().unwrap().direction = Vector3f::new(-0.8, -1.0, 0.0).normalize();
+            let mut light = DirectionalLight::default();
+            light.direction = Vector3f::new(-0.8, -1.0, 0.0).normalize();
             go.borrow_mut().add_component(light);
 
             self.dir_light = go;
@@ -77,13 +77,13 @@ impl Actor for MainScene {
         // add point light which on player'eye
         {
             let go = world.new_game_object();
-            let mut point = Point::default();
+            let mut point = PointLight::default();
 
             point.constant = 0.9;
             point.linear = 0.00000;
             point.quadratic = 0.000002;
 
-            go.borrow_mut().add_component(Light::new(point));
+            go.borrow_mut().add_component(point);
             self.point_light = go;
         }
 
@@ -95,13 +95,13 @@ impl Actor for MainScene {
 
         for pos in points.iter() {
             let go = world.new_game_object();
-            let mut point = Point::default();
+            let mut point = PointLight::default();
 
             point.constant = 0.8;
             point.quadratic = 0.00001;
             point.linear = 0.0;
 
-            go.borrow_mut().add_component(Light::new(point));
+            go.borrow_mut().add_component(point);
             go.borrow_mut().add_component(Cube::new());
 
             let mut gtran = go.borrow_mut().transform.global();

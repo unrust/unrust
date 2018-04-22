@@ -30,5 +30,5 @@ pub use self::mesh::{Mesh, MeshSurface};
 pub use self::mesh_buffer::{MeshBuffer, MeshData};
 pub use self::material::{CullMode, DepthTest, Material, MaterialParam, MaterialParamMap,
                          MaterialState};
-pub use self::light::{Directional, Light, Point};
+pub use self::light::{DirectionalLight, Light, PointLight};
 pub use self::render_texture::RenderTexture;

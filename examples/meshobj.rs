@@ -3,7 +3,7 @@ extern crate unrust;
 extern crate unrust_derive;
 
 use unrust::actors::ShadowPass;
-use unrust::engine::{AssetError, AssetSystem, Camera, Directional, GameObject, Light, Material,
+use unrust::engine::{AssetError, AssetSystem, Camera, DirectionalLight, GameObject, Material,
                      Mesh, ObjMaterial, Prefab, RenderQueue, TextureWrap};
 use unrust::math::*;
 use unrust::world::events::*;
@@ -44,7 +44,7 @@ impl Actor for MainScene {
         {
             let go = world.new_game_object();
             go.borrow_mut()
-                .add_component(Light::new(Directional::default()));
+                .add_component(DirectionalLight::default());
         }
 
         // Added the obj display

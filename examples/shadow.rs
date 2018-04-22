@@ -3,7 +3,7 @@ extern crate unrust;
 extern crate unrust_derive;
 
 use unrust::world::{Actor, World, WorldBuilder};
-use unrust::engine::{Camera, Directional, GameObject, Light, Material, Mesh};
+use unrust::engine::{Camera, DirectionalLight, GameObject, Material, Mesh};
 use unrust::world::events::*;
 use unrust::math::*;
 use unrust::actors::ShadowPass;
@@ -46,7 +46,7 @@ impl Actor for MainScene {
         let light = world.new_game_object();
         light
             .borrow_mut()
-            .add_component(Light::new(Directional::default()));
+            .add_component(DirectionalLight::default());
 
         // Added a rotating cube in the scene
         {

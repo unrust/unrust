@@ -1,10 +1,12 @@
 use super::ShaderProgram;
+use unrust::engine::{Component, IntoComponentPtr};
+use std::sync::Arc;
 use math::*;
 
 #[derive(Component)]
 pub enum Light {
-    Directional(Directional),
-    Point(Point),
+    Directional(DirectionalLight),
+    Point(PointLight),
 }
 
 macro_rules! impl_light {
@@ -28,8 +30,8 @@ macro_rules! impl_light {
 }
 
 impl Light {
-    impl_light!(directional, directional_mut, Directional, Directional);
-    impl_light!(point, point_mut, Point, Point);
+    impl_light!(directional, directional_mut, Directional, DirectionalLight);
+    impl_light!(point, point_mut, Point, PointLight);
 
     pub fn new<T>(a: T) -> Light
     where
@@ -53,7 +55,7 @@ impl Light {
     }
 }
 
-pub struct Directional {
+pub struct DirectionalLight {
     pub direction: Vector3<f32>,
     pub ambient: Vector3<f32>,
     pub diffuse: Vector3<f32>,
@@ -62,8 +64,8 @@ pub struct Directional {
     pub world_space_direction: Vector3f,
 }
 
-impl Default for Directional {
-    fn default() -> Directional {
+impl Default for DirectionalLight {
+    fn default() -> DirectionalLight {
         use math::Deg;
 
         let m = Matrix4::from_angle_x(Deg(30.0)) * Matrix4::from_angle_y(Deg(50.0));
@@ -71,7 +73,7 @@ impl Default for Directional {
         let light_dir = Vector3::new(0.0, 0.0, 1.0);
         let light_dir = m.transform_vector(light_dir).normalize();
 
-        Directional {
+        DirectionalLight {
             direction: light_dir,
             ambient: Vector3::new(0.212, 0.227, 0.259),
             diffuse: Vector3::new(1.0, 0.957, 0.839),
@@ -82,13 +84,13 @@ impl Default for Directional {
     }
 }
 
-impl From<Directional> for Light {
-    fn from(w: Directional) -> Light {
+impl From<DirectionalLight> for Light {
+    fn from(w: DirectionalLight) -> Light {
         Light::Directional(w)
     }
 }
 
-impl Directional {
+impl DirectionalLight {
     fn bind(&self, lightname: &str, prog: &ShaderProgram) {
         prog.set(
             lightname.to_string() + ".direction",
@@ -105,7 +107,7 @@ impl Directional {
     }
 }
 
-pub struct Point {
+pub struct PointLight {
     pub position: Vector3<f32>,
 
     pub ambient: Vector3<f32>,
@@ -119,15 +121,15 @@ pub struct Point {
     pub world_space_position: Vector3f,
 }
 
-impl From<Point> for Light {
-    fn from(w: Point) -> Light {
+impl From<PointLight> for Light {
+    fn from(w: PointLight) -> Light {
         Light::Point(w)
     }
 }
 
-impl Default for Point {
-    fn default() -> Point {
-        Point {
+impl Default for PointLight {
+    fn default() -> PointLight {
+        PointLight {
             position: Vector3::new(0.0, 0.0, 0.0),
             ambient: Vector3::new(0.05, 0.05, 0.05),
             diffuse: Vector3::new(0.8, 0.8, 0.8),
@@ -140,7 +142,7 @@ impl Default for Point {
     }
 }
 
-impl Point {
+impl PointLight {
     fn bind(&self, lightname: &str, prog: &ShaderProgram) {
         prog.set(
             lightname.to_string() + ".position",
@@ -162,5 +164,19 @@ impl Point {
         self.world_space_position = modelm
             .transform_point(Point3::from_vec(self.position))
             .to_vec();
+    }
+}
+
+impl IntoComponentPtr for DirectionalLight {
+    fn into_component_ptr(self) -> Arc<Component> {
+        let light : Light = self.into();
+        Component::new(light)
+    }
+}
+
+impl IntoComponentPtr for PointLight {
+    fn into_component_ptr(self) -> Arc<Component> {
+        let light : Light = self.into();
+        Component::new(light)
     }
 }

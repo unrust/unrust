@@ -5,7 +5,7 @@ extern crate unrust;
 extern crate unrust_derive;
 
 use unrust::actors::FirstPersonCamera;
-use unrust::engine::{Directional, GameObject, Light, Material, Mesh};
+use unrust::engine::{DirectionalLight, GameObject, Material, Mesh};
 use unrust::math::*;
 use unrust::world::{Actor, World, WorldBuilder};
 
@@ -27,7 +27,7 @@ impl Actor for MainScene {
         {
             let go = world.new_game_object();
             go.borrow_mut()
-                .add_component(Light::new(Directional::default()));
+                .add_component(DirectionalLight::default());
         }
 
         // Added a cube in the scene

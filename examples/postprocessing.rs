@@ -4,7 +4,7 @@ extern crate unrust;
 extern crate unrust_derive;
 
 use unrust::world::{Actor, Handle, World, WorldBuilder};
-use unrust::engine::{Camera, ClearOption, Directional, GameObject, Light, Material, Mesh,
+use unrust::engine::{Camera, ClearOption, DirectionalLight, GameObject, Material, Mesh,
                      RenderTexture, TextureAttachment};
 use unrust::world::events::*;
 use unrust::math::*;
@@ -40,7 +40,7 @@ impl Actor for MainScene {
         // add direction light to scene.
         let go = world.new_game_object();
         go.borrow_mut()
-            .add_component(Light::new(Directional::default()));
+            .add_component(DirectionalLight::default());
 
         // Added Crt
         let go = world.new_game_object();

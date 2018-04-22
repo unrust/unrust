@@ -3,7 +3,7 @@ extern crate unrust;
 extern crate unrust_derive;
 
 use unrust::world::{Actor, World, WorldBuilder};
-use unrust::engine::{Camera, Directional, GameObject, Light, Material, Mesh};
+use unrust::engine::{Camera, DirectionalLight, GameObject, Material, Mesh};
 use unrust::world::events::*;
 use unrust::math::*;
 use std::f32::consts;
@@ -40,7 +40,7 @@ impl Actor for MainScene {
         {
             let go = world.new_game_object();
             go.borrow_mut()
-                .add_component(Light::new(Directional::default()));
+                .add_component(DirectionalLight::default());
         }
 
         // Added an cemter cube in the scene

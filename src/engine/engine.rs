@@ -10,7 +10,7 @@ use engine::asset::{AssetError, AssetResult, AssetSystem};
 use engine::context::EngineContext;
 use engine::core::{Component, ComponentBased, GameObject, SceneTree};
 use engine::render::Camera;
-use engine::render::{DepthTest, Directional, Light, Material, MaterialState, Mesh, MeshSurface,
+use engine::render::{DepthTest, DirectionalLight, Light, Material, MaterialState, Mesh, MeshSurface,
                      ShaderProgram};
 use engine::render::{Frustum, RenderQueue};
 use image;
@@ -427,7 +427,7 @@ where
 
         // prepare main light.
         let main_light = self.find_main_light()
-            .unwrap_or({ Component::new(Light::new(Directional::default())) });
+            .unwrap_or({ Component::new(Light::new(DirectionalLight::default())) });
 
         ctx.main_light = Some(main_light);
 

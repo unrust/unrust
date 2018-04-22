@@ -1,10 +1,10 @@
-use engine::core::{Component, GameObject};
-use std::rc::{Rc, Weak};
-use std::cell::{Cell, Ref, RefCell, RefMut};
 use super::internal::GameObjectUtil;
-use std::collections::BTreeMap;
-use std::sync::Arc;
+use engine::core::{Component, ComponentArena, GameObject};
 use math::*;
+use std::cell::{Cell, Ref, RefCell, RefMut};
+use std::collections::BTreeMap;
+use std::rc::{Rc, Weak};
+use std::sync::Arc;
 
 #[derive(Copy, Clone)]
 pub struct NodeTransform {
@@ -93,7 +93,11 @@ impl SceneTree {
         self.root.borrow_mut()
     }
 
-    pub fn new_node(&self, parent_go: &GameObject) -> Rc<RefCell<GameObject>> {
+    pub fn new_node(
+        &self,
+        parent_go: &GameObject,
+        arena: &Rc<ComponentArena>,
+    ) -> Rc<RefCell<GameObject>> {
         debug_assert!(self.weak_self.borrow().upgrade().is_some());
 
         let id = self.curr_id.get();
@@ -102,6 +106,7 @@ impl SceneTree {
         let go = Rc::new(RefCell::new(GameObjectUtil::make(
             id,
             self.weak_self.borrow().clone(),
+            arena,
         )));
 
         self.curr_id.set(id + 1);

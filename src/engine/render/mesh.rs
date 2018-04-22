@@ -32,7 +32,7 @@ pub struct MeshSurface {
     pub material: Rc<Material>,
 }
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct Mesh {
     pub surfaces: Vec<Rc<MeshSurface>>,
     pub mesh_bounds: Cell<Option<MeshBound>>,

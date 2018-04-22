@@ -1,7 +1,8 @@
 use super::ShaderProgram;
-use unrust::engine::{Component, IntoComponentPtr};
-use std::sync::Arc;
 use math::*;
+use std::rc::Rc;
+use std::sync::Arc;
+use unrust::engine::{Component, ComponentArena, IntoComponentPtr};
 
 #[derive(Component)]
 pub enum Light {
@@ -168,15 +169,15 @@ impl PointLight {
 }
 
 impl IntoComponentPtr for DirectionalLight {
-    fn into_component_ptr(self) -> Arc<Component> {
-        let light : Light = self.into();
-        Component::new(light)
+    fn into_component_ptr(self, arena: &Rc<ComponentArena>) -> Arc<Component> {
+        let light: Light = self.into();
+        Component::new(light, arena)
     }
 }
 
 impl IntoComponentPtr for PointLight {
-    fn into_component_ptr(self) -> Arc<Component> {
-        let light : Light = self.into();
-        Component::new(light)
+    fn into_component_ptr(self, arena: &Rc<ComponentArena>) -> Arc<Component> {
+        let light: Light = self.into();
+        Component::new(light, arena)
     }
 }

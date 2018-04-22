@@ -3,8 +3,8 @@ use std::ops::Deref;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use engine::{AssetSystem, Camera, ClearOption, Component, ComponentBased, Engine, GameObject,
-             IEngine, SceneTree};
+use engine::{AssetSystem, Camera, ClearOption, Component, ComponentBased, ComponentType, Engine,
+             GameObject, IEngine, SceneTree};
 use world::app_fs::AppEngine;
 
 use engine::imgui;
@@ -130,7 +130,8 @@ impl<'a> WorldBuilder<'a> {
         // add all processor into the scenes
         let go = w.new_game_object();
         for builder in self.processor_builders.into_iter() {
-            go.borrow_mut().add_component(builder.new_processor());
+            go.borrow_mut()
+                .add_component(builder.new_processor(&w.engine.arena));
         }
 
         w
@@ -155,7 +156,7 @@ impl<T> Deref for ComponentBorrow<T>
 where
     T: 'static,
 {
-    type Target = RefCell<T>;
+    type Target = ComponentType<T>;
 
     fn deref(&self) -> &Self::Target {
         self.c.try_as::<T>().unwrap()
@@ -318,7 +319,8 @@ impl World {
         // add all processor back
         let go = self.new_game_object();
         for builder in self.processor_builders.iter() {
-            go.borrow_mut().add_component(builder.new_processor());
+            go.borrow_mut()
+                .add_component(builder.new_processor(&self.engine.arena));
         }
     }
 

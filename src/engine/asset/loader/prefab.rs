@@ -1,23 +1,20 @@
 use engine::asset::{Asset, AssetError, AssetSystem, FileFuture, Resource};
 use engine::render::{Material, Mesh, MeshBuffer, MeshData};
-use engine::core::Component;
-use std::sync::Arc;
 use std::borrow::Cow;
 use std::path::Path;
 
+use math::*;
 use obj;
 use obj::SimplePolygon;
-use std::io::BufReader;
 use std::collections::HashMap;
+use std::io::BufReader;
 use std::rc::Rc;
-use math::*;
 
-use futures::prelude::*;
 use futures::future::*;
 
 pub struct Prefab {
     // TODO what is a prefab actually ??
-    pub components: Vec<Arc<Component>>,
+    pub meshes: Vec<Mesh>,
 }
 
 fn parent_path(filename: &str) -> String {
@@ -384,9 +381,7 @@ impl PrefabLoader {
             }
         }
 
-        Prefab {
-            components: vec![Component::new(mesh)],
-        }
+        Prefab { meshes: vec![mesh] }
     }
 }
 

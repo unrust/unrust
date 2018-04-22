@@ -1,10 +1,12 @@
 use math::*;
 use std::any::{Any, TypeId};
 use std::cell::{Ref, RefCell, RefMut};
+use std::marker::PhantomData;
 use std::rc;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use super::component_arena::ComponentArena;
 use super::scene_tree::{ComponentEvent, NodeTransform, SceneTree};
 
 use std::sync::atomic::AtomicU32;
@@ -24,9 +26,25 @@ pub trait Component: Any {
     fn as_any(&self) -> &Any;
 }
 
-pub struct ComponentType<T> {
-    com: Rc<RefCell<T>>,
+pub struct ComponentType<T: 'static> {
+    arena: Rc<ComponentArena>,
     id: u64,
+    phantom: PhantomData<T>,
+
+    // data is a kind of lock to do runtime borrow checking
+    data: RefCell<bool>,
+}
+
+impl<T: 'static> ComponentType<T> {
+    pub fn borrow(&self) -> Ref<T> {
+        let arena = self.arena.clone();
+        Ref::map(self.data.borrow(), move |_| arena.get(self.id))
+    }
+
+    pub fn borrow_mut(&self) -> RefMut<T> {
+        let arena = self.arena.clone();
+        RefMut::map(self.data.borrow_mut(), move |_| arena.get_mut(self.id))
+    }
 }
 
 impl<T> Component for ComponentType<T>
@@ -46,27 +64,41 @@ where
     }
 }
 
+impl<T> Drop for ComponentType<T>
+where
+    T: 'static,
+{
+    fn drop(&mut self) {
+        self.arena.remove::<T>(self.id);
+    }
+}
+
 pub trait ComponentBased {}
 
 impl Component {
-    pub fn try_as<T>(&self) -> Option<&RefCell<T>>
+    pub fn try_as<T>(&self) -> Option<&ComponentType<T>>
     where
         T: 'static,
     {
         let a = self.as_any();
         match a.downcast_ref::<ComponentType<T>>() {
-            Some(t) => Some(t.com.as_ref()),
+            Some(t) => Some(t),
             _ => None,
         }
     }
 
-    pub fn new<T>(value: T) -> Arc<Component>
+    pub fn new<T>(value: T, arena: &Rc<ComponentArena>) -> Arc<Component>
     where
         T: ComponentBased + 'static,
     {
-        let c = ComponentType {
-            com: Rc::new(RefCell::new(value)),
-            id: next_component_id(),
+        let id = next_component_id();
+        arena.add(id, value);
+
+        let c: ComponentType<T> = ComponentType {
+            id: id,
+            arena: arena.clone(),
+            phantom: PhantomData::default(),
+            data: RefCell::new(false),
         };
 
         Arc::new(c)
@@ -74,11 +106,11 @@ impl Component {
 }
 
 pub trait IntoComponentPtr {
-    fn into_component_ptr(self) -> Arc<Component>;
+    fn into_component_ptr(self, area: &Rc<ComponentArena>) -> Arc<Component>;
 }
 
 impl IntoComponentPtr for Arc<Component> {
-    fn into_component_ptr(self) -> Arc<Component> {
+    fn into_component_ptr(self, _: &Rc<ComponentArena>) -> Arc<Component> {
         self
     }
 }
@@ -86,9 +118,10 @@ impl IntoComponentPtr for Arc<Component> {
 pub struct GameObjectUtil {}
 
 impl GameObjectUtil {
-    pub fn make(node_id: u64, tree: rc::Weak<SceneTree>) -> GameObject {
+    pub fn make(node_id: u64, tree: rc::Weak<SceneTree>, arena: &Rc<ComponentArena>) -> GameObject {
         GameObject {
             transform: Transform::new(node_id, tree),
+            arena: Rc::downgrade(arena),
             active: true,
             components: vec![],
         }
@@ -193,6 +226,7 @@ pub struct GameObject {
     pub transform: Transform,
     pub active: bool,
     components: Vec<Arc<Component>>,
+    arena: rc::Weak<ComponentArena>,
 }
 
 impl GameObject {
@@ -201,6 +235,7 @@ impl GameObject {
         Rc::new(RefCell::new(GameObject {
             transform: Transform::new(0, rc::Weak::new()),
             active: true,
+            arena: rc::Weak::new(),
             components: vec![],
         }))
     }
@@ -243,7 +278,7 @@ impl GameObject {
     where
         T: IntoComponentPtr,
     {
-        let p: Arc<Component> = c.into_component_ptr();
+        let p: Arc<Component> = c.into_component_ptr(&self.arena.upgrade().unwrap());
         self.components.push(p.clone());
 
         self.tree()

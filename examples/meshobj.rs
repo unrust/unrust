@@ -43,14 +43,13 @@ impl Actor for MainScene {
         // add direction light to scene.
         {
             let go = world.new_game_object();
-            go.borrow_mut()
-                .add_component(DirectionalLight::default());
+            go.borrow_mut().add_component(DirectionalLight::default());
         }
 
         // Added the obj display
         {
             let go = world.new_game_object();
-            go.borrow_mut().add_component(WaveObjActor{});
+            go.borrow_mut().add_component(WaveObjActor {});
         }
 
         // Added a simple plane
@@ -205,7 +204,7 @@ impl Actor for WaveObjActor {
             let go = go.clone();
             move |r: Result<Prefab, AssetError>| {
                 if let Ok(prefab) = r {
-                    for c in prefab.components {
+                    for c in prefab.meshes {
                         go.borrow_mut().add_component(c.clone());
                     }
                 }

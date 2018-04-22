@@ -3,8 +3,8 @@ extern crate unrust;
 extern crate unrust_derive;
 
 use unrust::actors::{FirstPersonCamera, ShadowPass, SkyBox};
-use unrust::engine::{AssetError, AssetSystem, DirectionalLight, GameObject, Light,
-                     Material, Mesh, ObjMaterial, PointLight, Prefab, RenderQueue, TextureWrap};
+use unrust::engine::{AssetError, AssetSystem, DirectionalLight, GameObject, Light, Material, Mesh,
+                     ObjMaterial, PointLight, Prefab, RenderQueue, TextureWrap};
 use unrust::math::*;
 use unrust::world::events::*;
 use unrust::world::{Actor, Handle, Processor, World, WorldBuilder};
@@ -309,7 +309,7 @@ impl Actor for WaveObjActor {
         let prefab_handler = {
             let go = go.clone();
             move |r: Result<Prefab, AssetError>| match r {
-                Ok(prefab) => for c in prefab.components {
+                Ok(prefab) => for c in prefab.meshes {
                     go.borrow_mut().add_component(c.clone());
                 },
                 Err(err) => {

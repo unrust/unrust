@@ -1,10 +1,8 @@
-use engine::{Camera, Component, GameObject};
-use world::{Actor, Processor, World};
+use engine::{Camera, Component, ComponentType, GameObject};
 use uni_app::AppEvent;
+use world::{Actor, Processor, World};
 
 use math::*;
-
-use std::cell::RefCell;
 use std::sync::Arc;
 
 bitflags! {
@@ -174,7 +172,7 @@ impl FirstPersonCamera {
         }
     }
 
-    pub fn camera(&self) -> &RefCell<Camera> {
+    pub fn camera(&self) -> &ComponentType<Camera> {
         self.camera.as_ref().unwrap().try_as::<Camera>().unwrap()
     }
 }

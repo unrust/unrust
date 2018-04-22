@@ -8,10 +8,10 @@ use std::sync::Arc;
 
 use engine::asset::{AssetError, AssetResult, AssetSystem};
 use engine::context::EngineContext;
-use engine::core::{Component, ComponentBased, GameObject, SceneTree};
+use engine::core::{Component, ComponentArena, ComponentBased, GameObject, SceneTree};
 use engine::render::Camera;
-use engine::render::{DepthTest, DirectionalLight, Light, Material, MaterialState, Mesh, MeshSurface,
-                     ShaderProgram};
+use engine::render::{DepthTest, DirectionalLight, Light, Material, MaterialState, Mesh,
+                     MeshSurface, ShaderProgram};
 use engine::render::{Frustum, RenderQueue};
 use image;
 use math::Aabb;
@@ -54,8 +54,8 @@ where
     pub screen_size: (u32, u32),
     pub hidpi: f32,
     pub current_camera: RefCell<Option<Arc<Component>>>,
-
     pub gui_context: Rc<RefCell<imgui::Context>>,
+    pub arena: Rc<ComponentArena>,
 
     pub stats: EngineStats,
 }
@@ -427,7 +427,7 @@ where
 
         // prepare main light.
         let main_light = self.find_main_light()
-            .unwrap_or({ Component::new(Light::new(DirectionalLight::default())) });
+            .unwrap_or({ Component::new(Light::new(DirectionalLight::default()), &self.arena) });
 
         ctx.main_light = Some(main_light);
 
@@ -727,6 +727,7 @@ where
             hidpi: hidpi,
             current_camera: RefCell::new(None),
             stats: Default::default(),
+            arena: Rc::new(ComponentArena::new()),
         }
     }
 
@@ -775,7 +776,7 @@ where
 
 impl<A: AssetSystem> IEngine for Engine<A> {
     fn new_game_object(&mut self, parent: &GameObject) -> Rc<RefCell<GameObject>> {
-        let go = parent.tree().new_node(parent);
+        let go = parent.tree().new_node(parent, &self.arena);
 
         self.objects.push(Rc::downgrade(&go));
         go

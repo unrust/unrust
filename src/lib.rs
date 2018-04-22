@@ -11,6 +11,7 @@ extern crate futures;
 extern crate hound;
 extern crate image;
 extern crate obj;
+extern crate typed_arena;
 extern crate uni_app;
 extern crate uni_glsl;
 extern crate uni_pad;
@@ -31,7 +32,6 @@ extern crate flame;
 pub(crate) mod unrust {
     pub use super::*;
 }
-
 
 pub mod actors;
 pub mod engine;

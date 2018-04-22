@@ -18,12 +18,12 @@ fn impl_component(ast: &syn::DeriveInput) -> quote::Tokens {
     let name = &ast.ident;
     quote!{
         impl ::unrust::engine::IntoComponentPtr for #name {
-            fn into_component_ptr(self) -> ::std::sync::Arc<::unrust::engine::Component> {
-                ::unrust::engine::Component::new(self)
+            fn into_component_ptr(self, arena: &::std::rc::Rc<::unrust::engine::ComponentArena> ) -> ::std::sync::Arc<::unrust::engine::Component> {
+                ::unrust::engine::Component::new(self, arena)
             }
         }
 
-        impl ::unrust::engine::ComponentBased for #name {            
+        impl ::unrust::engine::ComponentBased for #name {
         }
     }
 }
@@ -41,9 +41,9 @@ fn impl_actor(ast: &syn::DeriveInput) -> quote::Tokens {
     let name = &ast.ident;
     quote!{
         impl ::unrust::engine::IntoComponentPtr for #name {
-            fn into_component_ptr(self) -> ::std::sync::Arc<::unrust::engine::Component> {
-                ::unrust::engine::Component::new(Box::new(self) as Box<::unrust::world::Actor> )
+            fn into_component_ptr(self, arena: &::std::rc::Rc<::unrust::engine::ComponentArena> ) -> ::std::sync::Arc<::unrust::engine::Component> {
+                ::unrust::engine::Component::new(Box::new(self) as Box<::unrust::world::Actor>, arena)
             }
-        }        
+        }
     }
 }

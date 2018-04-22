@@ -1,12 +1,12 @@
-use world::{ComponentBased, GameObject, Handle, World};
-use engine::{Material, Mesh};
+use engine::{ComponentArena, Material, Mesh};
 use std::marker::PhantomData;
 use world::type_watcher::{GameObjectComponentPair, TypeWatcherBuilder, Watcher};
+use world::{ComponentBased, GameObject, Handle, World};
 
 use engine::Component;
-use std::sync::Arc;
-use std::rc::Rc;
 use std::cell::RefCell;
+use std::rc::Rc;
+use std::sync::Arc;
 
 struct ProcessorWatcher<T> {
     marker: PhantomData<T>,
@@ -107,7 +107,7 @@ where
 }
 
 pub trait IProcessorBuilder {
-    fn new_processor(&self) -> Arc<Component>;
+    fn new_processor(&self, arena: &Rc<ComponentArena>) -> Arc<Component>;
 
     fn register_watchers(&self, TypeWatcherBuilder) -> TypeWatcherBuilder;
 }
@@ -121,8 +121,8 @@ impl<T> IProcessorBuilder for ProcessorBuilder<T>
 where
     T: Processor + 'static,
 {
-    fn new_processor(&self) -> Arc<Component> {
-        Component::new(T::new())
+    fn new_processor(&self, arena: &Rc<ComponentArena>) -> Arc<Component> {
+        Component::new(T::new(), arena)
     }
 
     fn register_watchers(&self, mut builder: TypeWatcherBuilder) -> TypeWatcherBuilder {

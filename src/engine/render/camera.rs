@@ -1,7 +1,7 @@
-use std::rc::Rc;
 use engine::render::{RenderQueue, RenderTexture};
-use std::collections::BTreeSet;
 use math::*;
+use std::collections::BTreeSet;
+use std::rc::Rc;
 
 pub struct Plane {
     n: Vector3<f32>,
@@ -120,7 +120,7 @@ impl Camera {
     pub fn perspective(&self, screen_size: (u32, u32)) -> Matrix4<f32> {
         use math::*;
 
-        let aspect = self.calc_aspect(screen_size);
+        let aspect = self.calc_aspect(screen_size).max(0.001);
 
         PerspectiveFov {
             fovy: Rad(3.1415 / 4.0),

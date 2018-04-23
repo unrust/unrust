@@ -202,7 +202,12 @@ impl App {
             match event {
                 glutin::Event::WindowEvent { ref event, .. } => match event {
                     &glutin::WindowEvent::Closed => running = false,
-                    &glutin::WindowEvent::Resized(w, h) => window.context().resize(w, h),
+                    &glutin::WindowEvent::Resized(w, h) => {
+                        // Fixed for Windows which minimized to emit a Resized(0,0) event
+                        if w != 0 && h != 0 {
+                            window.context().resize(w, h);
+                        }
+                    }
                     &glutin::WindowEvent::KeyboardInput { input, .. } => {
                         // issue tracked in https://github.com/tomaka/winit/issues/41
                         // Right now we handle it manually.

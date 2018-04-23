@@ -53,6 +53,14 @@ impl<T> ComponentContainer<T> {
 
         unsafe { &mut *p }
     }
+
+    fn as_vec<'a>(&self) -> Vec<&'a mut T> {
+        self.com_map
+            .borrow()
+            .values()
+            .map(|p| unsafe { &mut **p })
+            .collect()
+    }
 }
 
 pub struct ComponentArena {
@@ -98,6 +106,10 @@ impl ComponentArena {
 
     pub fn get_mut<'b, T: 'static>(&self, id: u64) -> &'b mut T {
         self.container().get_mut(id)
+    }
+
+    pub fn as_vec<'b, T: 'static>(&self) -> Vec<&'b mut T> {
+        self.container().as_vec()
     }
 
     pub fn new() -> ComponentArena {

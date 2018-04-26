@@ -1,6 +1,6 @@
 # unrust
 
-[![Build Status](https://travis-ci.org/edwin0cheng/unrust.svg?branch=master)](https://travis-ci.org/edwin0cheng/unrust)
+[![Build Status](https://travis-ci.org/unrust/unrust.svg?branch=master)](https://travis-ci.org/unrust/unrust)
 
 A pure rust based (webgl 2.0 / native) game engine
 

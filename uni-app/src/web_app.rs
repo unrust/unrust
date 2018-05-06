@@ -3,8 +3,10 @@ use AppConfig;
 
 use stdweb::traits::IEvent;
 use stdweb::unstable::TryInto;
-use stdweb::web::event::{IKeyboardEvent, IMouseEvent, KeyDownEvent, KeyUpEvent, MouseButton,
-                         MouseDownEvent, MouseMoveEvent, MouseUpEvent, ResizeEvent};
+use stdweb::web::event::{
+    IKeyboardEvent, IMouseEvent, KeyDownEvent, KeyUpEvent, MouseButton, MouseDownEvent,
+    MouseMoveEvent, MouseUpEvent, ResizeEvent,
+};
 use stdweb::web::html_element::CanvasElement;
 use stdweb::web::window;
 use stdweb::web::IEventTarget;
@@ -42,6 +44,24 @@ macro_rules! map_event {
     }};
 }
 
+// In browser request full screen can only called under event handler.
+// So basically this function is useless at this moment.
+#[allow(dead_code)]
+fn request_full_screen(canvas: &CanvasElement) {
+    js!{
+        var c = @{&canvas};
+        if (c.requestFullscreen) {
+            c.requestFullscreen();
+        } else if (c.webkitRequestFullscreen) {
+            c.webkitRequestFullscreen(Element.ALLOW_KEYBOARD_INPUT);
+        } else if (c.mozRequestFullScreen) {
+            c.mozRequestFullScreen();
+        } else if (c.msRequestFullscreen) {
+            c.msRequestFullscreen();
+        }
+    };
+}
+
 impl App {
     pub fn new(config: AppConfig) -> App {
         use stdweb::web::*;
@@ -73,6 +93,7 @@ impl App {
             // https://stackoverflow.com/questions/12886286/addeventlistener-for-keydown-on-canvas
             @{&canvas}.tabIndex = 1;
         };
+
         if !config.show_cursor {
             js! {
                 @{&canvas}.style.cursor="none";
@@ -81,13 +102,15 @@ impl App {
 
         let device_pixel_ratio: f64 = js!{ return window.devicePixelRatio; }.try_into().unwrap();
 
-        document()
-            .query_selector("body")
-            .unwrap()
-            .unwrap()
-            .append_child(&canvas);
+        let body = document().query_selector("body").unwrap().unwrap();
+
+        body.append_child(&canvas);
         js!{
             @{&canvas}.focus();
+        }
+
+        if config.fullscreen {
+            println!("Webgl do not support with_screen.");
         }
 
         let mut app = App {
@@ -249,6 +272,10 @@ impl App {
         self.run_loop(callback);
 
         stdweb::event_loop();
+    }
+
+    pub fn set_fullscreen(&mut self, _b: bool) {
+        // unimplemented!();
     }
 }
 

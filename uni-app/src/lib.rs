@@ -37,6 +37,7 @@ pub struct AppConfig {
     pub size: (u32, u32),
     pub vsync: bool,
     pub headless: bool,
+    pub fullscreen: bool,
     pub show_cursor: bool,
 }
 
@@ -48,6 +49,7 @@ impl AppConfig {
             vsync: true,
             headless: false,
             show_cursor: true,
+            fullscreen: false,
         }
     }
 }

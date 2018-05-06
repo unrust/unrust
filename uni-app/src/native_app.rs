@@ -137,8 +137,15 @@ impl App {
 
             WindowContext::Headless(context)
         } else {
+            let monitor = if config.fullscreen {
+                events_loop.get_available_monitors().nth(0)
+            } else {
+                None
+            };
+
             let window = glutin::WindowBuilder::new()
                 .with_title(config.title)
+                .with_fullscreen(monitor)
                 .with_dimensions(config.size.0, config.size.1);
 
             let context = glutin::ContextBuilder::new()
@@ -172,6 +179,16 @@ impl App {
         params
     }
 
+    pub fn set_fullscreen(&self, b: bool) {
+        if let WindowContext::Normal(ref glwindow) = self.window {
+            if b {
+                glwindow.set_fullscreen(Some(glwindow.window().get_current_monitor()));
+            } else {
+                glwindow.set_fullscreen(None);
+            }
+        }
+    }
+
     pub fn print<T: Into<String>>(msg: T) {
         print!("{}", msg.into());
     }
@@ -201,7 +218,7 @@ impl App {
         events_loop.poll_events(|event| {
             match event {
                 glutin::Event::WindowEvent { ref event, .. } => match event {
-                    &glutin::WindowEvent::Closed => running = false,
+                    &glutin::WindowEvent::CloseRequested => running = false,
                     &glutin::WindowEvent::Resized(w, h) => {
                         // Fixed for Windows which minimized to emit a Resized(0,0) event
                         if w != 0 && h != 0 {
@@ -246,7 +263,7 @@ impl App {
 
     pub fn run<'a, F>(mut self, mut callback: F)
     where
-        F: 'static + FnMut(&mut Self) -> (),
+        F: FnMut(&mut Self) -> (),
     {
         let mut running = true;
 

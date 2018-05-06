@@ -1,6 +1,7 @@
 use std::any::{Any, TypeId};
 use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
+use std::rc::Rc;
 use typed_arena::Arena;
 
 struct ComponentContainer<T> {
@@ -20,10 +21,9 @@ impl<T> ComponentContainer<T> {
     }
 
     fn add(&self, id: u64, c: T) {
-        let mut free_list = self.free_list.borrow_mut();
+        let mt = if self.free_list.borrow().len() > 0 {
+            let mt = self.free_list.borrow_mut().pop().unwrap();
 
-        let mt = if free_list.len() > 0 {
-            let mt = free_list.pop().unwrap();
             unsafe {
                 *mt = c;
                 &mut *mt
@@ -36,10 +36,9 @@ impl<T> ComponentContainer<T> {
     }
 
     fn remove(&self, id: u64) {
-        let mut free_list = self.free_list.borrow_mut();
-
         let mt = self.com_map.borrow_mut().remove(&id).unwrap();
-        free_list.push(mt);
+
+        self.free_list.borrow_mut().push(mt);
     }
 
     fn get<'a>(&self, id: u64) -> &'a T {
@@ -82,12 +81,12 @@ impl ComponentArena {
         self.container::<T>().remove(id);
     }
 
-    fn container<T: 'static>(&self) -> Ref<ComponentContainer<T>> {
+    fn container<T: 'static>(&self) -> Rc<ComponentContainer<T>> {
         let typeid = TypeId::of::<T>();
 
         let mut arenas = self.arenas.borrow_mut();
         if !arenas.get(&typeid).is_some() {
-            arenas.insert(typeid, Box::new(ComponentContainer::<T>::new()));
+            arenas.insert(typeid, Box::new(Rc::new(ComponentContainer::<T>::new())));
         }
         drop(arenas);
 
@@ -96,8 +95,10 @@ impl ComponentArena {
         Ref::map(arenas, |a| {
             let container = a.get(&typeid).unwrap();
 
-            container.downcast_ref::<ComponentContainer<T>>().unwrap()
-        })
+            container
+                .downcast_ref::<Rc<ComponentContainer<T>>>()
+                .unwrap()
+        }).clone()
     }
 
     pub fn get<'b, T: 'static>(&self, id: u64) -> &'b T {

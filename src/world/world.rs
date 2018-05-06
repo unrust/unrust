@@ -3,8 +3,10 @@ use std::ops::Deref;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use engine::{AssetSystem, Camera, ClearOption, Component, ComponentBased, ComponentType, Engine,
-             GameObject, IEngine, SceneTree};
+use engine::{
+    AssetSystem, Camera, ClearOption, Component, ComponentBased, ComponentType, Engine, GameObject,
+    IEngine, SceneTree,
+};
 use world::app_fs::AppEngine;
 
 use engine::imgui;
@@ -376,7 +378,7 @@ impl World {
     }
 
     pub fn remove_game_object(&mut self, go: &Handle<GameObject>) {
-        self.golist.retain(|ref x| !Rc::ptr_eq(&x, go));
+        self.golist.retain(|x| !Rc::ptr_eq(&x, go));
     }
 
     pub fn find_component<T>(&mut self) -> Option<ComponentBorrow<T>>

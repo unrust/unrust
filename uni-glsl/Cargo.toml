@@ -9,7 +9,6 @@ path = "src/lib.rs"
 
 [dependencies.lazy_static]
 version = "1.0"
-features = ["nightly"]
 
 [dependencies.nom]
 version = "4.0.0-alpha2"

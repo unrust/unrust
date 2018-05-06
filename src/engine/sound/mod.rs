@@ -1,14 +1,14 @@
-mod generator;
 mod channel;
+mod generator;
 
-use std::rc::Rc;
 use std::cell::RefCell;
+use std::rc::Rc;
 
-use std::collections::HashMap;
-use uni_snd::SoundDriver;
 use engine::{AssetError, AssetSystem};
 use futures::Future;
 use std::collections::BTreeSet;
+use std::collections::HashMap;
+use uni_snd::SoundDriver;
 
 use self::generator::Generator;
 
@@ -111,9 +111,9 @@ impl SoundSystem {
     }
 
     pub fn step(&mut self) {
-        let mut pending: Vec<_> = self.pending_play.drain(0..).collect();
+        let pending: Vec<_> = self.pending_play.drain(0..).collect();
 
-        pending = pending
+        let pending = pending
             .into_iter()
             .filter(|evt| {
                 if self.loading.borrow().contains(&SoundHandle(evt.id)) {

@@ -94,7 +94,7 @@ impl MeshGLState {
 
     fn rebind(&mut self, actions: &Vec<RebindAction>, data: &MeshData, gl: &WebGLRenderingContext) {
         for action in actions.iter() {
-            let (k, p, mut buf) = self.rebind_buffer(data, action);
+            let (k, p, buf) = self.rebind_buffer(data, action);
 
             gl.bind_buffer(k, &buf);
             gl.buffer_data(k, &p, DrawMode::Static);
@@ -398,10 +398,10 @@ fn mesh_bind_buffer(
     gl.bind_vertex_array(&vao);
 
     let vertex_buffer = bind_f32_array(&gl, vertices);
-    let uv_buffer = uvs.as_ref().map(|ref data| bind_f32_array(gl, data));
-    let normal_buffer = normals.as_ref().map(|ref data| bind_f32_array(gl, data));
-    let tangent_buffer = tangents.as_ref().map(|ref data| bind_f32_array(gl, data));
-    let bitangent_buffer = bitangents.as_ref().map(|ref data| bind_f32_array(gl, data));
+    let uv_buffer = uvs.as_ref().map(|data| bind_f32_array(gl, data));
+    let normal_buffer = normals.as_ref().map(|data| bind_f32_array(gl, data));
+    let tangent_buffer = tangents.as_ref().map(|data| bind_f32_array(gl, data));
+    let bitangent_buffer = bitangents.as_ref().map(|data| bind_f32_array(gl, data));
 
     // Create an empty buffer object to store Index buffer
     let index_buffer = gl.create_buffer();

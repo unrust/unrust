@@ -31,7 +31,6 @@ alga = "0.5"
 
 [dependencies.lazy_static]
 version = "1.0"
-features = ["nightly"]
 
 # Image related dependencies
 [dependencies.image]

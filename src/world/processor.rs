@@ -125,18 +125,18 @@ where
         Component::new(T::new(), arena)
     }
 
-    fn register_watchers(&self, mut builder: TypeWatcherBuilder) -> TypeWatcherBuilder {
-        builder = builder.add_watcher(ProcessorWatcher::<T> {
+    fn register_watchers(&self, builder: TypeWatcherBuilder) -> TypeWatcherBuilder {
+        let builder = builder.add_watcher(ProcessorWatcher::<T> {
             marker: PhantomData::default(),
             context: self.context.clone(),
         });
 
         if T::watch_material() {
-            builder = builder.add_watcher(MaterialWatcher {
+            builder.add_watcher(MaterialWatcher {
                 context: self.context.clone(),
-            });
+            })
+        } else {
+            builder
         }
-
-        builder
     }
 }

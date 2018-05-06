@@ -149,7 +149,7 @@ impl Context {
         let (sw, sh) = engine.screen_size();
 
         for w in inner.render_list.iter() {
-            let mut do_insert = {
+            let do_insert = {
                 let hm = &self.go;
                 match hm.get(&w.id()) {
                     None => true,

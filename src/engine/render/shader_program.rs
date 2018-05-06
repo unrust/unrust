@@ -123,7 +123,7 @@ impl ShaderProgram {
     }
 
     pub fn commit(&self, gl: &WebGLRenderingContext) {
-        self.gl_state.borrow().as_ref().map(|ref gl_state| {
+        self.gl_state.borrow().as_ref().map(|gl_state| {
             self.uniform_cache.commit(gl, &gl_state.prog);
         });
     }

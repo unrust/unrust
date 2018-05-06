@@ -1,9 +1,9 @@
-use std::rc::Rc;
-use std::rc;
 use std::cell::RefCell;
+use std::marker::PhantomData;
+use std::rc;
+use std::rc::Rc;
 use std::sync;
 use std::sync::Arc;
-use std::marker::PhantomData;
 
 use engine::{Component, ComponentEvent, GameObject, SceneTree};
 use world::{Actor, Handle, World};
@@ -174,7 +174,7 @@ impl TypeWatcher {
         main_tree.add_watcher({
             let object_containers = self.object_containers.clone();
 
-            move |changed, ref go, ref c: &Arc<Component>| {
+            move |changed, go, c: &Arc<Component>| {
                 for &(ref watcher, ref container) in object_containers.iter() {
                     if watcher.is(c) {
                         match changed {
@@ -186,7 +186,7 @@ impl TypeWatcher {
                             ComponentEvent::Remove => {
                                 let mut curr_objects = container.objects.borrow_mut();
                                 curr_objects.retain(|&(_, ref cc)| {
-                                    cc.upgrade().map_or(true, |ref ccp| !Arc::ptr_eq(ccp, &c))
+                                    cc.upgrade().map_or(true, |ccp| !Arc::ptr_eq(&ccp, &c))
                                 });
                             }
                         }

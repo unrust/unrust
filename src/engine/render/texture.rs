@@ -168,7 +168,7 @@ impl Texture {
     }
 
     pub fn size(&self) -> Option<(u32, u32)> {
-        self.gl_state.borrow().as_ref().map(|ref s| s.size)
+        self.gl_state.borrow().as_ref().map(|s| s.size)
     }
 
     pub fn bind(&self, gl: &WebGLRenderingContext, unit: u32) -> AssetResult<()> {

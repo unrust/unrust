@@ -19,6 +19,7 @@ use unrust::imgui;
 #[derive(Actor)]
 pub struct MainScene {
     last_event: Option<AppEvent>,
+    is_fullscreen: bool,
 }
 
 impl Actor for MainScene {
@@ -47,6 +48,7 @@ impl Actor for MainScene {
         // Handle Events
         {
             let mut reset = false;
+            let mut toggle_fullscreen = false;
 
             for evt in world.events().iter() {
                 self.last_event = Some(evt.clone());
@@ -54,6 +56,7 @@ impl Actor for MainScene {
                     &AppEvent::KeyDown(ref key) => {
                         match key.code.as_str() {
                             "Escape" => reset = true,
+                            "KeyF" => toggle_fullscreen = true,
                             _ => (),
                         };
                     }
@@ -62,15 +65,22 @@ impl Actor for MainScene {
                 }
             }
 
+            if toggle_fullscreen {
+                self.is_fullscreen = !self.is_fullscreen;
+                // Notes: set_fullscreen is noop in wasm target.
+                world.set_fullscreen(self.is_fullscreen);
+            }
+
             if reset {
                 world.reset();
                 // Because reset will remove all objects in the world,
                 // included this Actor itself
                 // so will need to add it back.
                 let scene = world.new_game_object();
-                scene
-                    .borrow_mut()
-                    .add_component(MainScene { last_event: None });
+                scene.borrow_mut().add_component(MainScene {
+                    last_event: None,
+                    is_fullscreen: self.is_fullscreen,
+                });
                 return;
             }
         }
@@ -81,7 +91,7 @@ impl Actor for MainScene {
         imgui::pivot((1.0, 1.0));
         imgui::label(
             Native(1.0, 1.0) - Pixel(8.0, 8.0),
-            &format!("[WASD ZXEC] : control camera\n[Esc] : reload all (include assets)\ngamepad: {:?} buttons {} {} {} {}",
+            &format!("[WASD ZXEC] : control camera\n[F] : toggle fullscreen (no-op in web)\n[Esc] : reload all (include assets)\ngamepad: {:?} buttons {} {} {} {}",
                 gamepad_axis(0),
                 gamepad_button(0, 0),
                 gamepad_button(0, 1),
@@ -125,6 +135,7 @@ impl Actor for Cube {
 
 pub fn main() {
     let mut world = WorldBuilder::new("Basic demo")
+        // .with_fullscreen(true)           // uncomment it if you want to start in fullscreen, but it wont works in webgl
         .with_size((640, 480))
         .with_stats(true)
         .with_processor::<FirstPersonCamera>()  // Use first person camera
@@ -132,9 +143,10 @@ pub fn main() {
 
     // Add the main scene as component of scene game object
     let scene = world.new_game_object();
-    scene
-        .borrow_mut()
-        .add_component(MainScene { last_event: None });
+    scene.borrow_mut().add_component(MainScene {
+        last_event: None,
+        is_fullscreen: false,
+    });
     drop(scene);
 
     world.event_loop();

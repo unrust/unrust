@@ -26,6 +26,8 @@ pub type Handle<T> = Rc<RefCell<T>>;
 pub struct World {
     pub sound: SoundSystem,
 
+    app_ref: Option<&'static mut App>,
+
     main_tree: Rc<SceneTree>,
     fps: FPS,
     watcher: Rc<TypeWatcher>,
@@ -37,13 +39,14 @@ pub struct World {
     engine: AppEngine,
 
     // App should be the last object to drop
-    app: Option<App>,
+    app_instance: Option<App>,
 }
 
 pub struct WorldBuilder<'a> {
     title: &'a str,
     size: Option<(u32, u32)>,
     headless: bool,
+    fullscreen: bool,
     shown_stats: Option<bool>,
     watcher_builder: TypeWatcherBuilder,
     processor_builders: Vec<Rc<Box<IProcessorBuilder>>>,
@@ -56,9 +59,15 @@ impl<'a> WorldBuilder<'a> {
             size: None,
             shown_stats: None,
             headless: false,
+            fullscreen: false,
             watcher_builder: TypeWatcherBuilder::new(),
             processor_builders: Vec::new(),
         }
+    }
+
+    pub fn with_fullscreen(mut self, b: bool) -> WorldBuilder<'a> {
+        self.fullscreen = b;
+        self
     }
 
     pub fn with_headless(mut self, b: bool) -> WorldBuilder<'a> {
@@ -89,10 +98,11 @@ impl<'a> WorldBuilder<'a> {
         self
     }
 
-    pub fn build(self) -> World {
+    pub fn build<'b>(self) -> World {
         let size = self.size.unwrap_or((800, 600));
         let mut config = AppConfig::new(self.title, size);
         config.headless = self.headless;
+        config.fullscreen = self.fullscreen;
 
         let app = App::new(config);
 
@@ -119,7 +129,7 @@ impl<'a> WorldBuilder<'a> {
         let mut w = World {
             sound: SoundSystem::new(asys),
             engine,
-            app: Some(app),
+            app_instance: Some(app),
             main_tree: main_tree.clone(),
             watcher: Rc::new(watcher),
             shown_stats: self.shown_stats.unwrap_or(false),
@@ -127,6 +137,7 @@ impl<'a> WorldBuilder<'a> {
             events: events,
             golist: Vec::new(),
             processor_builders: self.processor_builders.clone(),
+            app_ref: None,
         };
 
         // add all processor into the scenes
@@ -208,7 +219,7 @@ mod profile {
     }
 }
 
-impl World {
+impl<'a> World {
     pub fn root(&self) -> Ref<GameObject> {
         self.main_tree.root()
     }
@@ -229,7 +240,7 @@ impl World {
         &mut self.engine
     }
 
-    pub fn current_camera<'a>(&self) -> Option<ComponentBorrow<Camera>> {
+    pub fn current_camera(&self) -> Option<ComponentBorrow<Camera>> {
         if self.engine.main_camera().is_none() {
             return None;
         }
@@ -308,7 +319,7 @@ impl World {
         self.events.borrow()
     }
 
-    pub fn asset_system<'a>(&'a self) -> &'a AssetSystem {
+    pub fn asset_system<'b>(&'b self) -> &'b AssetSystem {
         self.engine.asset_system()
     }
 
@@ -341,7 +352,10 @@ impl World {
         self.engine.render(ClearOption::default());
     }
 
-    pub fn run_frame(&mut self, _app: &mut App) {
+    pub fn run_frame<'b: 'a>(&mut self, app: *mut App) {
+        // We can make sure the lifetime of the App will longer then engine itself
+        self.app_ref = Some(unsafe { &mut *app });
+
         self.begin();
         self.step();
         self.pre_render();
@@ -349,10 +363,12 @@ impl World {
         self.end();
 
         profile::clear();
+
+        self.app_ref = None;
     }
 
     pub fn event_loop(mut self) {
-        let app = self.app.take().unwrap();
+        let app = { self.app_instance.take().unwrap() };
 
         app.run(move |app: &mut App| {
             self.run_frame(app);
@@ -360,13 +376,13 @@ impl World {
     }
 
     pub fn poll_events(&mut self) -> bool {
-        let mut a = self.app.take().unwrap();
+        let mut a = self.app_instance.take().unwrap();
 
         let r = a.poll_events(|app: &mut App| {
             self.run_frame(app);
         });
 
-        self.app = Some(a);
+        self.app_instance = Some(a);
 
         r
     }
@@ -388,5 +404,9 @@ impl World {
         self.engine
             .find_component::<T>()
             .map(|c| ComponentBorrow::new(c))
+    }
+
+    pub fn set_fullscreen(&mut self, b: bool) {
+        self.app_ref.as_mut().unwrap().set_fullscreen(b);
     }
 }

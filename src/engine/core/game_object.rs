@@ -32,7 +32,7 @@ pub struct ComponentType<T: 'static> {
     phantom: PhantomData<T>,
 
     // data is a kind of lock to do runtime borrow checking
-    data: RefCell<bool>,
+    data: RefCell<()>,
 }
 
 impl<T: 'static> ComponentType<T> {
@@ -98,7 +98,7 @@ impl Component {
             id: id,
             arena: arena.clone(),
             phantom: PhantomData::default(),
-            data: RefCell::new(false),
+            data: RefCell::new(()),
         };
 
         Arc::new(c)

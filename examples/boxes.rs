@@ -1,41 +1,64 @@
 extern crate nalgebra as na;
-extern crate ncollide;
+extern crate ncollide3d;
 extern crate nphysics3d;
 extern crate unrust;
 
 #[macro_use]
 extern crate unrust_derive;
 
-use unrust::world::{Actor, Handle, World, WorldBuilder};
 use unrust::engine::{Camera, DirectionalLight, GameObject, Light, Material, Mesh, PointLight};
-use unrust::world::events::*;
 use unrust::math;
+use unrust::math::Transform;
+use unrust::world::events::*;
+use unrust::world::{Actor, Handle, World, WorldBuilder};
 
-use ncollide::shape::{Cuboid, Cuboid3, Plane, Plane3};
+use ncollide3d::shape::{Cuboid, Plane, ShapeHandle};
+use nphysics3d::object;
+use nphysics3d::object::{BodyHandle, ColliderHandle};
+use nphysics3d::volumetric::Volumetric;
 use nphysics3d::world::World as PhyWorld;
-use nphysics3d::object::{RigidBody, RigidBodyHandle};
+
+use std::cell::RefCell;
+use std::rc::Rc;
 use unrust::actors::{ShadowPass, SkyBox};
 
 // GUI
-use unrust::imgui;
 use na::*;
+use unrust::imgui;
 
 pub struct Scene {
-    pub world: PhyWorld<f32>,
+    pub world: Handle<PhyWorld<f32>>,
 }
+
+const COLLIDER_MARGIN: f32 = 0.01;
 
 impl Scene {
     pub fn step(&mut self) {
-        self.world.step(0.016)
+        self.world.borrow_mut().step()
     }
 
-    pub fn add_box(&mut self) -> RigidBodyHandle<f32> {
+    pub fn add_box(&mut self) -> ColliderHandle {
         let rad = 1.0;
-        let geom = Cuboid::new(Vector3::new(rad - 0.04, rad - 0.04, rad - 0.04));
-        let mut rb = RigidBody::new_dynamic(geom, 1.0, 0.3, 0.5);
-        rb.append_translation(&Translation3::new(0.0, 30.0, 0.0));
+        let geom = ShapeHandle::new(Cuboid::new(Vector3::new(
+            rad - 0.04,
+            rad - 0.04,
+            rad - 0.04,
+        )));
+        let inertia = geom.inertia(1.0);
+        let center_of_mass = geom.center_of_mass();
 
-        self.world.add_rigid_body(rb)
+        let pos = Isometry3::new(Vector3::new(0.0, 30.0, 0.0), na::zero());
+        let handle = self.world
+            .borrow_mut()
+            .add_rigid_body(pos, inertia, center_of_mass);
+
+        self.world.borrow_mut().add_collider(
+            COLLIDER_MARGIN,
+            geom.clone(),
+            handle,
+            Isometry3::identity(),
+            object::Material::default(),
+        )
     }
 
     pub fn new() -> Scene {
@@ -48,10 +71,16 @@ impl Scene {
         /*
          * Plane
          */
-        let geom = Plane::new(Vector3::new(0.0, 1.0, 0.0));
+        let ground_shape =
+            ShapeHandle::new(Plane::new(Unit::new_normalize(Vector3::new(0.0, 1.0, 0.0))));
 
-        world.add_rigid_body(RigidBody::new_static(geom, 0.3, 0.6));
-
+        world.add_collider(
+            COLLIDER_MARGIN,
+            ground_shape,
+            BodyHandle::ground(),
+            Isometry3::identity(),
+            object::Material::default(),
+        );
         /*
          * Create the boxes
          */
@@ -62,6 +91,10 @@ impl Scene {
         let centery = shift / 2.0 + 0.04;
         let centerz = shift * (num as f32) / 2.0;
 
+        let geom = ShapeHandle::new(Cuboid::new(Vector3::repeat(rad - COLLIDER_MARGIN)));
+        let inertia = geom.inertia(1.0);
+        let center_of_mass = geom.center_of_mass();
+
         for i in 0usize..num {
             for j in 0usize..num {
                 for k in 0usize..num {
@@ -69,26 +102,43 @@ impl Scene {
                     let y = j as f32 * shift + centery;
                     let z = k as f32 * shift - centerz;
 
-                    let geom = Cuboid::new(Vector3::new(rad - 0.04, rad - 0.04, rad - 0.04));
-                    let mut rb = RigidBody::new_dynamic(geom, 1.0, 0.3, 0.5);
+                    let pos = Isometry3::new(Vector3::new(x, y, z), na::zero());
+                    let handle = world.add_rigid_body(pos, inertia, center_of_mass);
 
-                    rb.append_translation(&Translation3::new(x, y, z));
-
-                    world.add_rigid_body(rb);
+                    /*
+                     * Create the collider.
+                     */
+                    world.add_collider(
+                        COLLIDER_MARGIN,
+                        geom.clone(),
+                        handle,
+                        Isometry3::identity(),
+                        object::Material::default(),
+                    );
                 }
             }
         }
 
-        Scene { world: world }
+        Scene {
+            world: Rc::new(RefCell::new(world)),
+        }
     }
 }
 
 // Physic Object Component
 #[derive(Component)]
-struct PhysicObject(Handle<RigidBody<f32>>);
+struct PhysicObject(ColliderHandle, Handle<PhyWorld<f32>>);
+
 impl PhysicObject {
     fn phy_transform(&self) -> math::Isometry3<f32> {
-        let na_pos = *self.0.borrow().position();
+        let world = self.1.borrow();
+        let collider = world.collider(self.0).unwrap();
+        let body = match world.body(collider.data().body()) {
+            object::Body::RigidBody(rb) => rb,
+            _ => return math::Isometry3::one(),
+        };
+
+        let na_pos = body.position();
 
         use unrust::math::InnerSpace;
 
@@ -119,11 +169,12 @@ pub struct MainScene {
 }
 
 impl MainScene {
-    fn rigid_bodies(&mut self) -> Vec<Handle<RigidBody<f32>>> {
+    fn colliders(&mut self) -> Vec<ColliderHandle> {
         self.phy_scene
             .world
-            .rigid_bodies()
-            .map(|rb| rb.clone())
+            .borrow()
+            .colliders()
+            .map(|cb| cb.handle())
             .collect()
     }
 
@@ -132,19 +183,21 @@ impl MainScene {
         self.add_object(bx, world);
     }
 
-    fn add_object(&mut self, rb: Handle<RigidBody<f32>>, world: &mut World) {
-        let rbody = rb.borrow();
-        let shape = rbody.shape();
+    fn add_object(&mut self, id: ColliderHandle, world: &mut World) {
+        let phy_world = self.phy_scene.world.borrow();
+        let collider = phy_world.collider(id).unwrap();
+        let shape = collider.shape();
 
         let go = world.new_game_object();
-        go.borrow_mut().add_component(PhysicObject(rb.clone()));
+        go.borrow_mut()
+            .add_component(PhysicObject(id, self.phy_scene.world.clone()));
 
-        if let Some(_) = shape.as_shape::<Cuboid3<f32>>() {
-            let actor = CubeActor{ id: self.counter};
+        if let Some(_) = shape.as_shape::<Cuboid<f32>>() {
+            let actor = CubeActor { id: self.counter };
             self.counter += 1;
             go.borrow_mut().add_component(actor);
-        } else if let Some(_) = shape.as_shape::<Plane3<f32>>() {
-            go.borrow_mut().add_component(PlaneActor{});
+        } else if let Some(_) = shape.as_shape::<Plane<f32>>() {
+            go.borrow_mut().add_component(PlaneActor {});
         } else {
             unimplemented!();
         }
@@ -174,8 +227,7 @@ impl Actor for MainScene {
         // add direction light to scene.
         {
             let go = world.new_game_object();
-            go.borrow_mut()
-                .add_component(DirectionalLight::default());
+            go.borrow_mut().add_component(DirectionalLight::default());
         }
 
         // add points light
@@ -199,10 +251,10 @@ impl Actor for MainScene {
 
         // Add the physics object
         {
-            let rigid_bodies = self.rigid_bodies();
+            let colliders = self.colliders();
 
-            for rb in rigid_bodies.into_iter() {
-                self.add_object(rb, world);
+            for cb in colliders.into_iter() {
+                self.add_object(cb, world);
             }
         }
     }

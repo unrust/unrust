@@ -34,9 +34,7 @@ version = "1.0"
 
 # Image related dependencies
 [dependencies.image]
-# version = "*"
-git = "https://github.com/edwin0cheng/image"
-branch = "impl_tga_read_scanline"
+version = "0.19.0"
 default-features = false
 features = ["png_codec", "tga"]
 

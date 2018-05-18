@@ -20,6 +20,7 @@ impl PartialEq for TexturePtr {
 pub enum MaterialParam {
     Texture(TexturePtr),
     Float(f32),
+    Int(i32),
     Bool(bool),
     Vec2(Vector2<f32>),
     Vec3(Vector3<f32>),
@@ -42,6 +43,7 @@ macro_rules! impl_from_material_param {
 
 impl_from_material_param!(bool, Bool);
 impl_from_material_param!(f32, Float);
+impl_from_material_param!(i32, Int);
 impl_from_material_param!(Vector2<f32>, Vec2);
 impl_from_material_param!(Vector3<f32>, Vec3);
 impl_from_material_param!(Vector4<f32>, Vec4);
@@ -145,6 +147,9 @@ impl Material {
                 }
                 &MaterialParam::Float(f) => {
                     self.program.set(name.clone(), f);
+                }
+                &MaterialParam::Int(v) => {
+                    self.program.set(name.clone(), v);
                 }
                 &MaterialParam::Vec2(v) => {
                     self.program.set(name.clone(), v);

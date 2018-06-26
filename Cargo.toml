@@ -6,9 +6,9 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 cgmath = "0.16.1"
-webgl = {path="webgl"}
-uni-app = {path="uni-app"}
-uni-glsl = {path="uni-glsl"}
+webgl = {git="https://github.com/unrust/webgl"}
+uni-app = {git="https://github.com/unrust/uni-app"}
+uni-glsl = {git="https://github.com/unrust/uni-glsl"}
 uni-snd = {path="uni-snd"}
 uni-pad = {path="uni-pad"}
 unrust-derive= {path="unrust-derive"}

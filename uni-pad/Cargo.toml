@@ -6,4 +6,4 @@ authors = ["jice <jice.nospam@gmail.com>"]
 [dependencies]
 uni-app={git="https://github.com/unrust/uni-app"}
 [target.wasm32-unknown-unknown.dependencies]
-stdweb =  "0.4.1"
+stdweb =  "0.4.8"

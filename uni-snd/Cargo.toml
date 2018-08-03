@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["jice <jice.nospam@gmail.com>"]
 
 [dependencies]
-uni-app={git="https://github.com/unrust/uni-app"}
+uni-app="0.1.*"
 [target.wasm32-unknown-unknown.dependencies]
 stdweb =  "0.4.8"
 

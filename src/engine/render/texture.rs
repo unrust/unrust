@@ -1,5 +1,5 @@
-use webgl;
-use webgl::*;
+use uni_gl;
+use uni_gl::*;
 
 use image::{RgbImage, RgbaImage};
 
@@ -267,7 +267,7 @@ fn texture_bind_buffer(
     kind: &TextureKind,
     unit: u32,
 ) -> AssetResult<TextureGLState> {
-    let mut gl_tex_kind: webgl::TextureKind = webgl::TextureKind::Texture2d;
+    let mut gl_tex_kind: uni_gl::TextureKind = uni_gl::TextureKind::Texture2d;
     let mut force_nearest_filtering = false;
 
     let (tex, size, has_midmap) = match kind {
@@ -455,7 +455,7 @@ fn texture_bind_buffer(
                 has_midmap = true;
             }
 
-            gl_tex_kind = webgl::TextureKind::TextureCubeMap;
+            gl_tex_kind = uni_gl::TextureKind::TextureCubeMap;
 
             (tex, size, has_midmap)
         }
@@ -514,9 +514,9 @@ fn texture_bind_buffer(
     }
 
     let to_gl_wrap = |w: TextureWrap| match w {
-        TextureWrap::Repeat => webgl::TextureWrap::Repeat as i32,
-        TextureWrap::ClampToEdge => webgl::TextureWrap::ClampToEdge as i32,
-        TextureWrap::MirroredRepeat => webgl::TextureWrap::MirroredRepeat as i32,
+        TextureWrap::Repeat => uni_gl::TextureWrap::Repeat as i32,
+        TextureWrap::ClampToEdge => uni_gl::TextureWrap::ClampToEdge as i32,
+        TextureWrap::MirroredRepeat => uni_gl::TextureWrap::MirroredRepeat as i32,
     };
 
     gl.tex_parameteri(gl_tex_kind, TextureParameter::TextureMinFilter, filtering.0);

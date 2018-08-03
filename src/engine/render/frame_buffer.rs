@@ -1,4 +1,4 @@
-use webgl::*;
+use uni_gl::*;
 
 use std::rc::Rc;
 use std::cell::RefCell;

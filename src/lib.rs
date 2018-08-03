@@ -16,7 +16,7 @@ extern crate uni_app;
 extern crate uni_glsl;
 extern crate uni_pad;
 extern crate uni_snd;
-extern crate webgl;
+extern crate uni_gl;
 
 #[macro_use]
 extern crate unrust_derive;

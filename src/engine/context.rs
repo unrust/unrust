@@ -6,24 +6,24 @@ use engine::render::{CullMode, DepthTest, Material, MaterialState, MeshBuffer, S
 use std::collections::VecDeque;
 use std::rc::{Rc, Weak};
 use std::sync::Arc;
-use webgl;
-use webgl::{Culling, Flag, WebGLRenderingContext};
+use uni_gl;
+use uni_gl::{Culling, Flag, WebGLRenderingContext};
 
 trait ToGLState<T> {
     fn as_gl_state(&self) -> T;
 }
 
-impl ToGLState<webgl::DepthTest> for DepthTest {
-    fn as_gl_state(&self) -> webgl::DepthTest {
+impl ToGLState<uni_gl::DepthTest> for DepthTest {
+    fn as_gl_state(&self) -> uni_gl::DepthTest {
         match self {
-            &DepthTest::Never => webgl::DepthTest::Never,
-            &DepthTest::Always => webgl::DepthTest::Always,
-            &DepthTest::Less => webgl::DepthTest::Less,
-            &DepthTest::LessEqual => webgl::DepthTest::Lequal,
-            &DepthTest::Greater => webgl::DepthTest::Greater,
-            &DepthTest::NotEqual => webgl::DepthTest::Notequal,
-            &DepthTest::GreaterEqual => webgl::DepthTest::Gequal,
-            &DepthTest::Equal => webgl::DepthTest::Equal,
+            &DepthTest::Never => uni_gl::DepthTest::Never,
+            &DepthTest::Always => uni_gl::DepthTest::Always,
+            &DepthTest::Less => uni_gl::DepthTest::Less,
+            &DepthTest::LessEqual => uni_gl::DepthTest::Lequal,
+            &DepthTest::Greater => uni_gl::DepthTest::Greater,
+            &DepthTest::NotEqual => uni_gl::DepthTest::Notequal,
+            &DepthTest::GreaterEqual => uni_gl::DepthTest::Gequal,
+            &DepthTest::Equal => uni_gl::DepthTest::Equal,
         }
     }
 }
@@ -96,9 +96,9 @@ impl StateCache {
         }
 
         if let &DepthTest::Never = ct {
-            gl.disable(webgl::Flag::DepthTest as i32);
+            gl.disable(uni_gl::Flag::DepthTest as i32);
         } else {
-            gl.enable(webgl::Flag::DepthTest as i32);
+            gl.enable(uni_gl::Flag::DepthTest as i32);
             gl.depth_func(ct.as_gl_state());
         }
 

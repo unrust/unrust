@@ -9,7 +9,7 @@ cgmath = "0.16.1"
 uni-gl = "0.1.*"
 uni-app = "0.1.*"
 uni-glsl = {git="https://github.com/unrust/uni-glsl"}
-uni-snd = {path="uni-snd"}
+uni-snd = "0.1.*"
 uni-pad = {path="uni-pad"}
 unrust-derive= {path="unrust-derive"}
 

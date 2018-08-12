@@ -1,5 +1,5 @@
 use math::*;
-use webgl::*;
+use uni_gl::*;
 
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
@@ -752,7 +752,7 @@ where
 
     pub fn capture_frame_buffer(&self) -> Option<image::RgbaImage> {
         use image::imageops;
-        use webgl;
+        use uni_gl;
 
         let (width, height) = self.screen_size();
 
@@ -762,8 +762,8 @@ where
             0,
             width,
             height,
-            webgl::PixelFormat::Rgba,
-            webgl::PixelType::UnsignedByte,
+            uni_gl::PixelFormat::Rgba,
+            uni_gl::PixelType::UnsignedByte,
             &mut values,
         );
 

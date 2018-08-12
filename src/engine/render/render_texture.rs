@@ -2,7 +2,7 @@ use engine::render::{Texture, TextureAttachment};
 use std::rc::Rc;
 use std::ops::Deref;
 use engine::render::frame_buffer::FrameBuffer;
-use webgl::WebGLRenderingContext;
+use uni_gl::WebGLRenderingContext;
 
 pub struct RenderTexture(FrameBuffer);
 

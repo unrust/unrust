@@ -1,5 +1,5 @@
 use std::mem::size_of;
-use webgl::*;
+use uni_gl::*;
 
 use super::ShaderProgram;
 use engine::asset::{Asset, AssetResult, AssetSystem, FileFuture, LoadableAsset, Resource};

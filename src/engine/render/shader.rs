@@ -5,7 +5,7 @@ use uni_glsl::preprocessor::PreprocessError;
 // use uni_glsl::TypeQualifier;
 // use uni_glsl::query::*;
 
-use webgl;
+use uni_gl;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
@@ -49,7 +49,7 @@ impl PreprocessedShaderCode {
         external_files: &HashMap<String, String>,
     ) -> Result<PreprocessedShaderCode, PreprocessError> {
         let prefix = match kind {
-            ShaderKind::Vertex => if !webgl::IS_GL_ES {
+            ShaderKind::Vertex => if !uni_gl::IS_GL_ES {
                 "#version 150\n".to_owned()
             } else {
                 if s.starts_with("#define USE_GLSL_300ES") {
@@ -59,7 +59,7 @@ impl PreprocessedShaderCode {
                 }
             },
 
-            ShaderKind::Fragment => if !webgl::IS_GL_ES {
+            ShaderKind::Fragment => if !uni_gl::IS_GL_ES {
                 "#version 150\n".to_owned()
             } else {
                 if s.starts_with("#define USE_GLSL_300ES") {
@@ -71,7 +71,7 @@ impl PreprocessedShaderCode {
         };
 
         let mut predefs: HashMap<String, String> = HashMap::new();
-        if webgl::IS_GL_ES {
+        if uni_gl::IS_GL_ES {
             predefs.insert("GL_ES".to_string(), "".to_string());
         }
 
@@ -108,7 +108,7 @@ where
     }
 
     pub fn from_preprocessed(filename: &str, code: PreprocessedShaderCode) -> Shader<T> {
-        webgl::print(&format!("preprocessing {}...\n", filename));
+        uni_gl::print(&format!("preprocessing {}...\n", filename));
 
         Shader {
             //unit: unit,

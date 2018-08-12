@@ -7,7 +7,7 @@ use std::rc;
 use fnv::FnvHashMap;
 use std::borrow::Cow;
 
-use webgl::{WebGLProgram, WebGLRenderingContext, WebGLUniformLocation};
+use uni_gl::{WebGLProgram, WebGLRenderingContext, WebGLUniformLocation};
 use engine::render::Texture;
 
 trait IntoBytes {

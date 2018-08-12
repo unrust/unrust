@@ -4,7 +4,7 @@ use engine::render::uniforms::*;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
-use webgl::{ShaderKind as WebGLShaderKind, WebGLProgram, WebGLRenderingContext};
+use uni_gl::{ShaderKind as WebGLShaderKind, WebGLProgram, WebGLRenderingContext};
 
 use std::borrow::Cow;
 

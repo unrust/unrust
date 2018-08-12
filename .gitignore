@@ -2,7 +2,7 @@ Cargo.lock
 /target/
 **/*.rs.bk
 **/.DS_Store
-
+Cargo.lock
 /.vscode
 /webgl/target/**
 /buildnative.bat

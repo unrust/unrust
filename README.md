@@ -25,7 +25,7 @@ You can reference [basic.rs](https://github.com/edwin0cheng/unrust/blob/master/e
 
 ### As web app (wasm32-unknown-unknown)
 
-The target `wasm32-unknown-unknown` is currently only on the nightly builds as of Jan-30 2018.
+The target `wasm32-unknown-unknown` is currently only on the nightly builds as of 2018-08-05.
 
 ```
 cargo install cargo-web # installs web sub command
